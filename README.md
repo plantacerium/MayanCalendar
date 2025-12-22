@@ -120,10 +120,6 @@ Mayan-Calendar/
 - **Style**: Fusion theme with custom stone-carved aesthetic
 - **Animations**: Smooth Qt property animations
 
-## 📜 License
-
-MIT License - Feel free to use, modify, and distribute.
-
 ## 🙏 Acknowledgments
 
 - Mayan calendar mathematics based on scholarly research
@@ -133,4 +129,5 @@ MIT License - Feel free to use, modify, and distribute.
 ---
 
 *"Time is not a line, but a circle of cycles within cycles."*
+
 
