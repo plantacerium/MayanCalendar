@@ -4,7 +4,6 @@ A comprehensive, visually stunning Mayan calendar application built with Python 
 
 ![Python](https://img.shields.io/badge/Python-3.8+-blue.svg)
 ![PySide6](https://img.shields.io/badge/PySide6-6.0+-green.svg)
-![License](https://img.shields.io/badge/License-MIT-yellow.svg)
 
 ## ✨ Features
 
@@ -134,3 +133,4 @@ MIT License - Feel free to use, modify, and distribute.
 ---
 
 *"Time is not a line, but a circle of cycles within cycles."*
+
