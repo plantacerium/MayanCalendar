@@ -128,6 +128,7 @@ Mayan-Calendar/
 
 ---
 
-*"Time is not a line, but a circle of cycles within cycles."*
+*"Time is not a line, but a spiral of cycles within cycles."*
+
 
 
