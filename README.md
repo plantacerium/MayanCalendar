@@ -35,8 +35,8 @@ A comprehensive, visually stunning Mayan calendar application built with Python 
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/Mayan-Calendar.git
-cd Mayan-Calendar
+git clone https://github.com/plantacerium/MayanCalendar.git
+cd MayanCalendar
 
 # Install dependencies
 pip install PySide6
