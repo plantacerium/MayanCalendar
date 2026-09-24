@@ -138,7 +138,7 @@ class MayanConverter:
 
         # 819-day cycle (K'awiil)
         kawiil_pos = days_since_epoch % 819
-        kawiil_color_idx = (kawiil_pos // 819) % 4
+        kawiil_color_idx = (days_since_epoch // 819) % 4
         kawiil_color = self.KAWIIL_COLORS[kawiil_color_idx % 4]
 
         # Venus cycle (584 days)
@@ -224,7 +224,7 @@ class FractalPatternAnalyzer:
     def __init__(self, converter):
         self.converter = converter
     
-    def calculate_resonance_score(self, year, month, day):
+    def calculate_resonance_score(self, year, month, day, selected_cycles=None):
         """Calculate how many cycles align on this date (0-100%)."""
         data = self.converter.get_full_date(year, month, day)
         days = data['days_since_epoch']
@@ -233,17 +233,19 @@ class FractalPatternAnalyzer:
         weights = 0
         
         checks = [
-            (days % 260, 260, 1.0),      # Tzolkin
-            (days % 365, 365, 0.8),      # Haab
-            (days % 18980, 18980, 2.0),  # Calendar Round
-            (days % 9, 9, 0.5),          # Lords
-            (days % 819, 819, 0.7),      # 819-day
-            (days % 584, 584, 0.9),      # Venus
-            (days % 780, 780, 0.6),      # Mars
-            (days % 360, 360, 0.7),      # Tun
+            ('Tzolkin', days % 260, 260, 1.0),
+            ('Haab', days % 365, 365, 0.8),
+            ('Calendar Round', days % 18980, 18980, 2.0),
+            ('Lord of Night', days % 9, 9, 0.5),
+            ('819-Day', days % 819, 819, 0.7),
+            ('Venus', days % 584, 584, 0.9),
+            ('Mars', days % 780, 780, 0.6),
+            ('Tun', days % 360, 360, 0.7),
         ]
         
-        for pos, cycle, weight in checks:
+        for name, pos, cycle, weight in checks:
+            if selected_cycles is not None and name not in selected_cycles:
+                continue
             proximity = min(pos, cycle - pos) / cycle
             alignment = 1.0 - (proximity * 2)
             alignments += alignment * weight
@@ -266,7 +268,7 @@ class FractalPatternAnalyzer:
         total_days = months_ahead * 30
         for day_offset in range(total_days):
             current = start + timedelta(days=day_offset)
-            score = self.calculate_resonance_score(current.year, current.month, current.day)
+            score = self.calculate_resonance_score(current.year, current.month, current.day, selected_cycles)
             
             if score > 60:
                 data = self.converter.get_full_date(current.year, current.month, current.day)
@@ -340,7 +342,18 @@ class StoneLabel(QLabel):
 
 
 class CircularCalendarWidget(QWidget):
-    """Circular visualization of Tzolkin and Haab calendars."""
+    """Circular visualization of Tzolkin and Haab calendars with labelled segments."""
+    
+    HAAB_LABELS = [
+        "Pop", "Uo", "Zip", "Zotz", "Tzec", "Xul", "Yaxkin", "Mol", "Chen",
+        "Yax", "Zac", "Ceh", "Mac", "Kankin", "Muan", "Pax", "Kayab", "Cumku", "Wayeb"
+    ]
+    TZOLKIN_LABELS = [
+        "Ahau", "Imix", "Ik", "Akbal", "Kan", "Chicchan", "Cimi", "Manik",
+        "Lamat", "Muluc", "Oc", "Chuen", "Eb", "Ben", "Ix", "Men",
+        "Cib", "Caban", "Etznab", "Cauac"
+    ]
+    LORD_LABELS = ["G1", "G2", "G3", "G4", "G5", "G6", "G7", "G8", "G9"]
     
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -378,6 +391,7 @@ class CircularCalendarWidget(QWidget):
     def paintEvent(self, event):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.Antialiasing)
+        painter.setRenderHint(QPainter.TextAntialiasing)
         
         w, h = self.width(), self.height()
         cx, cy = w // 2, h // 2
@@ -393,15 +407,15 @@ class CircularCalendarWidget(QWidget):
         
         # Outer ring - Haab (19 segments)
         self._draw_ring(painter, cx, cy, max_r - 5, max_r - 40, 19, self._haab_idx, 
-                       QColor(139, 90, 43), QColor(210, 150, 80))
+                       QColor(139, 90, 43), QColor(210, 150, 80), self.HAAB_LABELS)
         
         # Middle ring - Tzolkin (20 segments)
         self._draw_ring(painter, cx, cy, max_r - 45, max_r - 80, 20, self._tzolkin_idx,
-                       QColor(80, 100, 60), QColor(150, 180, 100))
+                       QColor(80, 100, 60), QColor(150, 180, 100), self.TZOLKIN_LABELS)
         
         # Inner ring - Lords (9 segments)
         self._draw_ring(painter, cx, cy, max_r - 85, max_r - 110, 9, self._lord_idx,
-                       QColor(100, 50, 50), QColor(180, 80, 80))
+                       QColor(100, 50, 50), QColor(180, 80, 80), self.LORD_LABELS)
         
         # Center circle
         center_grad = QRadialGradient(cx, cy, max_r - 115)
@@ -412,7 +426,7 @@ class CircularCalendarWidget(QWidget):
         painter.drawEllipse(cx - (max_r - 115), cy - (max_r - 115), 
                            (max_r - 115) * 2, (max_r - 115) * 2)
     
-    def _draw_ring(self, painter, cx, cy, outer_r, inner_r, segments, highlight_idx, base_color, highlight_color):
+    def _draw_ring(self, painter, cx, cy, outer_r, inner_r, segments, highlight_idx, base_color, highlight_color, labels=None):
         segment_angle = 360 / segments
         
         for i in range(segments):
@@ -431,6 +445,48 @@ class CircularCalendarWidget(QWidget):
             
             path_rect = QRectF(cx - outer_r, cy - outer_r, outer_r * 2, outer_r * 2)
             painter.drawPie(path_rect, start_angle, span_angle)
+        
+        # Draw labels on each segment
+        if labels and outer_r > 30:
+            mid_r = (outer_r + inner_r) / 2
+            ring_thickness = outer_r - inner_r
+            font_size = max(6, min(9, int(ring_thickness * 0.28)))
+            label_font = QFont("Segoe UI", font_size)
+            label_font.setBold(True)
+            painter.setFont(label_font)
+            
+            for i in range(segments):
+                mid_angle_deg = i * segment_angle + segment_angle / 2 + self._rotation
+                mid_angle_rad = math.radians(mid_angle_deg)
+                
+                # Position at midpoint of segment arc
+                lx = cx + mid_r * math.cos(mid_angle_rad)
+                ly = cy - mid_r * math.sin(mid_angle_rad)
+                
+                label = labels[i] if i < len(labels) else ""
+                # Truncate long labels to fit
+                if ring_thickness < 40 and len(label) > 4:
+                    label = label[:4]
+                
+                # Text colour: bright for highlighted, subtle for others
+                if i == highlight_idx:
+                    painter.setPen(QColor(30, 20, 10))
+                else:
+                    painter.setPen(QColor(220, 200, 170, 180))
+                
+                # Rotate text to follow the arc
+                painter.save()
+                painter.translate(lx, ly)
+                text_rotation = -mid_angle_deg + 90
+                if 90 < mid_angle_deg % 360 < 270:
+                    text_rotation += 180
+                painter.rotate(text_rotation)
+                
+                fm = painter.fontMetrics()
+                tw = fm.horizontalAdvance(label)
+                th = fm.height()
+                painter.drawText(int(-tw / 2), int(th / 4), label)
+                painter.restore()
 
 
 class LongCountDisplay(QWidget):
@@ -593,6 +649,16 @@ class MayanSteleApp(QMainWindow):
         self._apply_global_style()
         self._setup_ui()
         self._set_initial_date()
+        
+        # Live Mayan date clock in status bar
+        self.statusBar().setStyleSheet(
+            "QStatusBar { background: #1a1815; color: #d4af37; font-size: 12px; "
+            "border-top: 1px solid #444; padding: 4px; }"
+        )
+        self._clock_timer = QTimer(self)
+        self._clock_timer.timeout.connect(self._update_live_clock)
+        self._clock_timer.start(60000)  # refresh every minute
+        self._update_live_clock()       # initial display
 
     def _apply_global_style(self):
         self.setStyleSheet("""
@@ -664,6 +730,32 @@ class MayanSteleApp(QMainWindow):
         
         input_layout.addStretch()
         main_layout.addLayout(input_layout)
+
+        # Long Count → Gregorian reverse conversion row
+        lc_layout = QHBoxLayout()
+        lc_layout.addWidget(StoneLabel("Long Count:", size=12, color="#aaa"))
+        
+        self.lc_spins = []
+        lc_names = [("Baktun", 0, 19), ("Katun", 0, 19), ("Tun", 0, 19), ("Uinal", 0, 17), ("Kin", 0, 19)]
+        for name, lo, hi in lc_names:
+            spin = QSpinBox()
+            spin.setRange(lo, hi)
+            spin.setValue(13 if name == "Baktun" else 0)
+            spin.setPrefix(f"{name}: ")
+            spin.setFixedWidth(110)
+            self.lc_spins.append(spin)
+            lc_layout.addWidget(spin)
+            if name != "Kin":
+                dot = StoneLabel(".", size=16, is_bold=True, color="#888")
+                dot.setFixedWidth(10)
+                lc_layout.addWidget(dot)
+        
+        self.btn_lc_convert = QPushButton("⟶ To Gregorian")
+        self.btn_lc_convert.clicked.connect(self._convert_long_count)
+        lc_layout.addWidget(self.btn_lc_convert)
+        
+        lc_layout.addStretch()
+        main_layout.addLayout(lc_layout)
 
         # Tab widget
         self.tabs = QTabWidget()
@@ -843,6 +935,12 @@ class MayanSteleApp(QMainWindow):
         # Update Long Count display
         self.long_count_display.set_long_count(data["long_count_parts"])
         
+        # Sync Long Count spin boxes (reverse conversion row)
+        for spin, val in zip(self.lc_spins, data["long_count_parts"]):
+            spin.blockSignals(True)
+            spin.setValue(val)
+            spin.blockSignals(False)
+        
         # Update panels
         self.panel_tzolkin.update_data(
             f"{data['tzolkin_glyph']} {data['tzolkin']}",
@@ -890,6 +988,29 @@ class MayanSteleApp(QMainWindow):
         # Force UI refresh
         self.convergence_table.viewport().update()
 
+    def _convert_long_count(self):
+        """Convert Long Count spin box values to Gregorian and set the date picker."""
+        parts = [spin.value() for spin in self.lc_spins]
+        year, month, day = self.converter.long_count_to_gregorian(*parts)
+        # Block signals to avoid circular update loop
+        self.date_edit.blockSignals(True)
+        self.date_edit.setDate(QDate(year, month, day))
+        self.date_edit.blockSignals(False)
+        self.convert_date()
+
+    def _update_live_clock(self):
+        """Update the status bar with the current Mayan date in real-time."""
+        now = datetime.now()
+        data = self.converter.get_full_date(now.year, now.month, now.day)
+        clock_text = (
+            f"  Now: {data['long_count']}  •  "
+            f"{data['tzolkin_glyph']} {data['tzolkin']}  •  "
+            f"{data['haab']}  •  "
+            f"{data['lord']}  •  "
+            f"{data['venus_phase']}  •  "
+            f"{data['moon_phase']}"
+        )
+        self.statusBar().showMessage(clock_text)
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
