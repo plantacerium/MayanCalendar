@@ -7,11 +7,13 @@ import sys
 import math
 from functools import reduce
 from datetime import datetime, timedelta
+import csv
 from PySide6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QGridLayout,
     QLabel, QDateEdit, QPushButton, QFrame, QGraphicsDropShadowEffect,
     QTabWidget, QTableWidget, QTableWidgetItem, QHeaderView, QCheckBox,
-    QSpinBox, QScrollArea, QGroupBox, QSplitter, QSlider, QProgressBar, QComboBox
+    QSpinBox, QScrollArea, QGroupBox, QSplitter, QSlider, QProgressBar, QComboBox,
+    QFileDialog, QMessageBox
 )
 from PySide6.QtCore import QDate, Qt, QSize, QTimer, QPropertyAnimation, QEasingCurve, Property, QRectF
 from PySide6.QtGui import QFont, QColor, QPalette, QIcon, QPainter, QPen, QBrush, QRadialGradient, QLinearGradient, QConicalGradient
@@ -944,6 +946,11 @@ class MayanSteleApp(QMainWindow):
         self.btn_analyze.clicked.connect(self._analyze_patterns)
         controls.addWidget(self.btn_analyze)
         
+        self.btn_export = QPushButton("💾 Export CSV")
+        self.btn_export.clicked.connect(self._export_fractal_results)
+        self.btn_export.setEnabled(False)
+        controls.addWidget(self.btn_export)
+        
         controls.addStretch()
         
         # Natal Resonance Mode
@@ -1227,6 +1234,34 @@ class MayanSteleApp(QMainWindow):
         
         # Force UI refresh
         self.convergence_table.viewport().update()
+        
+        if hasattr(self, 'btn_export'):
+            self.btn_export.setEnabled(True)
+
+    def _export_fractal_results(self):
+        if self.convergence_table.rowCount() == 0:
+            return
+            
+        path, _ = QFileDialog.getSaveFileName(self, "Export Fractal Results", "", "CSV Files (*.csv);;All Files (*)")
+        if not path:
+            return
+            
+        try:
+            with open(path, 'w', newline='', encoding='utf-8') as f:
+                writer = csv.writer(f)
+                headers = [self.convergence_table.horizontalHeaderItem(i).text() for i in range(self.convergence_table.columnCount())]
+                writer.writerow(headers)
+                
+                for row in range(self.convergence_table.rowCount()):
+                    row_data = []
+                    for col in range(self.convergence_table.columnCount()):
+                        item = self.convergence_table.item(row, col)
+                        row_data.append(item.text() if item else "")
+                    writer.writerow(row_data)
+            
+            QMessageBox.information(self, "Export Successful", f"Results successfully exported to:\n{path}")
+        except Exception as e:
+            QMessageBox.critical(self, "Export Failed", f"An error occurred while exporting:\n{str(e)}")
 
     def _change_correlation(self):
         index = self.combo_correlation.currentIndex()
