@@ -295,6 +295,7 @@ class FractalPatternAnalyzer:
             (0.25, 0.6),          # Square (Quarter)
             (0.75, 0.6),          # Square (Three-quarters)
             (0.618034, 0.7),      # Golden Ratio (Phi)
+            (0.7836, 0.85),       # Braden Ratio (Fractal Time Constant)
             (1.0, 1.0)            # End of cycle
         ]
         
