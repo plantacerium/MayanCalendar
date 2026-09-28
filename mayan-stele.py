@@ -11,7 +11,7 @@ from PySide6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QGridLayout,
     QLabel, QDateEdit, QPushButton, QFrame, QGraphicsDropShadowEffect,
     QTabWidget, QTableWidget, QTableWidgetItem, QHeaderView, QCheckBox,
-    QSpinBox, QScrollArea, QGroupBox, QSplitter, QSlider, QProgressBar
+    QSpinBox, QScrollArea, QGroupBox, QSplitter, QSlider, QProgressBar, QComboBox
 )
 from PySide6.QtCore import QDate, Qt, QSize, QTimer, QPropertyAnimation, QEasingCurve, Property, QRectF
 from PySide6.QtGui import QFont, QColor, QPalette, QIcon, QPainter, QPen, QBrush, QRadialGradient, QLinearGradient, QConicalGradient
@@ -23,7 +23,9 @@ from PySide6.QtGui import QFont, QColor, QPalette, QIcon, QPainter, QPen, QBrush
 class MayanConverter:
     """Advanced Mayan Calendar converter with all major cycles."""
     
-    MAYA_EPOCH_JDN = 584283  # GMT Correlation (13.0.0.0.0 = 4 Ahau 8 Cumku)
+    def __init__(self, correlation_jdn=584283):
+        # 584283 = GMT, 584285 = GMT+2, 489384 = Spinden
+        self.correlation_jdn = correlation_jdn
     
     # Tzolkin day names with meanings and glyphs
     TZOLKIN_DATA = [
@@ -97,10 +99,18 @@ class MayanConverter:
     def get_full_date(self, year, month, day):
         """Returns comprehensive Mayan date data."""
         jdn = self._gregorian_to_jdn(year, month, day)
-        days_since_epoch = jdn - self.MAYA_EPOCH_JDN
+        days_since_epoch = jdn - self.correlation_jdn
 
-        # Long Count
+        # Deep Time Long Count Cycles
         temp_days = days_since_epoch
+        alautun = temp_days // 23040000000
+        temp_days %= 23040000000
+        kinchiltun = temp_days // 1152000000
+        temp_days %= 1152000000
+        kalabtun = temp_days // 57600000
+        temp_days %= 57600000
+        piktun = temp_days // 2880000
+        temp_days %= 2880000
         baktun = temp_days // 144000
         temp_days %= 144000
         katun = temp_days // 7200
@@ -109,8 +119,14 @@ class MayanConverter:
         temp_days %= 360
         uinal = temp_days // 20
         kin = temp_days % 20
-        long_count_str = f"{baktun}.{katun}.{tun}.{uinal}.{kin}"
+        
+        if alautun > 0 or kinchiltun > 0 or kalabtun > 0 or piktun > 0:
+            long_count_str = f"{piktun}.{baktun}.{katun}.{tun}.{uinal}.{kin}"
+        else:
+            long_count_str = f"{baktun}.{katun}.{tun}.{uinal}.{kin}"
+            
         long_count_parts = [baktun, katun, tun, uinal, kin]
+        deep_long_count = [alautun, kinchiltun, kalabtun, piktun, baktun, katun, tun, uinal, kin]
 
         # Tzolkin (260 days)
         tz_num = (jdn + 4) % 13
@@ -151,9 +167,27 @@ class MayanConverter:
         # Mars cycle (780 days)
         mars_pos = days_since_epoch % 780
 
-        # Lunar data (approximation)
+        # Lunar Supplementary Series (Glyphs G, F, C, X, B, A)
+        # Palenque base of ~22.6 days moon age at 13.0.0.0.0
         lunar_cycle = 29.53059
-        moon_age = (jdn - 2451550.1) % lunar_cycle
+        total_lunar_days = days_since_epoch + 22.6
+        lunation_number = int(total_lunar_days / lunar_cycle)
+        moon_age = total_lunar_days % lunar_cycle
+        
+        if moon_age < 0:
+            moon_age += lunar_cycle
+            lunation_number -= 1
+            
+        glyph_c = (lunation_number % 6) + 1  # 1 to 6 lunations per semester
+        glyph_a = 30 if (lunation_number % 2 == 0) else 29
+        
+        glyph_x_deities = {
+            1: "God C (Young Moon)", 2: "God of Num 10", 
+            3: "Jaguar God of Underworld", 4: "Death God", 
+            5: "Old Earth Deity", 6: "Young God"
+        }
+        glyph_x = glyph_x_deities.get(glyph_c, "Unknown")
+
         if moon_age < 1.85: moon_phase = "New Moon 🌑"
         elif moon_age < 7.38: moon_phase = "Waxing Crescent 🌒"
         elif moon_age < 9.23: moon_phase = "First Quarter 🌓"
@@ -166,6 +200,7 @@ class MayanConverter:
         return {
             "long_count": long_count_str,
             "long_count_parts": long_count_parts,
+            "deep_long_count": deep_long_count,
             "tzolkin": f"{tz_num} {tz_name}",
             "tzolkin_num": tz_num,
             "tzolkin_name": tz_name,
@@ -189,15 +224,23 @@ class MayanConverter:
             "mars_pos": mars_pos,
             "moon_age": moon_age,
             "moon_phase": moon_phase,
+            "glyph_c": glyph_c,
+            "glyph_a": glyph_a,
+            "glyph_x": glyph_x,
             "jdn": jdn,
             "days_since_epoch": days_since_epoch
         }
 
-    def long_count_to_gregorian(self, baktun, katun, tun, uinal, kin):
-        """Convert Long Count to Gregorian date."""
-        days = baktun * 144000 + katun * 7200 + tun * 360 + uinal * 20 + kin
-        jdn = self.MAYA_EPOCH_JDN + days
+    def long_count_to_gregorian(self, baktun, katun, tun, uinal, kin, piktun=0, kalabtun=0):
+        """Convert Long Count (including deep cycles) to Gregorian date."""
+        days = kalabtun * 57600000 + piktun * 2880000 + baktun * 144000 + katun * 7200 + tun * 360 + uinal * 20 + kin
+        jdn = self.correlation_jdn + days
         return self._jdn_to_gregorian(jdn)
+        
+    def add_distance_number(self, base_jdn, days):
+        """Vital mathematical function: Add or subtract a Distance Number (in days)."""
+        new_jdn = base_jdn + days
+        return self._jdn_to_gregorian(new_jdn)
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -224,8 +267,8 @@ class FractalPatternAnalyzer:
     def __init__(self, converter):
         self.converter = converter
     
-    def calculate_resonance_score(self, year, month, day, selected_cycles=None):
-        """Calculate how many cycles align on this date (0-100%)."""
+    def calculate_resonance_score(self, year, month, day, selected_cycles=None, natal_days=None):
+        """Calculate how many cycles align on this date (0-100%). Supports Harmonic Nodes and Natal Resonance."""
         data = self.converter.get_full_date(year, month, day)
         days = data['days_since_epoch']
         
@@ -233,27 +276,52 @@ class FractalPatternAnalyzer:
         weights = 0
         
         checks = [
-            ('Tzolkin', days % 260, 260, 1.0),
-            ('Haab', days % 365, 365, 0.8),
-            ('Calendar Round', days % 18980, 18980, 2.0),
-            ('Lord of Night', days % 9, 9, 0.5),
-            ('819-Day', days % 819, 819, 0.7),
-            ('Venus', days % 584, 584, 0.9),
-            ('Mars', days % 780, 780, 0.6),
-            ('Tun', days % 360, 360, 0.7),
+            ('Tzolkin', 260, 1.0),
+            ('Haab', 365, 0.8),
+            ('Calendar Round', 18980, 2.0),
+            ('Lord of Night', 9, 0.5),
+            ('819-Day', 819, 0.7),
+            ('Venus', 584, 0.9),
+            ('Mars', 780, 0.6),
+            ('Tun', 360, 0.7),
         ]
         
-        for name, pos, cycle, weight in checks:
+        # Harmonics: Fraction of cycle, and Weight multiplier
+        harmonics = [
+            (0.0, 1.0),           # Conjunction / Return
+            (0.5, 0.8),           # Opposition (Halfway)
+            (0.25, 0.6),          # Square (Quarter)
+            (0.75, 0.6),          # Square (Three-quarters)
+            (0.618034, 0.7),      # Golden Ratio (Phi)
+            (1.0, 1.0)            # End of cycle
+        ]
+        
+        for name, cycle, weight in checks:
             if selected_cycles is not None and name not in selected_cycles:
                 continue
-            proximity = min(pos, cycle - pos) / cycle
-            alignment = 1.0 - (proximity * 2)
-            alignments += alignment * weight
+                
+            pos = days % cycle
+            if natal_days is not None:
+                # If natal mode is on, shift the 0-point to the user's birth position
+                pos = (days - natal_days) % cycle
+                
+            best_alignment = 0.0
+            for h_frac, h_weight in harmonics:
+                node_pos = cycle * h_frac
+                dist = abs(pos - node_pos)
+                proximity = dist / cycle
+                
+                # Alignment drops to 0 at 5% distance from a node
+                alignment = max(0, 1.0 - (proximity * 20)) * h_weight
+                if alignment > best_alignment:
+                    best_alignment = alignment
+                    
+            alignments += best_alignment * weight
             weights += weight
         
         return (alignments / weights) * 100 if weights > 0 else 0
     
-    def find_convergences(self, start_date, months_ahead=12, selected_cycles=None):
+    def find_convergences(self, start_date, total_days=365, selected_cycles=None, natal_days=None):
         """Find dates with high convergence scores starting from the given date."""
         if selected_cycles is None:
             selected_cycles = list(self.CYCLES.keys())
@@ -265,10 +333,9 @@ class FractalPatternAnalyzer:
         else:
             start = datetime(start_date, 1, 1)
         
-        total_days = months_ahead * 30
         for day_offset in range(total_days):
             current = start + timedelta(days=day_offset)
-            score = self.calculate_resonance_score(current.year, current.month, current.day, selected_cycles)
+            score = self.calculate_resonance_score(current.year, current.month, current.day, selected_cycles, natal_days)
             
             if score > 60:
                 data = self.converter.get_full_date(current.year, current.month, current.day)
@@ -278,29 +345,48 @@ class FractalPatternAnalyzer:
                     'tzolkin': data['tzolkin'],
                     'haab': data['haab'],
                     'long_count': data['long_count'],
-                    'alignments': self._get_alignments(data)
+                    'alignments': self._get_alignments(data, natal_days)
                 })
         
         events.sort(key=lambda x: x['score'], reverse=True)
         return events[:20]
     
-    def _get_alignments(self, data):
+    def _get_alignments(self, data, natal_days=None):
         """Get list of cycles that are at or near alignment."""
         alignments = []
         days = data['days_since_epoch']
         
-        if days % 260 < 5 or days % 260 > 255:
-            alignments.append("Tzolkin")
-        if days % 365 < 5 or days % 365 > 360:
-            alignments.append("Haab")
-        if days % 360 < 5 or days % 360 > 355:
-            alignments.append("Tun")
-        if days % 584 < 10 or days % 584 > 574:
-            alignments.append("Venus")
-        if days % 819 < 10 or days % 819 > 809:
-            alignments.append("819-Day")
+        checks = {
+            "Tzolkin": 260, "Haab": 365, "Tun": 360, "Venus": 584, "819-Day": 819
+        }
+        
+        for name, cycle in checks.items():
+            pos = days % cycle
+            if natal_days is not None:
+                pos = (days - natal_days) % cycle
+            
+            # Simple check if it's near *any* harmonic node
+            nodes = [0, cycle * 0.25, cycle * 0.5, cycle * 0.618034, cycle * 0.75, cycle]
+            min_dist = min([abs(pos - n) for n in nodes])
+            if (min_dist / cycle) < 0.05:
+                alignments.append(name)
             
         return alignments
+
+    def find_exact_returns(self, start_days, cycle1_len, target1, cycle2_len, target2, max_steps=1000):
+        """Algorithmic Search using CRT/Stepper to instantly find cycle overlaps (MCM)."""
+        d = start_days
+        # Step forward until cycle1 matches
+        while d % cycle1_len != target1:
+            d += 1
+            
+        # Jump by cycle1_len until cycle2 matches
+        for _ in range(max_steps):
+            if d % cycle2_len == target2:
+                return d
+            d += cycle1_len
+            
+        return None # No solution if exact overlap is impossible (GCD constraints)
     
     def project_pattern(self, base_date, pattern_days, count=10):
         """Project a pattern forward in time."""
@@ -703,6 +789,13 @@ class MayanSteleApp(QMainWindow):
         subtitle = StoneLabel("Ultimate Calendar & Fractal Pattern Analyzer", size=14, color="#888")
         header_layout.addWidget(title)
         header_layout.addStretch()
+        
+        self.combo_correlation = QComboBox()
+        self.combo_correlation.addItems(["GMT (584283)", "GMT+2 (584285)", "Spinden (489384)"])
+        self.combo_correlation.setStyleSheet("QComboBox { background: #333; color: #d4af37; padding: 5px; border-radius: 4px; }")
+        self.combo_correlation.currentIndexChanged.connect(self._change_correlation)
+        header_layout.addWidget(self.combo_correlation)
+        
         header_layout.addWidget(subtitle)
         main_layout.addLayout(header_layout)
 
@@ -805,6 +898,8 @@ class MayanSteleApp(QMainWindow):
         self.panel_lord = StonePanel("Lord of Night", "G9", "9-day Cycle")
         self.panel_venus = StonePanel("Venus Cycle", "Day 0", "584-day Cycle")
         self.panel_moon = StonePanel("Moon Phase", "🌕", "Lunar Cycle")
+        self.panel_lunar_series = StonePanel("Lunar Series", "Glyph C: 1", "Glyphs C, A, X")
+        self.panel_deep_time = StonePanel("Deep Cycles", "0 Piktun", "Macro Eras")
         
         grid.addWidget(self.panel_tzolkin, 0, 0)
         grid.addWidget(self.panel_haab, 0, 1)
@@ -812,6 +907,8 @@ class MayanSteleApp(QMainWindow):
         grid.addWidget(self.panel_lord, 1, 1)
         grid.addWidget(self.panel_venus, 2, 0)
         grid.addWidget(self.panel_moon, 2, 1)
+        grid.addWidget(self.panel_lunar_series, 3, 0)
+        grid.addWidget(self.panel_deep_time, 3, 1)
         
         right_panel.addLayout(grid)
         layout.addLayout(right_panel, 2)
@@ -824,19 +921,51 @@ class MayanSteleApp(QMainWindow):
         
         # Controls
         controls = QHBoxLayout()
-        controls.addWidget(StoneLabel("Search Range:", size=12, color="#aaa"))
         
-        self.spin_months = QSpinBox()
-        self.spin_months.setRange(1, 120)
-        self.spin_months.setValue(12)
-        self.spin_months.setSuffix(" months")
-        controls.addWidget(self.spin_months)
+        controls.addWidget(StoneLabel("Start Date:", size=12, color="#aaa"))
+        self.date_fractal_start = QDateEdit()
+        self.date_fractal_start.setCalendarPopup(True)
+        self.date_fractal_start.setDisplayFormat("yyyy-MM-dd")
+        self.date_fractal_start.setDate(QDate.currentDate())
+        controls.addWidget(self.date_fractal_start)
+        
+        controls.addWidget(StoneLabel("End Date:", size=12, color="#aaa"))
+        
+        self.date_fractal_end = QDateEdit()
+        self.date_fractal_end.setCalendarPopup(True)
+        self.date_fractal_end.setDisplayFormat("yyyy-MM-dd")
+        self.date_fractal_end.setDate(QDate.currentDate().addYears(1))
+        controls.addWidget(self.date_fractal_end)
         
         self.btn_analyze = QPushButton("🔮 Find Convergences")
         self.btn_analyze.clicked.connect(self._analyze_patterns)
         controls.addWidget(self.btn_analyze)
         
         controls.addStretch()
+        
+        # Natal Resonance Mode
+        controls.addWidget(StoneLabel(" | Natal Resonance:", size=12, color="#aaa"))
+        self.cb_natal_mode = QCheckBox("Enable")
+        self.cb_natal_mode.setChecked(False)
+        controls.addWidget(self.cb_natal_mode)
+        
+        self.date_natal = QDateEdit()
+        self.date_natal.setCalendarPopup(True)
+        self.date_natal.setDisplayFormat("yyyy-MM-dd")
+        # Configure to show empty text when at minimum date
+        self.date_natal.setSpecialValueText(" (No Date) ")
+        self.date_natal.setDate(self.date_natal.minimumDate())
+        self.date_natal.setEnabled(False)
+        
+        # When enabled via checkbox, if it's still minimum date, set it to today's date so calendar doesn't open in 1752
+        def on_natal_mode_toggled(checked):
+            self.date_natal.setEnabled(checked)
+            if checked and self.date_natal.date() == self.date_natal.minimumDate():
+                self.date_natal.setDate(QDate.currentDate())
+                
+        self.cb_natal_mode.toggled.connect(on_natal_mode_toggled)
+        controls.addWidget(self.date_natal)
+        
         layout.addLayout(controls)
         
         # Cycle checkboxes
@@ -900,11 +1029,97 @@ class MayanSteleApp(QMainWindow):
             lords_layout.addWidget(lbl)
         content_layout.addWidget(lords_group)
         
+        self._build_advanced_reference(content_layout)
+        
         content_layout.addStretch()
         scroll.setWidget(content)
         layout.addWidget(scroll)
         
         self.tabs.addTab(tab, "📚 Reference")
+
+    def _build_advanced_reference(self, layout):
+        # 1. 13 Galactic Tones
+        tones_group = QGroupBox("Tzolkin Numerals / Galactic Tones (1-13)")
+        tones_layout = QGridLayout(tones_group)
+        tones_data = [
+            ("1. Hun", "Magnetic / Purpose"), ("2. Ca", "Lunar / Challenge"),
+            ("3. Ox", "Electric / Service"), ("4. Can", "Self-Existing / Form"),
+            ("5. Ho", "Overtone / Radiance"), ("6. Uac", "Rhythmic / Equality"),
+            ("7. Uuc", "Resonant / Attunement"), ("8. Uaxac", "Galactic / Integrity"),
+            ("9. Bolon", "Solar / Intention"), ("10. Lahun", "Planetary / Manifest"),
+            ("11. Buluc", "Spectral / Liberation"), ("12. Lahca", "Crystal / Cooperation"),
+            ("13. Oxlahun", "Cosmic / Presence")
+        ]
+        for i, (name, meaning) in enumerate(tones_data):
+            row, col = i // 4, i % 4
+            lbl = StoneLabel(f"{name}\n{meaning}", size=11, color="#ccc")
+            tones_layout.addWidget(lbl, row, col)
+        layout.addWidget(tones_group)
+        
+        # 2. Lunar Series
+        lunar_group = QGroupBox("Lunar Supplementary Series (Moon)")
+        lunar_layout = QVBoxLayout(lunar_group)
+        lunar_info = (
+            "The Supplementary Series tracks precise lunar data over a 6-month semester.\n"
+            "• Glyph C: The current lunation number in the 6-month cycle (1 to 6).\n"
+            "• Glyph A: Length of current lunar month (alternates 29 or 30 days).\n"
+            "• Glyph X: Patron Deity of the lunation:\n"
+            "    C1 = God C (Young Moon)   | C2 = God of No. 10\n"
+            "    C3 = Jaguar God of Underworld | C4 = Death God\n"
+            "    C5 = Old Earth Deity      | C6 = Young God"
+        )
+        lunar_lbl = StoneLabel(lunar_info, size=11, color="#ccc")
+        lunar_lbl.setAlignment(Qt.AlignLeft)
+        lunar_layout.addWidget(lunar_lbl)
+        layout.addWidget(lunar_group)
+        
+        # 3. Deep Time Eras
+        deep_group = QGroupBox("Long Count Deep Time Eras")
+        deep_layout = QGridLayout(deep_group)
+        eras = [
+            ("Kin", "1 Day"), ("Uinal", "20 Days"), ("Tun", "360 Days (~1 Year)"),
+            ("Katun", "7,200 Days (~20 Yrs)"), ("Baktun", "144,000 Days (~394 Yrs)"),
+            ("Piktun", "2.88 Million Days (~7,885 Yrs)"),
+            ("Kalabtun", "57.6 Million Days (~157,700 Yrs)"),
+            ("Kinchiltun", "1.15 Billion Days (~3.15M Yrs)"),
+            ("Alautun", "23 Billion Days (~63M Yrs)")
+        ]
+        for i, (name, val) in enumerate(eras):
+            row, col = i // 3, i % 3
+            lbl = StoneLabel(f"{name}\n{val}", size=11, color="#ccc")
+            deep_layout.addWidget(lbl, row, col)
+        layout.addWidget(deep_group)
+        
+        # 4. Venus Cycle
+        venus_group = QGroupBox("Synodic Cycle of Venus (584 Days)")
+        venus_layout = QVBoxLayout(venus_group)
+        venus_info = (
+            "Dresden Codex Venus Phases:\n"
+            "• Days 0-236: Morning Star (Visible in East)\n"
+            "• Days 236-326: Superior Conjunction (90 days invisible in the Underworld)\n"
+            "• Days 326-576: Evening Star (250 days visible in West)\n"
+            "• Days 576-584: Inferior Conjunction (8 days invisible in the Underworld)"
+        )
+        venus_lbl = StoneLabel(venus_info, size=11, color="#ccc")
+        venus_lbl.setAlignment(Qt.AlignLeft)
+        venus_layout.addWidget(venus_lbl)
+        layout.addWidget(venus_group)
+        
+        # 5. Correlations & 819-Day
+        misc_group = QGroupBox("Correlations & K'awiil Cycle")
+        misc_layout = QVBoxLayout(misc_group)
+        misc_info = (
+            "819-Day Cycle: Associated with God K'awiil moving across 4 quadrants.\n"
+            "Red (East) -> White (North) -> Black (West) -> Yellow (South). 819 = 9 x 7 x 13.\n\n"
+            "Correlations (Syncing Mayan to Gregorian Time):\n"
+            "• GMT (584283): Standard archaeological consensus (Goodman-Martinez-Thompson).\n"
+            "• GMT+2 (584285): Adjusted by astronomers to better match eclipse data.\n"
+            "• Spinden (489384): Early correlation mapping 13.0.0.0.0 to 3373 BC instead of 3114 BC."
+        )
+        misc_lbl = StoneLabel(misc_info, size=11, color="#ccc")
+        misc_lbl.setAlignment(Qt.AlignLeft)
+        misc_layout.addWidget(misc_lbl)
+        layout.addWidget(misc_group)
 
     def _set_initial_date(self):
         self.date_edit.setDate(QDate.currentDate())
@@ -960,19 +1175,40 @@ class MayanSteleApp(QMainWindow):
             data["moon_phase"],
             f"Moon Age: {data['moon_age']:.1f} days"
         )
+        self.panel_lunar_series.update_data(
+            f"C: {data['glyph_c']} | A: {data['glyph_a']}",
+            f"Glyph X: {data['glyph_x']}"
+        )
+        # Deep cycles are [alautun, kinchiltun, kalabtun, piktun, baktun, katun, tun, uinal, kin]
+        dc = data["deep_long_count"]
+        self.panel_deep_time.update_data(
+            f"{dc[3]} Piktun",
+            f"Kalabtun: {dc[2]} | Kinchiltun: {dc[1]}"
+        )
 
     def _analyze_patterns(self):
-        current_date = self.date_edit.date()
-        months = self.spin_months.value()
-        
+        start_date = self.date_fractal_start.date()
+        end_date = self.date_fractal_end.date()
+        total_days = start_date.daysTo(end_date)
+        if total_days < 1:
+            total_days = 1
+            
         # Convert QDate to Python datetime
-        start_datetime = datetime(current_date.year(), current_date.month(), current_date.day())
+        start_datetime = datetime(start_date.year(), start_date.month(), start_date.day())
         
         selected = [name for name, cb in self.cycle_checks.items() if cb.isChecked()]
-        events = self.analyzer.find_convergences(start_datetime, months, selected)
+        
+        natal_days = None
+        if hasattr(self, 'cb_natal_mode') and self.cb_natal_mode.isChecked():
+            n_date = self.date_natal.date()
+            if n_date != self.date_natal.minimumDate():
+                natal_data = self.converter.get_full_date(n_date.year(), n_date.month(), n_date.day())
+                natal_days = natal_data['days_since_epoch']
+            
+        events = self.analyzer.find_convergences(start_datetime, total_days, selected, natal_days)
         
         # Update timeline
-        self.fractal_timeline.set_events(events, months * 30)
+        self.fractal_timeline.set_events(events, total_days)
         
         # Clear and update table
         self.convergence_table.clearContents()
@@ -987,6 +1223,16 @@ class MayanSteleApp(QMainWindow):
         
         # Force UI refresh
         self.convergence_table.viewport().update()
+
+    def _change_correlation(self):
+        index = self.combo_correlation.currentIndex()
+        if index == 0:
+            self.converter.correlation_jdn = 584283  # GMT
+        elif index == 1:
+            self.converter.correlation_jdn = 584285  # GMT+2
+        elif index == 2:
+            self.converter.correlation_jdn = 489384  # Spinden
+        self.convert_date()
 
     def _convert_long_count(self):
         """Convert Long Count spin box values to Gregorian and set the date picker."""
