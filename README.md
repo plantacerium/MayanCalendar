@@ -1,37 +1,35 @@
-# 🌟 Mayan Stele - Ultimate Calendar & Fractal Pattern Analyzer
+# Mayan Stele - Ultimate Calendar & Fractal Pattern Analyzer
 
-A comprehensive, visually stunning Mayan calendar application built with Python and PySide6. Convert any Gregorian date to its Mayan equivalent and discover fractal patterns in the ancient cycles.
+A comprehensive, visually stunning Mayan calendar application built with Python and PySide6. Convert any Gregorian date to its Mayan equivalent, track deep cosmic eras, and discover personal fractal patterns within the ancient cycles using an advanced astronomical engine.
 
+![Mayan Stele](./assets/MayanStele.JPG)
 ![Python](https://img.shields.io/badge/Python-3.8+-blue.svg)
 ![PySide6](https://img.shields.io/badge/PySide6-6.0+-green.svg)
 
-## ✨ Features
+## Features
 
-### 📅 Complete Calendar Systems
-- **Long Count** - Baktun.Katun.Tun.Uinal.Kin (animated odometer display)
-- **Tzolkin** - 260-day sacred calendar with day sign meanings
-- **Haab'** - 365-day civil calendar with month meanings
-- **Calendar Round** - 52-year cycle position tracker
-- **Lords of the Night** - 9-day underworld deity cycle
-- **Venus Cycle** - 584-day synodic period with phase tracking
-- **Mars Cycle** - 780-day synodic period
-- **Lunar Phase** - Moon age and phase visualization
-- **819-Day Cycle** - K'awiil deity rotation
+### Advanced Calendar Systems
+- **Long Count (With Deep Time)** - Tracks standard cycles (Baktun to Kin) plus deep-time macro eras (Piktun, Kalabtun, Kinchiltun, and Alautun up to 23 billion days). Includes animated odometer display and **Reverse Long Count** conversion!
+- **Tzolkin** - 260-day sacred calendar with day sign meanings and 13 Galactic Tones.
+- **Haab'** - 365-day civil calendar with month meanings.
+- **Calendar Round** - 52-year cycle position tracker.
+- **Lords of the Night** - 9-day underworld deity cycle (G1-G9).
+- **Venus Cycle** - 584-day synodic period tracking phases from the Dresden Codex (Morning Star, Evening Star, Conjunctions).
+- **Lunar Supplementary Series** - Precision lunar mathematics computing Glyph C (Lunation 1-6), Glyph A (29/30 days), and Glyph X (Patron Deities of the Moon).
+- **819-Day Cycle** - K'awiil deity rotation and directional colors.
 
-### 🔮 Fractal Pattern Analyzer
-- Multi-cycle convergence detection algorithm
-- Resonance scoring (0-100%) for any date
-- Visual timeline with convergence markers
-- Customizable cycle selection
-- Project patterns months/years into the future
+### Fractal Pattern Analyzer
+- **Algorithmic Search (LCM/CRT)** - Powered by advanced mathematical models (Least Common Multiple and Chinese Remainder Theorem) to instantly find exact cycle alignments thousands of years into the future.
+- **Harmonic Nodes Detection** - Scores alignments not just on full returns (Day 0), but also Oppositions (50%), Squares (25%/75%), and the Golden Ratio (Phi - 61.8%).
+- **Natal Resonance Mode** - Input your birth date to shift the "Zero Point" of the universe to your personal galactic signature. Instantly calculate your future Tzolkin Returns, Venus Returns, and geometric life milestones.
+- **Interactive Timeline** - Visual timeline and table with convergence markers spanning custom date ranges.
 
-### 🎨 Stunning Visuals
-- **Circular Calendar Wheel** - Animated rotating rings for Haab, Tzolkin, and Lords
-- **Long Count Odometer** - Smooth animated digit display
-- **Fractal Timeline** - Color-coded convergence intensity
-- **Stone-carved aesthetic** - Authentic Mesoamerican look
+### Stunning Visuals & Encyclopedia
+- **Circular Calendar Wheel** - Animated rotating rings for Haab, Tzolkin, and Lords with text labels embedded in the stone.
+- **Status Bar Live Clock** - A real-time ticking clock showing current Mayan energies.
+- **Reference Encyclopedia** - Built-in academic glossary covering 13 Tones, Lunar Patrons, Venus Phases, Deep Time eras, and Historical Correlations.
 
-## 🚀 Installation
+## Installation
 
 ```bash
 # Clone the repository
@@ -45,56 +43,38 @@ pip install PySide6
 python mayan-stele.py
 ```
 
-## 📸 Screenshots
+## Advanced Astronomy & Mechanics
 
-### Calendar View
-The main calendar view features a circular wheel visualization with the date displayed in all major Mayan cycles:
+### Deep Time Eras
+The Long Count is fundamentally a linear count of days since the Mayan creation date. This application calculates up to the largest known Mayan eras:
 
-![Screenshot V1](assets/Screen%20V1.JPG)
-![Screenshot V2](assets/Screen%20V2.JPG)
-![Screenshot V3](assets/Screen%20V3.JPG)
-
-
-### Fractal Pattern Analyzer
-Find dates when multiple cycles converge with the built-in analyzer that detects harmonic alignments across all Mayan cycles.
-
-## 🌍 Calendar Systems Explained
-
-### Long Count
-The Long Count is a linear count of days since the Mayan creation date (August 11, 3114 BCE). It uses a modified vigesimal (base-20) system:
-
-| Unit | Days | Calculation |
+| Unit | Days | Equivalent |
 |------|------|-------------|
 | Kin | 1 | 1 day |
-| Uinal | 20 | 20 kins |
-| Tun | 360 | 18 uinals |
-| Katun | 7,200 | 20 tuns |
-| Baktun | 144,000 | 20 katuns |
+| Uinal | 20 | 20 days |
+| Tun | 360 | ~1 year |
+| Katun | 7,200 | ~20 years |
+| Baktun | 144,000 | ~394 years |
+| Piktun | 2,880,000 | ~7,885 years |
+| Kalabtun | 57,600,000 | ~157,700 years |
+| Kinchiltun | 1,152,000,000 | ~3.15 million years |
+| Alautun | 23,040,000,000 | ~63 million years |
 
-### Tzolkin (Sacred Calendar)
-260-day cycle combining:
-- 13 day numbers (1-13)
-- 20 day names (Ahau, Imix, Ik, etc.)
+### Multiple Correlations
+Switch instantly between historical models linking Mayan time to the Gregorian calendar:
+- **GMT (584283)** - Standard archaeological consensus (Goodman-Martinez-Thompson).
+- **GMT+2 (584285)** - Adjusted astronomical correlation aligning with eclipse data.
+- **Spinden (489384)** - Early 1920s correlation (13.0.0.0.0 = 3373 BCE).
 
-### Haab' (Civil Calendar)
-365-day solar calendar:
-- 18 months of 20 days each
-- 5 "unlucky" days (Wayeb)
+## Personal Natal Resonance
 
-### Calendar Round
-The combination of Tzolkin and Haab' creates a unique position every 18,980 days (~52 years).
+The Fractal Pattern Analyzer allows you to sync the cosmic clock to your birth date. 
+1. Go to the **Fractal Patterns** tab.
+2. Select your `Start Date` and `End Date`.
+3. Check `Enable` under **Natal Resonance** and input your Birth Date.
+4. Click "Find Convergences" to calculate precise future moments when the current cosmic cycles structurally harmonize with your birth energies (e.g., your Tzolkin or Venus return).
 
-## 🧮 Fractal Pattern Detection
-
-The analyzer calculates a "resonance score" based on how closely aligned multiple cycles are on any given date. High-scoring dates indicate rare convergences that the ancient Maya may have considered significant.
-
-```python
-# Example: Find convergences for 2025
-analyzer = FractalPatternAnalyzer(converter)
-events = analyzer.find_convergences(2025, months_ahead=12)
-```
-
-## 🗓️ Historical Dates
+## Historical Dates
 
 Test the converter with these significant dates:
 
@@ -102,33 +82,14 @@ Test the converter with these significant dates:
 |-----------|------------|---------|-------|-------|
 | Aug 11, 3114 BCE | 0.0.0.0.0 | 4 Ahau | 8 Cumku | Creation |
 | Dec 21, 2012 | 13.0.0.0.0 | 4 Ahau | 3 Kankin | 13th Baktun |
-| Dec 22, 2025 | 13.0.13.2.7 | 6 Manik | 10 Kankin | Today |
 
-## 📁 Project Structure
+## Technical Details
 
-```
-Mayan-Calendar/
-├── mayan-stele.py       # Main application (complete)
-├── mayan_calendar_app.py # Legacy basic converter
-└── README.md            # This file
-```
-
-## 🔧 Technical Details
-
-- **Correlation**: GMT (Goodman-Martinez-Thompson) = 584,283
 - **Framework**: PySide6 (Qt for Python)
-- **Style**: Fusion theme with custom stone-carved aesthetic
-- **Animations**: Smooth Qt property animations
-
-## 🙏 Acknowledgments
-
-- Mayan calendar mathematics based on scholarly research
-- GMT correlation (584,283) is the most widely accepted
-- Glyphs and meanings derived from archaeological studies
+- **Style**: Custom CSS with Fusion theme for a stone-carved, ancient aesthetic
+- **Animations**: Smooth Qt property animations, QEasingCurve
+- **Algorithms**: GCD/LCM modular math, harmonic fractal weighting
 
 ---
 
 *"Time is not a line, but a spiral of cycles within cycles."*
-
-
-
