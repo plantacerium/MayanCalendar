@@ -349,7 +349,7 @@ class FractalPatternAnalyzer:
                 })
         
         events.sort(key=lambda x: x['score'], reverse=True)
-        return events[:20]
+        return events
     
     def _get_alignments(self, data, natal_days=None):
         """Get list of cycles that are at or near alignment."""
@@ -804,6 +804,7 @@ class MayanSteleApp(QMainWindow):
         input_layout.addWidget(StoneLabel("Gregorian Date:", size=12, color="#aaa"))
         
         self.date_edit = QDateEdit()
+        self.date_edit.setMinimumDate(QDate(100, 1, 1))
         self.date_edit.setCalendarPopup(True)
         self.date_edit.setDisplayFormat("MMMM d, yyyy")
         self.date_edit.dateChanged.connect(self.convert_date)
@@ -924,6 +925,7 @@ class MayanSteleApp(QMainWindow):
         
         controls.addWidget(StoneLabel("Start Date:", size=12, color="#aaa"))
         self.date_fractal_start = QDateEdit()
+        self.date_fractal_start.setMinimumDate(QDate(100, 1, 1))
         self.date_fractal_start.setCalendarPopup(True)
         self.date_fractal_start.setDisplayFormat("yyyy-MM-dd")
         self.date_fractal_start.setDate(QDate.currentDate())
@@ -932,6 +934,7 @@ class MayanSteleApp(QMainWindow):
         controls.addWidget(StoneLabel("End Date:", size=12, color="#aaa"))
         
         self.date_fractal_end = QDateEdit()
+        self.date_fractal_end.setMinimumDate(QDate(100, 1, 1))
         self.date_fractal_end.setCalendarPopup(True)
         self.date_fractal_end.setDisplayFormat("yyyy-MM-dd")
         self.date_fractal_end.setDate(QDate.currentDate().addYears(1))
@@ -950,6 +953,7 @@ class MayanSteleApp(QMainWindow):
         controls.addWidget(self.cb_natal_mode)
         
         self.date_natal = QDateEdit()
+        self.date_natal.setMinimumDate(QDate(100, 1, 1))
         self.date_natal.setCalendarPopup(True)
         self.date_natal.setDisplayFormat("yyyy-MM-dd")
         # Configure to show empty text when at minimum date
