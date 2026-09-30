@@ -269,13 +269,10 @@ class FractalPatternAnalyzer:
     def __init__(self, converter):
         self.converter = converter
     
-    def calculate_resonance_score(self, year, month, day, selected_cycles=None, natal_days=None):
-        """Calculate how many cycles align on this date (0-100%). Supports Harmonic Nodes and Natal Resonance."""
-        data = self.converter.get_full_date(year, month, day)
-        days = data['days_since_epoch']
-        
-        alignments = 0
-        weights = 0
+    def calculate_resonance_score(self, days_since_epoch, selected_cycles=None, natal_days=None):
+        """Calculate how many cycles align using raw integers. No strings attached."""
+        alignments = 0.0
+        weights = 0.0
         
         checks = [
             ('Tzolkin', 260, 1.0),
@@ -288,7 +285,6 @@ class FractalPatternAnalyzer:
             ('Tun', 360, 0.7),
         ]
         
-        # Harmonics: Fraction of cycle, and Weight multiplier
         harmonics = [
             (0.0, 1.0),           # Conjunction / Return
             (0.5, 0.8),           # Opposition (Halfway)
@@ -303,10 +299,10 @@ class FractalPatternAnalyzer:
             if selected_cycles is not None and name not in selected_cycles:
                 continue
                 
-            pos = days % cycle
+            pos = days_since_epoch % cycle
             if natal_days is not None:
-                # If natal mode is on, shift the 0-point to the user's birth position
-                pos = (days - natal_days) % cycle
+                # Shift the 0-point to the user's birth position
+                pos = (days_since_epoch - natal_days) % cycle
                 
             best_alignment = 0.0
             for h_frac, h_weight in harmonics:
@@ -314,33 +310,42 @@ class FractalPatternAnalyzer:
                 dist = abs(pos - node_pos)
                 proximity = dist / cycle
                 
-                # Alignment drops to 0 at 5% distance from a node
-                alignment = max(0, 1.0 - (proximity * 20)) * h_weight
+                # Fast math max
+                alignment = max(0.0, 1.0 - (proximity * 20.0)) * h_weight
                 if alignment > best_alignment:
                     best_alignment = alignment
                     
             alignments += best_alignment * weight
             weights += weight
         
-        return (alignments / weights) * 100 if weights > 0 else 0
-    
+        return (alignments / weights) * 100.0 if weights > 0 else 0.0
+
     def find_convergences(self, start_date, total_days=365, selected_cycles=None, natal_days=None):
-        """Find dates with high convergence scores starting from the given date."""
+        """Optimized loop: Generates heavy dictionaries ONLY if the score hits the threshold."""
         if selected_cycles is None:
             selected_cycles = list(self.CYCLES.keys())
         
         events = []
-        # Start from the provided date object or create from year
         if isinstance(start_date, datetime):
             start = start_date
         else:
             start = datetime(start_date, 1, 1)
+            
+        # O(1) Optimization: Calculate the starting 'days_since_epoch' exactly once.
+        start_jdn = self.converter._gregorian_to_jdn(start.year, start.month, start.day)
+        base_days_since_epoch = start_jdn - self.converter.correlation_jdn
         
         for day_offset in range(total_days):
-            current = start + timedelta(days=day_offset)
-            score = self.calculate_resonance_score(current.year, current.month, current.day, selected_cycles, natal_days)
+            # Pure integer addition instead of date manipulation
+            current_days = base_days_since_epoch + day_offset
             
+            # Pass the raw integer to the math engine
+            score = self.calculate_resonance_score(current_days, selected_cycles, natal_days)
+            
+            # Condition check BEFORE building strings
             if score > 60:
+                current = start + timedelta(days=day_offset)
+                # Only request the heavy dictionary if it's a valid node
                 data = self.converter.get_full_date(current.year, current.month, current.day)
                 events.append({
                     'date': current,
@@ -348,27 +353,25 @@ class FractalPatternAnalyzer:
                     'tzolkin': data['tzolkin'],
                     'haab': data['haab'],
                     'long_count': data['long_count'],
-                    'alignments': self._get_alignments(data, natal_days)
+                    'alignments': self._get_alignments(current_days, natal_days)
                 })
         
         events.sort(key=lambda x: x['score'], reverse=True)
         return events
-    
-    def _get_alignments(self, data, natal_days=None):
-        """Get list of cycles that are at or near alignment."""
+
+    def _get_alignments(self, days_since_epoch, natal_days=None):
+        """Refactored to accept raw integer directly."""
         alignments = []
-        days = data['days_since_epoch']
         
         checks = {
             "Tzolkin": 260, "Haab": 365, "Tun": 360, "Venus": 584, "819-Day": 819
         }
         
         for name, cycle in checks.items():
-            pos = days % cycle
+            pos = days_since_epoch % cycle
             if natal_days is not None:
-                pos = (days - natal_days) % cycle
+                pos = (days_since_epoch - natal_days) % cycle
             
-            # Simple check if it's near *any* harmonic node
             nodes = [0, cycle * 0.25, cycle * 0.5, cycle * 0.618034, cycle * 0.75, cycle]
             min_dist = min([abs(pos - n) for n in nodes])
             if (min_dist / cycle) < 0.05:
