@@ -76,8 +76,10 @@ class MayanConverter:
             month += 12
         A = year // 100
         B = 2 - A + (A // 4)
-        JDN = int(365.25 * (year + 4716)) + int(30.6001 * (month + 1)) + day + B - 1524.5
-        return int(JDN)
+        JD = int(365.25 * (year + 4716)) + int(30.6001 * (month + 1)) + day + B - 1524.5
+        # JD above is at 0h UT (ends in .5); the integer JDN (noon) is JD + 0.5.
+        # Without this, every date was shifted one day back (13.0.0.0.0 fell on 22-Dec-2012).
+        return int(JD + 0.5)
     
     def _jdn_to_gregorian(self, jdn):
         """Convert JDN back to Gregorian date."""
@@ -130,10 +132,9 @@ class MayanConverter:
         long_count_parts = [baktun, katun, tun, uinal, kin]
         deep_long_count = [alautun, kinchiltun, kalabtun, piktun, baktun, katun, tun, uinal, kin]
 
-        # Tzolkin (260 days)
-        tz_num = (jdn + 4) % 13
-        if tz_num == 0: tz_num = 13
-        tz_idx = (jdn + 19) % 20
+        # Tzolkin (260 days) — anchored to Creation 0.0.0.0.0 = 4 Ahau
+        tz_num = (days_since_epoch + 3) % 13 + 1
+        tz_idx = days_since_epoch % 20  # TZOLKIN_DATA index 0 = Ahau
         tz_name, tz_meaning, tz_glyph = self.TZOLKIN_DATA[tz_idx]
 
         # Haab (365 days)
@@ -159,8 +160,9 @@ class MayanConverter:
         kawiil_color_idx = (days_since_epoch // 819) % 4
         kawiil_color = self.KAWIIL_COLORS[kawiil_color_idx % 4]
 
-        # Venus cycle (584 days)
-        venus_pos = days_since_epoch % 584
+        # Venus cycle (584 days) — Dresden Codex canonical Venus Table.
+        # Base: heliacal rising of Morning Star on 9.9.9.16.0 1 Ahau 18 Kayab (1,364,360 days).
+        venus_pos = (days_since_epoch - 1364360) % 584
         if venus_pos < 236: venus_phase = "Morning Star"
         elif venus_pos < 326: venus_phase = "Superior Conjunction"
         elif venus_pos < 576: venus_phase = "Evening Star"
@@ -170,9 +172,9 @@ class MayanConverter:
         mars_pos = days_since_epoch % 780
 
         # Lunar Supplementary Series (Glyphs G, F, C, X, B, A)
-        # Palenque base of ~22.6 days moon age at 13.0.0.0.0
-        lunar_cycle = 29.53059
-        total_lunar_days = days_since_epoch + 22.6
+        # Anchored to a real astronomical new moon (2000-01-06 18:14 UT, JD 2451550.26)
+        lunar_cycle = 29.530588853
+        total_lunar_days = jdn - 2451550.26
         lunation_number = int(total_lunar_days / lunar_cycle)
         moon_age = total_lunar_days % lunar_cycle
         
@@ -277,7 +279,7 @@ class FractalPatternAnalyzer:
         checks = [
             ('Tzolkin', 260, 1.0),
             ('Haab', 365, 0.8),
-            ('Calendar Round', 18980, 2.0),
+            ('Calendar Round', 18980, 1.2),  # Reduced from 2.0 to balance double counting
             ('Lord of Night', 9, 0.5),
             ('819-Day', 819, 0.7),
             ('Venus', 584, 0.9),
@@ -286,13 +288,12 @@ class FractalPatternAnalyzer:
         ]
         
         harmonics = [
-            (0.0, 1.0),           # Conjunction / Return
+            (0.0, 1.0),           # Conjunction / Return (covers 1.0 as well via wrap-around)
             (0.5, 0.8),           # Opposition (Halfway)
             (0.25, 0.6),          # Square (Quarter)
             (0.75, 0.6),          # Square (Three-quarters)
             (0.618034, 0.7),      # Golden Ratio (Phi)
             (0.7836, 0.85),       # Braden Ratio (Fractal Time Constant)
-            (1.0, 1.0)            # End of cycle
         ]
         
         for name, cycle, weight in checks:
@@ -305,15 +306,21 @@ class FractalPatternAnalyzer:
                 pos = (days_since_epoch - natal_days) % cycle
                 
             best_alignment = 0.0
+            # Cap the window to a Trecena (13 days) or 5% of cycle, whichever is smaller
+            max_window = min(cycle * 0.05, 13.0)
+            
             for h_frac, h_weight in harmonics:
                 node_pos = cycle * h_frac
                 dist = abs(pos - node_pos)
-                proximity = dist / cycle
                 
-                # Fast math max
-                alignment = max(0.0, 1.0 - (proximity * 20.0)) * h_weight
-                if alignment > best_alignment:
-                    best_alignment = alignment
+                # Cyclic wrap-around (e.g., pos 0 and pos 259 are 1 day apart in Tzolkin)
+                if dist > cycle / 2.0:
+                    dist = cycle - dist
+                
+                if dist <= max_window and max_window > 0:
+                    alignment = (1.0 - (dist / max_window)) * h_weight
+                    if alignment > best_alignment:
+                        best_alignment = alignment
                     
             alignments += best_alignment * weight
             weights += weight
@@ -364,7 +371,7 @@ class FractalPatternAnalyzer:
         alignments = []
         
         checks = {
-            "Tzolkin": 260, "Haab": 365, "Tun": 360, "Venus": 584, "819-Day": 819
+            "Tzolkin": 260, "Haab": 365, "Tun": 360, "Venus": 584, "819-Day": 819, "Calendar Round": 18980
         }
         
         for name, cycle in checks.items():
@@ -372,9 +379,15 @@ class FractalPatternAnalyzer:
             if natal_days is not None:
                 pos = (days_since_epoch - natal_days) % cycle
             
-            nodes = [0, cycle * 0.25, cycle * 0.5, cycle * 0.618034, cycle * 0.75, cycle]
-            min_dist = min([abs(pos - n) for n in nodes])
-            if (min_dist / cycle) < 0.05:
+            nodes = [0, cycle * 0.25, cycle * 0.5, cycle * 0.618034, cycle * 0.75, cycle * 0.7836]
+            
+            # Wrap-around distance calculation
+            min_dist = min([min(abs(pos - n), cycle - abs(pos - n)) for n in nodes])
+            
+            # Cap window at 13 days
+            max_window = min(cycle * 0.05, 13.0)
+            
+            if min_dist <= max_window and max_window > 0:
                 alignments.append(name)
             
         return alignments
