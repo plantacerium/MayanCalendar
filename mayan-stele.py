@@ -13,10 +13,10 @@ from PySide6.QtWidgets import (
     QLabel, QDateEdit, QPushButton, QFrame, QGraphicsDropShadowEffect,
     QTabWidget, QTableWidget, QTableWidgetItem, QHeaderView, QCheckBox,
     QSpinBox, QScrollArea, QGroupBox, QSplitter, QSlider, QProgressBar, QComboBox,
-    QFileDialog, QMessageBox
+    QFileDialog, QMessageBox, QSizePolicy
 )
-from PySide6.QtCore import QDate, Qt, QSize, QTimer, QPropertyAnimation, QEasingCurve, Property, QRectF
-from PySide6.QtGui import QFont, QColor, QPalette, QIcon, QPainter, QPen, QBrush, QRadialGradient, QLinearGradient, QConicalGradient
+from PySide6.QtCore import QDate, Qt, QSize, QTimer, QPropertyAnimation, QEasingCurve, Property, QRectF, Signal, QPointF, QPoint
+from PySide6.QtGui import QFont, QFontMetrics, QColor, QPalette, QIcon, QPainter, QPainterPath, QPen, QBrush, QRadialGradient, QLinearGradient, QConicalGradient, QPolygonF
 
 # ══════════════════════════════════════════════════════════════════════════════
 # SECTION 1: MAYAN CALENDAR ARITHMETIC CORE
@@ -201,6 +201,13 @@ class MayanConverter:
         elif moon_age < 23.99: moon_phase = "Last Quarter 🌗"
         else: moon_phase = "Waning Crescent 🌘"
 
+        # Cálculo trigonométrico de iluminación de disco lunar (algoritmo Jean Meeus)
+        moon_angle = (moon_age / lunar_cycle) * 2.0 * math.pi
+        moon_illum_pct = int(((1.0 - math.cos(moon_angle)) / 2.0) * 100)
+        
+        # Posición astrométrica real de Venus (período sinódico NASA 583.92136 días)
+        venus_astro_pos = round((days_since_epoch - 1364360) % 583.92136, 1)
+
         return {
             "long_count": long_count_str,
             "long_count_parts": long_count_parts,
@@ -225,9 +232,11 @@ class MayanConverter:
             "kawiil_color": kawiil_color,
             "venus_pos": venus_pos,
             "venus_phase": venus_phase,
+            "venus_astro_pos": venus_astro_pos,
             "mars_pos": mars_pos,
             "moon_age": moon_age,
             "moon_phase": moon_phase,
+            "moon_illumination": f"{moon_illum_pct}%",
             "glyph_c": glyph_c,
             "glyph_a": glyph_a,
             "glyph_x": glyph_x,
@@ -360,11 +369,147 @@ class FractalPatternAnalyzer:
                     'tzolkin': data['tzolkin'],
                     'haab': data['haab'],
                     'long_count': data['long_count'],
-                    'alignments': self._get_alignments(current_days, natal_days)
+                    'alignments': self._get_alignments(current_days, natal_days),
+                    'days_since_epoch': current_days,
+                    'day_offset': day_offset
                 })
         
+        # Mantener los eventos ordenados por score por defecto
         events.sort(key=lambda x: x['score'], reverse=True)
         return events
+
+    def group_into_wave_packets(self, events, max_gap_days=2):
+        """
+        Agrupa los eventos discretos en Paquetes de Onda / Ventanas de Resonancia Coherente (Solitones).
+        Cada ventana representa un continuo armónico donde la energía se acumula hacia una cúspide
+        y luego se disipa armónicamente.
+        """
+        if not events:
+            return []
+            
+        sorted_events = sorted(events, key=lambda x: x['date'])
+        packets = []
+        current_cluster = [sorted_events[0]]
+        
+        for evt in sorted_events[1:]:
+            prev_evt = current_cluster[-1]
+            gap = (evt['date'] - prev_evt['date']).days
+            if gap <= max_gap_days:
+                current_cluster.append(evt)
+            else:
+                packets.append(self._build_packet_dict(current_cluster, len(packets) + 1))
+                current_cluster = [evt]
+                
+        if current_cluster:
+            packets.append(self._build_packet_dict(current_cluster, len(packets) + 1))
+            
+        # Ordenar los paquetes por su cúspide de score descendente
+        packets.sort(key=lambda p: p['peak_score'], reverse=True)
+        return packets
+
+    def _build_packet_dict(self, cluster, packet_id):
+        peak_evt = max(cluster, key=lambda x: x['score'])
+        start_d = cluster[0]['date']
+        end_d = cluster[-1]['date']
+        duration = (end_d - start_d).days + 1
+        scores = [e['score'] for e in cluster]
+        total_energy = sum(scores)
+        mean_score = total_energy / len(scores)
+        
+        # Calcular simetría respecto al pico (Índice de Solitón)
+        peak_idx = cluster.index(peak_evt)
+        left_scores = [e['score'] for e in cluster[:peak_idx]]
+        right_scores = [e['score'] for e in cluster[peak_idx + 1:]]
+        min_arms = min(len(left_scores), len(right_scores))
+        if min_arms > 0:
+            diffs = [abs(left_scores[-(i+1)] - right_scores[i]) for i in range(min_arms)]
+            avg_diff = sum(diffs) / len(diffs)
+            symmetry_score = max(0.0, 100.0 - (avg_diff * 4.0))
+        elif len(cluster) == 1:
+            symmetry_score = 100.0
+        else:
+            symmetry_score = 75.0
+            
+        all_alignments = []
+        for e in cluster:
+            for a in e.get('alignments', []):
+                if a not in all_alignments:
+                    all_alignments.append(a)
+                    
+        return {
+            'id': f"W{packet_id}",
+            'start_date': start_d,
+            'end_date': end_d,
+            'duration': duration,
+            'peak_event': peak_evt,
+            'peak_date': peak_evt['date'],
+            'peak_score': peak_evt['score'],
+            'peak_tzolkin': peak_evt['tzolkin'],
+            'peak_long_count': peak_evt['long_count'],
+            'total_energy': total_energy,
+            'mean_score': mean_score,
+            'symmetry_score': symmetry_score,
+            'days': cluster,
+            'alignments': all_alignments,
+            'archetype': f"Solitón Solar {peak_evt['tzolkin']}" if 'Ahau' in peak_evt['tzolkin'] else f"Resonancia {peak_evt['tzolkin']}"
+        }
+
+    def detect_harmonic_links(self, wave_packets):
+        """
+        Detecta enlaces hiper-fractales entre las cúspides de las macro-ventanas.
+        Calcula resonancia en Tuns (360), Tzolkins (260), Haabs (365), Venus (584), etc.
+        """
+        links = []
+        if len(wave_packets) < 2:
+            return links
+            
+        sorted_p = sorted(wave_packets, key=lambda p: p['peak_date'])
+        for i in range(len(sorted_p)):
+            for j in range(i + 1, len(sorted_p)):
+                p1 = sorted_p[i]
+                p2 = sorted_p[j]
+                d1 = p1['peak_date']
+                d2 = p2['peak_date']
+                delta_days = (d2 - d1).days
+                
+                harmonics = []
+                # 1. Tuns (360)
+                tun_f = delta_days / 360.0
+                if abs(tun_f - round(tun_f)) < 0.03:
+                    harmonics.append(f"{int(round(tun_f))} Tuns exactos (360d)")
+                elif abs(tun_f - round(tun_f * 2) / 2.0) < 0.03:
+                    harmonics.append(f"{round(tun_f * 2) / 2.0} Tuns (Media Octava)")
+                    
+                # 2. Tzolkins (260)
+                tz_f = delta_days / 260.0
+                if abs(tz_f - round(tz_f)) < 0.03:
+                    harmonics.append(f"{int(round(tz_f))} Tzolkins exactos (260d)")
+                    
+                # 3. Venus (584)
+                v_f = delta_days / 584.0
+                if abs(v_f - round(v_f)) < 0.05:
+                    harmonics.append(f"{int(round(v_f))} Ciclos Venusianos (~584d)")
+                    
+                # 4. Señores de la Noche (9)
+                if delta_days % 9 == 0:
+                    harmonics.append(f"{delta_days // 9} Ciclos de 9 Señores")
+                    
+                # 5. Katun (7200)
+                k_f = delta_days / 7200.0
+                if abs(k_f - round(k_f)) < 0.05:
+                    harmonics.append(f"{int(round(k_f))} Katun")
+                    
+                if harmonics:
+                    summary = " • ".join(harmonics)
+                    links.append({
+                        'p1': p1,
+                        'p2': p2,
+                        'delta_days': delta_days,
+                        'harmonics': harmonics,
+                        'summary': summary,
+                        'label': f"{harmonics[0]}" if harmonics else f"{delta_days}d"
+                    })
+        return links
 
     def _get_alignments(self, days_since_epoch, natal_days=None):
         """Refactored to accept raw integer directly."""
@@ -462,10 +607,14 @@ class CircularCalendarWidget(QWidget):
     
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setMinimumSize(300, 300)
+        self.setMinimumSize(380, 380)
+        self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         self._tzolkin_idx = 0
         self._haab_idx = 0
         self._lord_idx = 0
+        self._tzolkin_str = "4 Ahau"
+        self._tzolkin_glyph = "☀"
+        self._haab_str = "8 Cumku"
         self._rotation = 0.0
         
         # Animation
@@ -482,11 +631,14 @@ class CircularCalendarWidget(QWidget):
     
     rotation = Property(float, get_rotation, set_rotation)
     
-    def update_data(self, tzolkin_idx, haab_idx, lord_idx):
+    def update_data(self, tzolkin_idx, haab_idx, lord_idx, tzolkin_str="4 Ahau", tzolkin_glyph="☀", haab_str="8 Cumku"):
         old_rot = self._rotation
         self._tzolkin_idx = tzolkin_idx
         self._haab_idx = haab_idx
         self._lord_idx = lord_idx
+        self._tzolkin_str = tzolkin_str
+        self._tzolkin_glyph = tzolkin_glyph
+        self._haab_str = haab_str
         
         new_rot = old_rot + 15
         self._anim.setStartValue(old_rot)
@@ -500,9 +652,11 @@ class CircularCalendarWidget(QWidget):
         
         w, h = self.width(), self.height()
         cx, cy = w // 2, h // 2
-        max_r = min(w, h) // 2 - 10
+        max_r = min(w, h) // 2 - 8
+        if max_r < 40:
+            return
         
-        # Background
+        # Background disk
         bg = QRadialGradient(cx, cy, max_r)
         bg.setColorAt(0, QColor(40, 35, 30))
         bg.setColorAt(1, QColor(20, 18, 15))
@@ -510,26 +664,63 @@ class CircularCalendarWidget(QWidget):
         painter.setPen(Qt.NoPen)
         painter.drawEllipse(cx - max_r, cy - max_r, max_r * 2, max_r * 2)
         
+        # Proportional concentric ring dimensions
+        r_haab_out = max_r - 2
+        r_haab_in = int(max_r * 0.77)
+        
+        r_tz_out = r_haab_in - 2
+        r_tz_in = int(max_r * 0.54)
+        
+        r_lord_out = r_tz_in - 2
+        r_lord_in = int(max_r * 0.36)
+        
+        center_r = r_lord_in - 2
+        
         # Outer ring - Haab (19 segments)
-        self._draw_ring(painter, cx, cy, max_r - 5, max_r - 40, 19, self._haab_idx, 
+        self._draw_ring(painter, cx, cy, r_haab_out, r_haab_in, 19, self._haab_idx, 
                        QColor(139, 90, 43), QColor(210, 150, 80), self.HAAB_LABELS)
         
         # Middle ring - Tzolkin (20 segments)
-        self._draw_ring(painter, cx, cy, max_r - 45, max_r - 80, 20, self._tzolkin_idx,
+        self._draw_ring(painter, cx, cy, r_tz_out, r_tz_in, 20, self._tzolkin_idx,
                        QColor(80, 100, 60), QColor(150, 180, 100), self.TZOLKIN_LABELS)
         
         # Inner ring - Lords (9 segments)
-        self._draw_ring(painter, cx, cy, max_r - 85, max_r - 110, 9, self._lord_idx,
+        self._draw_ring(painter, cx, cy, r_lord_out, r_lord_in, 9, self._lord_idx,
                        QColor(100, 50, 50), QColor(180, 80, 80), self.LORD_LABELS)
         
-        # Center circle
-        center_grad = QRadialGradient(cx, cy, max_r - 115)
-        center_grad.setColorAt(0, QColor(60, 55, 50))
-        center_grad.setColorAt(1, QColor(30, 28, 25))
-        painter.setBrush(QBrush(center_grad))
-        painter.setPen(QPen(QColor(100, 90, 70), 2))
-        painter.drawEllipse(cx - (max_r - 115), cy - (max_r - 115), 
-                           (max_r - 115) * 2, (max_r - 115) * 2)
+        # Center circle - Sacred Kin/Sun Core
+        if center_r > 15:
+            # Radial glowing gold gradient
+            center_grad = QRadialGradient(cx, cy, center_r)
+            center_grad.setColorAt(0, QColor(62, 50, 26))
+            center_grad.setColorAt(0.65, QColor(36, 28, 18))
+            center_grad.setColorAt(1, QColor(18, 15, 12))
+            painter.setBrush(QBrush(center_grad))
+            painter.setPen(QPen(QColor(212, 175, 55, 220), 2))
+            painter.drawEllipse(cx - center_r, cy - center_r, center_r * 2, center_r * 2)
+
+            # Inner subtle gold decorative ring
+            inner_ring_r = center_r - 6
+            if inner_ring_r > 10:
+                painter.setPen(QPen(QColor(241, 196, 15, 120), 1, Qt.DashLine))
+                painter.setBrush(Qt.NoBrush)
+                painter.drawEllipse(cx - inner_ring_r, cy - inner_ring_r, inner_ring_r * 2, inner_ring_r * 2)
+
+            # Glyph and Sacred Text
+            glyph_font = QFont("Segoe UI", max(14, int(center_r * 0.40)))
+            painter.setFont(glyph_font)
+            painter.setPen(QColor(244, 208, 63))
+            painter.drawText(cx - center_r, cy - int(center_r * 0.65), center_r * 2, int(center_r * 0.65), Qt.AlignCenter, self._tzolkin_glyph)
+
+            tz_font = QFont("Segoe UI", max(8, int(center_r * 0.22)), QFont.Bold)
+            painter.setFont(tz_font)
+            painter.setPen(QColor(241, 196, 15))
+            painter.drawText(cx - center_r, cy + int(center_r * 0.05), center_r * 2, int(center_r * 0.38), Qt.AlignCenter, self._tzolkin_str)
+
+            haab_font = QFont("Segoe UI", max(7, int(center_r * 0.16)))
+            painter.setFont(haab_font)
+            painter.setPen(QColor(210, 180, 140, 220))
+            painter.drawText(cx - center_r, cy + int(center_r * 0.42), center_r * 2, int(center_r * 0.35), Qt.AlignCenter, self._haab_str)
     
     def _draw_ring(self, painter, cx, cy, outer_r, inner_r, segments, highlight_idx, base_color, highlight_color, labels=None):
         segment_angle = 360 / segments
@@ -555,10 +746,8 @@ class CircularCalendarWidget(QWidget):
         if labels and outer_r > 30:
             mid_r = (outer_r + inner_r) / 2
             ring_thickness = outer_r - inner_r
-            font_size = max(6, min(9, int(ring_thickness * 0.28)))
-            label_font = QFont("Segoe UI", font_size)
-            label_font.setBold(True)
-            painter.setFont(label_font)
+            arc_len = mid_r * math.radians(segment_angle)
+            base_font_size = max(7, min(13, int(min(ring_thickness * 0.24, arc_len * 0.22))))
             
             for i in range(segments):
                 mid_angle_deg = i * segment_angle + segment_angle / 2 + self._rotation
@@ -569,9 +758,21 @@ class CircularCalendarWidget(QWidget):
                 ly = cy - mid_r * math.sin(mid_angle_rad)
                 
                 label = labels[i] if i < len(labels) else ""
-                # Truncate long labels to fit
-                if ring_thickness < 40 and len(label) > 4:
-                    label = label[:4]
+                
+                # Dynamically fit text within the segment arc to prevent collision/overlap
+                cur_font_size = base_font_size
+                label_font = QFont("Segoe UI", cur_font_size, QFont.Bold)
+                fm = QFontMetrics(label_font)
+                tw = fm.horizontalAdvance(label)
+                max_w = arc_len * 0.85
+                
+                while tw > max_w and cur_font_size > 6:
+                    cur_font_size -= 1
+                    label_font = QFont("Segoe UI", cur_font_size, QFont.Bold)
+                    fm = QFontMetrics(label_font)
+                    tw = fm.horizontalAdvance(label)
+                
+                painter.setFont(label_font)
                 
                 # Text colour: bright for highlighted, subtle for others
                 if i == highlight_idx:
@@ -579,13 +780,18 @@ class CircularCalendarWidget(QWidget):
                 else:
                     painter.setPen(QColor(220, 200, 170, 180))
                 
-                # Rotate text to follow the arc
+                # Rotate text to follow the arc, ensuring human readability (never upside down)
                 painter.save()
                 painter.translate(lx, ly)
-                text_rotation = -mid_angle_deg + 90
-                if 90 < mid_angle_deg % 360 < 270:
-                    text_rotation += 180
-                painter.rotate(text_rotation)
+                
+                rot = (-mid_angle_deg + 90) % 360
+                if rot > 180:
+                    rot -= 360
+                if rot > 90:
+                    rot -= 180
+                elif rot < -90:
+                    rot += 180
+                painter.rotate(rot)
                 
                 fm = painter.fontMetrics()
                 tw = fm.horizontalAdvance(label)
@@ -595,17 +801,64 @@ class CircularCalendarWidget(QWidget):
 
 
 class LongCountDisplay(QWidget):
-    """Animated odometer-style Long Count display."""
+    """Animated odometer-style Long Count display with authentic Classic Maya Dot-and-Bar notation."""
     
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setMinimumHeight(80)
+        self.setMinimumHeight(105)
         self._parts = [13, 0, 0, 0, 0]  # baktun.katun.tun.uinal.kin
         self._labels = ["Baktun", "Katun", "Tun", "Uinal", "Kin"]
         
     def set_long_count(self, parts):
         self._parts = parts
         self.update()
+        
+    def _draw_maya_number(self, painter, cx, cy, val):
+        """
+        Draws Classic Maya vigesimal notation:
+        - 0: Ceremonial shell glyph (concha / cero)
+        - 1-4: Dots (•)
+        - 5, 10, 15: Horizontal bars (—)
+        """
+        painter.save()
+        dot_color = QColor(244, 208, 63)
+        bar_color = QColor(220, 160, 50)
+        
+        if val == 0:
+            # Shell glyph
+            painter.setPen(QPen(bar_color, 1.5))
+            painter.setBrush(QBrush(QColor(50, 40, 25)))
+            shell_w, shell_h = 22, 12
+            painter.drawEllipse(int(cx - shell_w / 2), int(cy - shell_h / 2), shell_w, shell_h)
+            painter.setPen(QPen(dot_color, 1))
+            painter.drawLine(int(cx - shell_w / 2 + 3), int(cy), int(cx + shell_w / 2 - 3), int(cy))
+            painter.drawArc(int(cx - shell_w / 4), int(cy - shell_h / 2 + 2), int(shell_w / 2), shell_h - 4, 0, 180 * 16)
+        else:
+            bars = val // 5
+            dots = val % 5
+            bar_w = 22
+            bar_h = 4
+            dot_r = 2.2
+            
+            total_h = (bars * 6) + (7 if dots > 0 else 0)
+            current_y = cy - total_h / 2
+            
+            if dots > 0:
+                dot_spacing = 6.5
+                dot_start_x = cx - ((dots - 1) * dot_spacing) / 2
+                painter.setPen(Qt.NoPen)
+                painter.setBrush(QBrush(dot_color))
+                for d in range(dots):
+                    painter.drawEllipse(QPointF(dot_start_x + d * dot_spacing, current_y + dot_r), dot_r, dot_r)
+                current_y += 7
+                
+            if bars > 0:
+                painter.setPen(QPen(QColor(140, 95, 25), 0.8))
+                painter.setBrush(QBrush(bar_color))
+                for b in range(bars):
+                    painter.drawRoundedRect(QRectF(cx - bar_w / 2, current_y, bar_w, bar_h), 1.5, 1.5)
+                    current_y += 6
+        painter.restore()
     
     def paintEvent(self, event):
         painter = QPainter(self)
@@ -613,8 +866,8 @@ class LongCountDisplay(QWidget):
         
         w, h = self.width(), self.height()
         box_w = w // 5 - 10
-        box_h = 50
-        y_offset = (h - box_h - 20) // 2
+        box_h = 74
+        y_offset = (h - box_h - 18) // 2
         
         for i, (val, label) in enumerate(zip(self._parts, self._labels)):
             x = 5 + i * (box_w + 10)
@@ -626,16 +879,19 @@ class LongCountDisplay(QWidget):
             grad.setColorAt(1, QColor(40, 35, 30))
             painter.setBrush(QBrush(grad))
             painter.setPen(QPen(QColor(100, 90, 70), 2))
-            painter.drawRoundedRect(x, y_offset, box_w, box_h, 5, 5)
+            painter.drawRoundedRect(x, y_offset, box_w, box_h, 6, 6)
             
-            # Number
+            # 1. Arabic Number (Top)
             painter.setPen(QColor(244, 208, 63))
-            font = QFont("Consolas", 24, QFont.Bold)
+            font = QFont("Consolas", 18, QFont.Bold)
             painter.setFont(font)
-            painter.drawText(x, y_offset, box_w, box_h, Qt.AlignCenter, str(val))
+            painter.drawText(x, y_offset + 3, box_w, 24, Qt.AlignCenter, str(val))
             
-            # Label
-            painter.setPen(QColor(150, 140, 120))
+            # 2. Maya Dot-and-Bar Drawing (Middle)
+            self._draw_maya_number(painter, x + box_w // 2, y_offset + 48, val)
+            
+            # 3. Label (Bottom outside box)
+            painter.setPen(QColor(160, 150, 130))
             font = QFont("Segoe UI", 9)
             painter.setFont(font)
             painter.drawText(x, y_offset + box_h + 2, box_w, 18, Qt.AlignCenter, label)
@@ -643,7 +899,65 @@ class LongCountDisplay(QWidget):
             # Separator dot
             if i < 4:
                 painter.setPen(QColor(200, 180, 140))
-                painter.drawText(x + box_w, y_offset, 10, box_h, Qt.AlignCenter, ".")
+                painter.setFont(QFont("Consolas", 14, QFont.Bold))
+                painter.drawText(x + box_w, y_offset + 10, 10, 30, Qt.AlignCenter, ".")
+
+
+class VenusPhaseBar(QWidget):
+    """
+    Barra visual de las 4 fases sinódicas de Venus según el Códice de Dresde (584 días):
+    - 0..236:   Estrella de la Mañana (236 d) - Conjunción helíaca matutina
+    - 236..326: Conjunción Superior (90 d)   - Detrás del Sol (Invisible)
+    - 326..576: Estrella Vespertina (250 d)  - Ocaso vespertino
+    - 576..584: Conjunción Inferior (8 d)    - Frente al Sol (Invisible)
+    """
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setFixedHeight(18)
+        self._pos = 0
+        
+    def set_position(self, pos):
+        self._pos = max(0, min(584, pos))
+        self.update()
+        
+    def paintEvent(self, event):
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.Antialiasing)
+        w, h = self.width(), self.height()
+        if w < 10:
+            return
+            
+        quadrants = [
+            (236, QColor(41, 128, 185)),  # Matutina (Azul)
+            (90,  QColor(70, 60, 50)),    # Conjunción Superior (Oscuro)
+            (250, QColor(175, 122, 197)), # Vespertina (Púrpura/Ocaso)
+            (8,   QColor(192, 57, 43))    # Conjunción Inferior (Rojo)
+        ]
+        
+        x = 0.0
+        bar_h = 8
+        y = (h - bar_h) / 2.0
+        
+        # Base track
+        for duration, color in quadrants:
+            qw = (duration / 584.0) * w
+            painter.setBrush(QBrush(color))
+            painter.setPen(QPen(QColor(25, 20, 15), 1))
+            painter.drawRect(QRectF(x, y, qw, bar_h))
+            x += qw
+            
+        # Current position marker (glowing diamond)
+        marker_x = (self._pos / 584.0) * w
+        painter.setBrush(QBrush(QColor(255, 235, 59)))
+        painter.setPen(QPen(QColor(20, 15, 10), 1.5))
+        
+        poly = QPolygonF([
+            QPointF(marker_x, y - 3),
+            QPointF(marker_x + 4, y + bar_h / 2.0),
+            QPointF(marker_x, y + bar_h + 3),
+            QPointF(marker_x - 4, y + bar_h / 2.0)
+        ])
+        painter.drawPolygon(poly)
 
 
 class StonePanel(QFrame):
@@ -689,55 +1003,332 @@ class StonePanel(QFrame):
 
 
 class FractalTimelineWidget(QWidget):
-    """Visual timeline showing cycle convergences."""
+    """
+    Osciloscopio Continuo de Coherencia Armónica Maya.
+    Renderiza la envolvente de resonancia como una onda continua de probabilidad/campo,
+    destaca las cúspides de los paquetes de onda, traza arcos de hiper-enlaces fractales
+    y proporciona retícula interactiva con HUD en tiempo real.
+    """
+    date_clicked = Signal(object)
     
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setMinimumHeight(100)
+        self.setMinimumHeight(155)
+        self.setMouseTracking(True)
         self._events = []
+        self._wave_packets = []
+        self._harmonic_links = []
+        self._start_date = None
         self._range_days = 365
+        self._hover_x = -1
+        self._hover_date = None
+        self._hover_info = None
     
-    def set_events(self, events, range_days=365):
-        self._events = events
-        self._range_days = range_days
+    def set_data(self, events, wave_packets=None, harmonic_links=None, start_date=None, range_days=365):
+        self._events = events or []
+        self._wave_packets = wave_packets or []
+        self._harmonic_links = harmonic_links or []
+        self._start_date = start_date
+        self._range_days = max(1, range_days)
+        self._hover_x = -1
+        self._hover_info = None
         self.update()
+
+    def set_events(self, events, range_days=365):
+        """Retrocompatibilidad."""
+        self.set_data(events, range_days=range_days)
     
+    def mouseMoveEvent(self, event):
+        pos = event.position()
+        self._hover_x = pos.x()
+        w = self.width()
+        left, right = 45, 35
+        gw = w - left - right
+        
+        if gw > 0 and self._start_date and left <= self._hover_x <= (left + gw):
+            t_frac = (self._hover_x - left) / gw
+            day_offset = int(t_frac * self._range_days)
+            cur_date = self._start_date + timedelta(days=day_offset)
+            self._hover_date = cur_date
+            
+            # Buscar evento cercano a menos de 4 días
+            closest_evt = None
+            min_d = 5
+            for e in self._events:
+                d_diff = abs((e['date'] - cur_date).days)
+                if d_diff < min_d:
+                    min_d = d_diff
+                    closest_evt = e
+            
+            # Buscar paquete al que pertenezca
+            parent_packet = None
+            for p in self._wave_packets:
+                if p['start_date'] <= cur_date <= p['end_date']:
+                    parent_packet = p
+                    break
+                    
+            self._hover_info = {
+                'date': cur_date,
+                'event': closest_evt,
+                'packet': parent_packet
+            }
+        else:
+            self._hover_info = None
+            self._hover_x = -1
+            
+        self.update()
+
+    def leaveEvent(self, event):
+        self._hover_x = -1
+        self._hover_info = None
+        self.update()
+
+    def mousePressEvent(self, event):
+        if event.button() == Qt.LeftButton and self._hover_info:
+            target_date = self._hover_info['date']
+            if self._hover_info.get('event'):
+                target_date = self._hover_info['event']['date']
+            self.date_clicked.emit(target_date)
+
     def paintEvent(self, event):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.Antialiasing)
         
         w, h = self.width(), self.height()
+        left, right = 45, 35
+        top, bottom = 32, 28
+        gw = w - left - right
+        gh = h - top - bottom
         
-        # Background
-        painter.fillRect(0, 0, w, h, QColor(25, 23, 20))
+        # 1. Fondo Oscuro estilo Estela Maya con marco sutil
+        painter.fillRect(0, 0, w, h, QColor(20, 18, 15))
+        painter.setPen(QPen(QColor(48, 42, 34), 1))
+        painter.drawRect(left, top, gw, gh)
         
-        # Timeline
-        y_mid = h // 2
-        painter.setPen(QPen(QColor(100, 90, 70), 2))
-        painter.drawLine(20, y_mid, w - 20, y_mid)
+        # 2. Gradilla Horizontal de Score (50%, 65%, 75%, 85%)
+        font_axis = QFont("Segoe UI", 8)
+        painter.setFont(font_axis)
         
-        # Events
-        if self._events and self._range_days > 0:
-            today = datetime.now()
-            for evt in self._events:
-                days_from_now = (evt['date'] - today).days
-                if 0 <= days_from_now <= self._range_days:
-                    x = 20 + int((days_from_now / self._range_days) * (w - 40))
+        score_levels = [(50, "50%"), (65, "65%"), (75, "75%"), (85, "85%")]
+        for s_val, s_lbl in score_levels:
+            y_s = top + gh - int((s_val / 100.0) * gh)
+            if top <= y_s <= top + gh:
+                painter.setPen(QPen(QColor(42, 37, 30), 1, Qt.DashLine))
+                painter.drawLine(left, y_s, left + gw, y_s)
+                painter.setPen(QPen(QColor(130, 115, 95), 1))
+                painter.drawText(8, y_s + 4, s_lbl)
+                
+        # 3. Gradilla Vertical de Tiempo (Años)
+        if self._start_date and self._range_days > 0 and gw > 50:
+            start_year = self._start_date.year
+            end_date = self._start_date + timedelta(days=self._range_days)
+            end_year = end_date.year
+            year_span = end_year - start_year
+            
+            step_years = 1 if year_span <= 3 else (2 if year_span <= 10 else 5)
+            first_mark = (start_year // step_years + 1) * step_years
+            
+            for y in range(first_mark, end_year + 1, step_years):
+                dt_mark = datetime(y, 1, 1)
+                days_mark = (dt_mark - self._start_date).days
+                if 0 <= days_mark <= self._range_days:
+                    x_mark = left + int((days_mark / self._range_days) * gw)
+                    painter.setPen(QPen(QColor(38, 33, 26), 1, Qt.DotLine))
+                    painter.drawLine(x_mark, top, x_mark, top + gh)
+                    painter.setPen(QPen(QColor(140, 125, 100), 1))
+                    painter.drawText(x_mark - 14, h - 8, str(y))
+
+        # 4. Línea de Umbral de Coherencia Armónica (60%)
+        y_60 = top + gh - int((60.0 / 100.0) * gh)
+        painter.setPen(QPen(QColor(218, 165, 32, 70), 1, Qt.DashLine))
+        painter.drawLine(left, y_60, left + gw, y_60)
+        painter.setFont(QFont("Segoe UI", 7))
+        painter.setPen(QPen(QColor(218, 165, 32, 110), 1))
+        painter.drawText(left + 6, y_60 - 3, "--- Umbral de Coherencia Armónica (60%) ---")
+
+        # 5. Curva Continua de Coherencia Armónica (Osciloscopio / Envolvente Multiescala)
+        if self._events and self._start_date and self._range_days > 0 and gw > 50:
+            # Construir nodos de picos en espacio de píxeles para que la onda sea visible
+            # tanto a 1 año como a 70 años sin perder continuidad ni diluirse
+            peak_nodes = []
+            if self._wave_packets:
+                for pkt in self._wave_packets:
+                    pk_days = (pkt['peak_date'] - self._start_date).days
+                    if -50 <= pk_days <= (self._range_days + 50):
+                        pk_x = left + (pk_days / self._range_days) * gw
+                        # Ancho visible adaptativo en pantalla (entre 12 y 45 px)
+                        dur_px = max(14.0, min(45.0, (pkt['duration'] / self._range_days) * gw * 2.5 + 16.0))
+                        peak_nodes.append((pk_x, pkt['peak_score'], dur_px))
+            else:
+                for e in self._events:
+                    e_days = (e['date'] - self._start_date).days
+                    if -10 <= e_days <= (self._range_days + 10):
+                        ex = left + (e_days / self._range_days) * gw
+                        peak_nodes.append((ex, e['score'], 14.0))
+
+            num_samples = max(gw, 160)
+            wave_points = []
+            
+            for s_idx in range(num_samples + 1):
+                px = left + (s_idx / num_samples) * gw
+                
+                # Campo de potencial continuo en la coordenada horizontal
+                local_score = 0.0
+                for pk_x, pk_score, pk_sigma in peak_nodes:
+                    d_px = abs(px - pk_x)
+                    if d_px < pk_sigma * 3.5:
+                        contrib = pk_score * math.exp(-(d_px**2) / (2.0 * (pk_sigma**2)))
+                        if contrib > local_score:
+                            local_score = contrib
+                
+                py = top + gh - int((local_score / 100.0) * gh)
+                wave_points.append(QPointF(px, py))
+            
+            # Construir trazado relleno con degradado espectral
+            if wave_points:
+                path_fill = QPainterPath()
+                path_fill.moveTo(left, top + gh)
+                for pt in wave_points:
+                    path_fill.lineTo(pt)
+                path_fill.lineTo(left + gw, top + gh)
+                path_fill.closeSubpath()
+                
+                grad_wave = QLinearGradient(0, top, 0, top + gh)
+                grad_wave.setColorAt(0.0, QColor(241, 196, 15, 175))   # Cima Oro puro radiante
+                grad_wave.setColorAt(0.35, QColor(230, 126, 34, 125)) # Ámbar cósmico
+                grad_wave.setColorAt(0.75, QColor(39, 174, 96, 45))   # Verde jade suave
+                grad_wave.setColorAt(1.0, QColor(10, 8, 6, 10))
+                painter.setBrush(QBrush(grad_wave))
+                painter.setPen(Qt.NoPen)
+                painter.drawPath(path_fill)
+                
+                # Trazo de la cresta superior luminiscente de la onda
+                path_line = QPainterPath()
+                path_line.moveTo(wave_points[0])
+                for pt in wave_points[1:]:
+                    path_line.lineTo(pt)
+                pen_wave = QPen(QColor(241, 196, 15, 230), 1.8)
+                painter.setPen(pen_wave)
+                painter.setBrush(Qt.NoBrush)
+                painter.drawPath(path_line)
+
+        # 5. Cúspides de las Macro-Ventanas (Solitones destacados)
+        for packet in self._wave_packets:
+            if self._start_date and self._range_days > 0:
+                p_days = (packet['peak_date'] - self._start_date).days
+                if 0 <= p_days <= self._range_days:
+                    pk_x = left + int((p_days / self._range_days) * gw)
+                    pk_y = top + gh - int((packet['peak_score'] / 100.0) * gh)
                     
-                    # Score determines size and color
-                    score = evt['score']
-                    radius = int(5 + (score / 100) * 15)
+                    # Halo concéntrico de energía
+                    halo_grad = QRadialGradient(pk_x, pk_y, 14)
+                    halo_grad.setColorAt(0.0, QColor(255, 215, 0, 200))
+                    halo_grad.setColorAt(0.6, QColor(230, 126, 34, 80))
+                    halo_grad.setColorAt(1.0, QColor(0, 0, 0, 0))
+                    painter.setBrush(QBrush(halo_grad))
+                    painter.setPen(Qt.NoPen)
+                    painter.drawEllipse(QPointF(pk_x, pk_y), 14, 14)
                     
-                    if score > 80:
-                        color = QColor(255, 215, 0)  # Gold
-                    elif score > 70:
-                        color = QColor(255, 140, 0)  # Orange
-                    else:
-                        color = QColor(100, 180, 100)  # Green
+                    # Punto central radiante
+                    painter.setBrush(QBrush(QColor(255, 255, 255)))
+                    painter.setPen(QPen(QColor(218, 165, 32), 1.2))
+                    painter.drawEllipse(QPointF(pk_x, pk_y), 3.5, 3.5)
                     
-                    painter.setBrush(QBrush(color))
-                    painter.setPen(QPen(color.darker(150), 1))
-                    painter.drawEllipse(x - radius, y_mid - radius, radius * 2, radius * 2)
+                    # Etiqueta de la Cúspide con píldora de fondo
+                    painter.setFont(QFont("Segoe UI", 8, QFont.Bold))
+                    tag_text = f"{packet['peak_tzolkin']} ({packet['peak_score']:.1f}%)"
+                    tag_metrics = painter.fontMetrics()
+                    tag_w = tag_metrics.horizontalAdvance(tag_text) + 10
+                    tag_h = tag_metrics.height() + 4
+                    tag_bx = pk_x - tag_w // 2
+                    tag_by = max(top + 8, pk_y - 20)
+                    
+                    painter.setBrush(QBrush(QColor(18, 15, 12, 220)))
+                    painter.setPen(QPen(QColor(140, 115, 75), 1))
+                    painter.drawRoundedRect(tag_bx, tag_by, tag_w, tag_h, 3, 3)
+                    
+                    painter.setPen(QPen(QColor(255, 225, 130), 1))
+                    painter.drawText(tag_bx + 5, tag_by + tag_h - 4, tag_text)
+
+        # 6. Arcos de Hiper-Enlaces Fractales entre Cúspides
+        for link in self._harmonic_links[:3]:
+            if self._start_date and self._range_days > 0:
+                p1_days = (link['p1']['peak_date'] - self._start_date).days
+                p2_days = (link['p2']['peak_date'] - self._start_date).days
+                if 0 <= p1_days <= self._range_days and 0 <= p2_days <= self._range_days:
+                    x1 = left + int((p1_days / self._range_days) * gw)
+                    x2 = left + int((p2_days / self._range_days) * gw)
+                    y1 = top + gh - int((link['p1']['peak_score'] / 100.0) * gh)
+                    y2 = top + gh - int((link['p2']['peak_score'] / 100.0) * gh)
+                    
+                    # Arco cuadrático elevado de Bézier
+                    mid_x = (x1 + x2) / 2.0
+                    apex_y = max(top - 14, min(y1, y2) - 30)
+                    
+                    path_arc = QPainterPath()
+                    path_arc.moveTo(x1, y1)
+                    path_arc.quadTo(mid_x, apex_y, x2, y2)
+                    
+                    pen_arc = QPen(QColor(218, 165, 32, 170), 1.3, Qt.DashLine)
+                    painter.setPen(pen_arc)
+                    painter.setBrush(Qt.NoBrush)
+                    painter.drawPath(path_arc)
+                    
+                    # Píldora de texto en el ápice del arco
+                    lbl_arc = f"✦ {link['label']} ✦"
+                    painter.setFont(QFont("Segoe UI", 7, QFont.Bold))
+                    arc_metrics = painter.fontMetrics()
+                    arc_w = arc_metrics.horizontalAdvance(lbl_arc) + 12
+                    arc_h = arc_metrics.height() + 4
+                    arc_bx = int(mid_x - arc_w // 2)
+                    arc_by = int(apex_y - arc_h // 2)
+                    
+                    painter.setBrush(QBrush(QColor(18, 15, 12, 235)))
+                    painter.setPen(QPen(QColor(218, 165, 32, 200), 1))
+                    painter.drawRoundedRect(arc_bx, arc_by, arc_w, arc_h, 4, 4)
+                    
+                    painter.setPen(QPen(QColor(245, 215, 110), 1))
+                    painter.drawText(arc_bx + 6, arc_by + arc_h - 4, lbl_arc)
+
+        # 7. Retícula de Cursor y HUD Flotante (Hover)
+        if self._hover_x >= left and self._hover_x <= (left + gw) and self._hover_info:
+            # Línea vertical del osciloscopio
+            painter.setPen(QPen(QColor(0, 220, 255, 140), 1.2, Qt.SolidLine))
+            painter.drawLine(self._hover_x, top, self._hover_x, top + gh)
+            
+            # Dibujar caja HUD flotante
+            hud_w, hud_h = 195, 62
+            hud_x = self._hover_x + 12
+            if hud_x + hud_w > w - 10:
+                hud_x = self._hover_x - hud_w - 12
+            hud_y = top + 8
+            
+            painter.setBrush(QBrush(QColor(15, 12, 10, 235)))
+            painter.setPen(QPen(QColor(218, 165, 32, 190), 1.2))
+            painter.drawRoundedRect(hud_x, hud_y, hud_w, hud_h, 5, 5)
+            
+            dt_str = self._hover_info['date'].strftime("%b %d, %Y")
+            painter.setFont(QFont("Segoe UI", 8, QFont.Bold))
+            painter.setPen(QPen(QColor(241, 196, 15), 1))
+            painter.drawText(hud_x + 8, hud_y + 16, f"⏱ {dt_str}")
+            
+            evt = self._hover_info.get('event')
+            pkt = self._hover_info.get('packet')
+            
+            painter.setFont(QFont("Segoe UI", 8))
+            if evt:
+                painter.setPen(QPen(QColor(230, 230, 230), 1))
+                painter.drawText(hud_x + 8, hud_y + 32, f"Score: {evt['score']:.1f}% • {evt['tzolkin']}")
+                painter.setPen(QPen(QColor(170, 170, 170), 1))
+                painter.drawText(hud_x + 8, hud_y + 48, f"{evt['long_count']}")
+            elif pkt:
+                painter.setPen(QPen(QColor(93, 173, 226), 1))
+                painter.drawText(hud_x + 8, hud_y + 32, f"Ventana: {pkt['id']} ({pkt['duration']} días)")
+                painter.setPen(QPen(QColor(170, 170, 170), 1))
+                painter.drawText(hud_x + 8, hud_y + 48, f"Cúspide: {pkt['peak_tzolkin']} ({pkt['peak_score']:.1f}%)")
+            else:
+                painter.setPen(QPen(QColor(130, 130, 130), 1))
+                painter.drawText(hud_x + 8, hud_y + 36, "Campo en equilibrio basal")
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -749,6 +1340,10 @@ class MayanSteleApp(QMainWindow):
         super().__init__()
         self.converter = MayanConverter()
         self.analyzer = FractalPatternAnalyzer(self.converter)
+        self.fractal_events = []
+        self.fractal_packets = []
+        self.fractal_links = []
+        self.fractal_view_mode = "packets"
         self.setWindowTitle("🌟 MAYAN STELE - Ultimate Calendar & Fractal Pattern Analyzer")
         self.resize(1000, 800)
         self._apply_global_style()
@@ -895,11 +1490,36 @@ class MayanSteleApp(QMainWindow):
         # Left: Circular Calendar
         left_panel = QVBoxLayout()
         self.circular_calendar = CircularCalendarWidget()
-        left_panel.addWidget(self.circular_calendar)
+        left_panel.addWidget(self.circular_calendar, stretch=1)
         
-        legend = StoneLabel("Outer: Haab │ Middle: Tzolkin │ Inner: Lords", size=10, color="#777")
+        legend = StoneLabel("Outer: Haab │ Middle: Tzolkin │ Inner: Lords", size=11, color="#888")
+        legend.setAlignment(Qt.AlignCenter)
         left_panel.addWidget(legend)
-        layout.addLayout(left_panel, 1)
+        
+        self.btn_sync_fractal = QPushButton("🔮 Sintonizar Resonancia Fractal")
+        self.btn_sync_fractal.setStyleSheet("""
+            QPushButton {
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #3A3225, stop:1 #221E18);
+                color: #F1C40F;
+                border: 2px solid #B7950B;
+                border-radius: 6px;
+                padding: 8px 12px;
+                font-size: 11px;
+                font-weight: bold;
+            }
+            QPushButton:hover {
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #4D4230, stop:1 #2D271F);
+                border-color: #F4D03F;
+                color: #FFF;
+            }
+            QPushButton:pressed {
+                background: #1A1713;
+            }
+        """)
+        self.btn_sync_fractal.clicked.connect(self._jump_to_fractal_analysis)
+        left_panel.addWidget(self.btn_sync_fractal)
+        
+        layout.addLayout(left_panel, 5)
         
         # Right: Info panels
         right_panel = QVBoxLayout()
@@ -917,6 +1537,9 @@ class MayanSteleApp(QMainWindow):
         self.panel_calendar_round = StonePanel("Calendar Round", "4 Ahau 8 Cumku", "52-year Cycle")
         self.panel_lord = StonePanel("Lord of Night", "G9", "9-day Cycle")
         self.panel_venus = StonePanel("Venus Cycle", "Day 0", "584-day Cycle")
+        self.venus_bar = VenusPhaseBar()
+        self.panel_venus.layout().addWidget(self.venus_bar)
+        
         self.panel_moon = StonePanel("Moon Phase", "🌕", "Lunar Cycle")
         self.panel_lunar_series = StonePanel("Lunar Series", "Glyph C: 1", "Glyphs C, A, X")
         self.panel_deep_time = StonePanel("Deep Cycles", "0 Piktun", "Macro Eras")
@@ -931,7 +1554,7 @@ class MayanSteleApp(QMainWindow):
         grid.addWidget(self.panel_deep_time, 3, 1)
         
         right_panel.addLayout(grid)
-        layout.addLayout(right_panel, 2)
+        layout.addLayout(right_panel, 6)
         
         self.tabs.addTab(tab, "📅 Calendar")
 
@@ -1007,17 +1630,80 @@ class MayanSteleApp(QMainWindow):
             cycle_layout.addWidget(cb)
         layout.addWidget(cycle_group)
         
-        # Timeline
+        # ── BARRA DE MODOS DE VISTA & RESUMEN DE COHERENCIA ──
+        mode_toolbar = QHBoxLayout()
+        mode_toolbar.addWidget(StoneLabel("Modo de Vista:", size=11, color="#aaa"))
+        
+        self.btn_view_packets = QPushButton("🌊 Ventanas Holísticas (Solitones)")
+        self.btn_view_packets.setStyleSheet("background: #2E4053; color: #F1C40F; border: 1px solid #F1C40F; font-size: 11px; padding: 6px 12px;")
+        self.btn_view_packets.clicked.connect(lambda: self.switch_fractal_view_mode("packets"))
+        mode_toolbar.addWidget(self.btn_view_packets)
+        
+        self.btn_view_chrono = QPushButton("⏱ Cronológico Continuo")
+        self.btn_view_chrono.setStyleSheet("background: #252220; color: #aaa; border: 1px solid #444; font-size: 11px; padding: 6px 12px;")
+        self.btn_view_chrono.clicked.connect(lambda: self.switch_fractal_view_mode("chrono"))
+        mode_toolbar.addWidget(self.btn_view_chrono)
+        
+        self.btn_view_score = QPushButton("⚡ Picos de Potencia")
+        self.btn_view_score.setStyleSheet("background: #252220; color: #aaa; border: 1px solid #444; font-size: 11px; padding: 6px 12px;")
+        self.btn_view_score.clicked.connect(lambda: self.switch_fractal_view_mode("score"))
+        mode_toolbar.addWidget(self.btn_view_score)
+        
+        mode_toolbar.addSpacing(15)
+        self.lbl_fractal_summary = StoneLabel("Presiona 'Find Convergences' para analizar el continuo armónico.", size=11, color="#888")
+        mode_toolbar.addWidget(self.lbl_fractal_summary, stretch=1)
+        layout.addLayout(mode_toolbar)
+        
+        # Timeline / Osciloscopio Continuo
         self.fractal_timeline = FractalTimelineWidget()
+        self.fractal_timeline.date_clicked.connect(self._on_timeline_date_clicked)
         layout.addWidget(self.fractal_timeline)
+        
+        # Splitter: Tabla a la izquierda, Panel de Hiper-Fractales y Simetría a la derecha
+        splitter = QSplitter(Qt.Horizontal)
+        splitter.setStyleSheet("QSplitter::handle { background: #332E27; width: 4px; }")
         
         # Results table
         self.convergence_table = QTableWidget()
-        self.convergence_table.setColumnCount(5)
-        self.convergence_table.setHorizontalHeaderLabels(["Date", "Score", "Long Count", "Tzolkin", "Alignments"])
-        self.convergence_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
         self.convergence_table.setAlternatingRowColors(True)
-        layout.addWidget(self.convergence_table)
+        self.convergence_table.cellClicked.connect(self._on_table_cell_clicked)
+        splitter.addWidget(self.convergence_table)
+        
+        # Panel Derecho: Hiper-Enlaces Fractales y Desglose de Simetría
+        harmonic_frame = QFrame()
+        harmonic_frame.setStyleSheet("""
+            QFrame { background: #1C1916; border: 1px solid #3A332A; border-radius: 6px; }
+        """)
+        harmonic_layout = QVBoxLayout(harmonic_frame)
+        harmonic_layout.setContentsMargins(10, 10, 10, 10)
+        harmonic_layout.setSpacing(8)
+        
+        h_title = StoneLabel("🔗 PUENTES HIPER-FRACTALES", size=11, is_bold=True, color="#F1C40F")
+        harmonic_layout.addWidget(h_title)
+        
+        h_scroll = QScrollArea()
+        h_scroll.setWidgetResizable(True)
+        h_scroll.setStyleSheet("background: transparent; border: none;")
+        self.harmonic_content = QWidget()
+        self.harmonic_content_layout = QVBoxLayout(self.harmonic_content)
+        self.harmonic_content_layout.setContentsMargins(0, 0, 0, 0)
+        self.harmonic_content_layout.setSpacing(6)
+        h_scroll.setWidget(self.harmonic_content)
+        harmonic_layout.addWidget(h_scroll, stretch=1)
+        
+        # Caja inferior de Desglose de Ventana Seleccionada
+        self.window_detail_box = QLabel("Selecciona una ventana en la tabla para ver su curva de simetría y respiración.")
+        self.window_detail_box.setWordWrap(True)
+        self.window_detail_box.setStyleSheet("""
+            background: #141210; border: 1px solid #2B251E; border-radius: 4px;
+            padding: 8px; font-size: 11px; color: #BDC3C7; line-height: 140%;
+        """)
+        harmonic_layout.addWidget(self.window_detail_box)
+        
+        splitter.addWidget(harmonic_frame)
+        splitter.setStretchFactor(0, 3)
+        splitter.setStretchFactor(1, 2)
+        layout.addWidget(splitter, stretch=1)
         
         self.tabs.addTab(tab, "🔮 Fractal Patterns")
 
@@ -1172,7 +1858,10 @@ class MayanSteleApp(QMainWindow):
         self.circular_calendar.update_data(
             data["tzolkin_idx"],
             data["haab_idx"],
-            (data["days_since_epoch"] + 8) % 9
+            (data["days_since_epoch"] + 8) % 9,
+            data["tzolkin"],
+            data["tzolkin_glyph"],
+            data["haab"]
         )
         
         # Update Long Count display
@@ -1196,12 +1885,15 @@ class MayanSteleApp(QMainWindow):
         )
         self.panel_lord.update_data(data["lord"], data["lord_name"])
         self.panel_venus.update_data(
-            f"Day {data['venus_pos']}",
-            data["venus_phase"]
+            f"Day {data['venus_pos']} / 584",
+            f"Canon 584d • NASA: {data['venus_astro_pos']}d\n{data['venus_phase']}"
         )
+        if hasattr(self, 'venus_bar'):
+            self.venus_bar.set_position(data["venus_pos"])
+            
         self.panel_moon.update_data(
             data["moon_phase"],
-            f"Moon Age: {data['moon_age']:.1f} days"
+            f"Moon Age: {data['moon_age']:.1f}d • {data['moon_illumination']} Iluminada"
         )
         self.panel_lunar_series.update_data(
             f"C: {data['glyph_c']} | A: {data['glyph_a']}",
@@ -1214,6 +1906,27 @@ class MayanSteleApp(QMainWindow):
             f"Kalabtun: {dc[2]} | Kinchiltun: {dc[1]}"
         )
 
+    def _jump_to_fractal_analysis(self):
+        """Sincroniza la fecha activa del calendario con el analizador fractal (±2 años) y ejecuta la detección."""
+        current_date = self.date_edit.date()
+        self.date_fractal_start.setDate(current_date.addYears(-2))
+        self.date_fractal_end.setDate(current_date.addYears(2))
+        self.tabs.setCurrentIndex(1)
+        self._analyze_patterns()
+
+    def switch_fractal_view_mode(self, mode):
+        """Alterna entre el modo Ventanas Holísticas (Solitones), Cronológico y Picos de Potencia."""
+        self.fractal_view_mode = mode
+        
+        style_active = "background: #2E4053; color: #F1C40F; border: 1px solid #F1C40F; font-size: 11px; padding: 6px 12px; font-weight: bold;"
+        style_inactive = "background: #252220; color: #aaa; border: 1px solid #444; font-size: 11px; padding: 6px 12px;"
+        
+        self.btn_view_packets.setStyleSheet(style_active if mode == "packets" else style_inactive)
+        self.btn_view_chrono.setStyleSheet(style_active if mode == "chrono" else style_inactive)
+        self.btn_view_score.setStyleSheet(style_active if mode == "score" else style_inactive)
+        
+        self._render_fractal_table()
+
     def _analyze_patterns(self):
         start_date = self.date_fractal_start.date()
         end_date = self.date_fractal_end.date()
@@ -1221,9 +1934,7 @@ class MayanSteleApp(QMainWindow):
         if total_days < 1:
             total_days = 1
             
-        # Convert QDate to Python datetime
         start_datetime = datetime(start_date.year(), start_date.month(), start_date.day())
-        
         selected = [name for name, cb in self.cycle_checks.items() if cb.isChecked()]
         
         natal_days = None
@@ -1233,27 +1944,217 @@ class MayanSteleApp(QMainWindow):
                 natal_data = self.converter.get_full_date(n_date.year(), n_date.month(), n_date.day())
                 natal_days = natal_data['days_since_epoch']
             
+        # 1. Detección de Convergencias y Puntuación
         events = self.analyzer.find_convergences(start_datetime, total_days, selected, natal_days)
         
-        # Update timeline
-        self.fractal_timeline.set_events(events, total_days)
+        # 2. Agrupamiento en Paquetes de Onda Coherente (Solitones)
+        packets = self.analyzer.group_into_wave_packets(events)
         
-        # Clear and update table
-        self.convergence_table.clearContents()
-        self.convergence_table.setRowCount(len(events))
+        # 3. Detección de Hiper-Enlaces Fractales entre Cúspides
+        links = self.analyzer.detect_harmonic_links(packets)
         
-        for row, evt in enumerate(events):
-            self.convergence_table.setItem(row, 0, QTableWidgetItem(evt['date'].strftime("%b %d, %Y")))
-            self.convergence_table.setItem(row, 1, QTableWidgetItem(f"{evt['score']:.1f}%"))
-            self.convergence_table.setItem(row, 2, QTableWidgetItem(evt['long_count']))
-            self.convergence_table.setItem(row, 3, QTableWidgetItem(evt['tzolkin']))
-            self.convergence_table.setItem(row, 4, QTableWidgetItem(", ".join(evt['alignments'])))
+        self.fractal_events = events
+        self.fractal_packets = packets
+        self.fractal_links = links
         
-        # Force UI refresh
-        self.convergence_table.viewport().update()
+        # 4. Actualizar Osciloscopio Continuo
+        self.fractal_timeline.set_data(events, packets, links, start_datetime, total_days)
+        
+        # 5. Actualizar Barra de Resumen
+        if packets:
+            self.lbl_fractal_summary.setText(
+                f"✦ {len(packets)} Ventanas Coherentes detectadas ({len(events)} días de alta resonancia) • {len(links)} Hiper-Enlaces Fractales"
+            )
+            self.lbl_fractal_summary.setStyleSheet("color: #F1C40F; font-size: 11px; font-weight: bold;")
+        else:
+            self.lbl_fractal_summary.setText("No se encontraron convergencias que superen el umbral de coherencia del 60%.")
+            self.lbl_fractal_summary.setStyleSheet("color: #aaa; font-size: 11px;")
+            
+        # 6. Renderizar Tabla y Panel de Hiper-Fractales
+        self._render_fractal_table()
+        self._render_harmonic_panel()
         
         if hasattr(self, 'btn_export'):
-            self.btn_export.setEnabled(True)
+            self.btn_export.setEnabled(len(events) > 0)
+
+    def _render_fractal_table(self):
+        """Renderiza la tabla de resultados según el modo de vista seleccionado."""
+        self.convergence_table.clear()
+        
+        if self.fractal_view_mode == "packets":
+            # MODO 1: VENTANAS HOLÍSTICAS (EL TODO / PAQUETES DE ONDA)
+            headers = ["ID", "Ventana Temporal", "Duración", "Cúspide / Pico", "Score Máx", "Energía Acum.", "Simetría (Solitón)", "Alineamientos Clave"]
+            self.convergence_table.setColumnCount(len(headers))
+            self.convergence_table.setHorizontalHeaderLabels(headers)
+            self.convergence_table.setRowCount(len(self.fractal_packets))
+            
+            for row, pkt in enumerate(self.fractal_packets):
+                # ID
+                item_id = QTableWidgetItem(pkt['id'])
+                item_id.setTextAlignment(Qt.AlignCenter)
+                self.convergence_table.setItem(row, 0, item_id)
+                
+                # Ventana Temporal
+                w_str = f"{pkt['start_date'].strftime('%b %d, %Y')} ➔ {pkt['end_date'].strftime('%b %d, %Y')}"
+                self.convergence_table.setItem(row, 1, QTableWidgetItem(w_str))
+                
+                # Duración
+                item_dur = QTableWidgetItem(f"{pkt['duration']} días")
+                item_dur.setTextAlignment(Qt.AlignCenter)
+                self.convergence_table.setItem(row, 2, item_dur)
+                
+                # Cúspide
+                pk_str = f"{pkt['peak_date'].strftime('%b %d')} [{pkt['peak_tzolkin']} - {pkt['peak_long_count']}]"
+                self.convergence_table.setItem(row, 3, QTableWidgetItem(pk_str))
+                
+                # Score Máx
+                item_sc = QTableWidgetItem(f"{pkt['peak_score']:.1f}%")
+                item_sc.setTextAlignment(Qt.AlignCenter)
+                if pkt['peak_score'] >= 75:
+                    item_sc.setForeground(QColor("#F1C40F"))
+                self.convergence_table.setItem(row, 4, item_sc)
+                
+                # Energía Acumulada
+                item_en = QTableWidgetItem(f"{pkt['total_energy']:.1f}")
+                item_en.setTextAlignment(Qt.AlignCenter)
+                self.convergence_table.setItem(row, 5, item_en)
+                
+                # Simetría
+                sym_label = "Solitón Puro" if pkt['symmetry_score'] >= 88 else ("Campana Coherente" if pkt['symmetry_score'] >= 70 else "Onda Asimétrica")
+                item_sym = QTableWidgetItem(f"{pkt['symmetry_score']:.0f}% ({sym_label})")
+                item_sym.setTextAlignment(Qt.AlignCenter)
+                self.convergence_table.setItem(row, 6, item_sym)
+                
+                # Alineamientos
+                self.convergence_table.setItem(row, 7, QTableWidgetItem(", ".join(pkt['alignments'])))
+                
+        else:
+            # MODOS INDIVIDUALES: CRONOLÓGICO O SCORE DESCENDENTE
+            headers = ["Fecha", "Score", "Long Count", "Tzolkin", "Ventana", "Alineamientos"]
+            self.convergence_table.setColumnCount(len(headers))
+            self.convergence_table.setHorizontalHeaderLabels(headers)
+            
+            if self.fractal_view_mode == "chrono":
+                display_events = sorted(self.fractal_events, key=lambda x: x['date'])
+            else:
+                display_events = sorted(self.fractal_events, key=lambda x: x['score'], reverse=True)
+                
+            self.convergence_table.setRowCount(len(display_events))
+            
+            # Mapear fecha a ID de ventana
+            date_to_pkt = {}
+            for pkt in self.fractal_packets:
+                for d in pkt['days']:
+                    date_to_pkt[d['date'].strftime('%Y-%m-%d')] = pkt['id']
+                    
+            for row, evt in enumerate(display_events):
+                self.convergence_table.setItem(row, 0, QTableWidgetItem(evt['date'].strftime("%b %d, %Y")))
+                
+                item_sc = QTableWidgetItem(f"{evt['score']:.1f}%")
+                item_sc.setTextAlignment(Qt.AlignCenter)
+                if evt['score'] >= 75:
+                    item_sc.setForeground(QColor("#F1C40F"))
+                self.convergence_table.setItem(row, 1, item_sc)
+                
+                self.convergence_table.setItem(row, 2, QTableWidgetItem(evt['long_count']))
+                self.convergence_table.setItem(row, 3, QTableWidgetItem(evt['tzolkin']))
+                
+                pkt_id = date_to_pkt.get(evt['date'].strftime('%Y-%m-%d'), "—")
+                item_pkt = QTableWidgetItem(pkt_id)
+                item_pkt.setTextAlignment(Qt.AlignCenter)
+                self.convergence_table.setItem(row, 4, item_pkt)
+                
+                self.convergence_table.setItem(row, 5, QTableWidgetItem(", ".join(evt['alignments'])))
+                
+        self.convergence_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeToContents)
+        self.convergence_table.horizontalHeader().setStretchLastSection(True)
+        self.convergence_table.viewport().update()
+
+    def _render_harmonic_panel(self):
+        """Renderiza las tarjetas de hiper-enlaces fractales en el panel lateral."""
+        # Limpiar contenido anterior
+        while self.harmonic_content_layout.count() > 0:
+            item = self.harmonic_content_layout.takeAt(0)
+            if item.widget():
+                item.widget().deleteLater()
+                
+        if not self.fractal_links:
+            lbl_empty = StoneLabel("No se detectaron hiper-enlaces armónicos entre las cúspides en el rango actual.", size=10, color="#777")
+            lbl_empty.setWordWrap(True)
+            self.harmonic_content_layout.addWidget(lbl_empty)
+            self.harmonic_content_layout.addStretch()
+            return
+            
+        for link in self.fractal_links:
+            card = QFrame()
+            card.setStyleSheet("""
+                QFrame {
+                    background: #24201A;
+                    border: 1px solid #4D412F;
+                    border-radius: 5px;
+                    padding: 6px;
+                }
+            """)
+            card_layout = QVBoxLayout(card)
+            card_layout.setContentsMargins(8, 8, 8, 8)
+            card_layout.setSpacing(4)
+            
+            p1_name = f"{link['p1']['peak_tzolkin']} ({link['p1']['peak_date'].year})"
+            p2_name = f"{link['p2']['peak_tzolkin']} ({link['p2']['peak_date'].year})"
+            header = QLabel(f"🌟 {p1_name} ➔ {p2_name}")
+            header.setStyleSheet("color: #F1C40F; font-weight: bold; font-size: 11px;")
+            card_layout.addWidget(header)
+            
+            sub = QLabel(f"Distancia temporal: {link['delta_days']:,} días terrestres")
+            sub.setStyleSheet("color: #BDC3C7; font-size: 10px;")
+            card_layout.addWidget(sub)
+            
+            for h in link['harmonics']:
+                lbl_h = QLabel(f"• {h}")
+                lbl_h.setStyleSheet("color: #5DADE2; font-size: 10px;")
+                card_layout.addWidget(lbl_h)
+                
+            card_layout.addWidget(QLabel(""))
+            self.harmonic_content_layout.addWidget(card)
+            
+        self.harmonic_content_layout.addStretch()
+
+    def _on_table_cell_clicked(self, row, col):
+        """Muestra el desglose de simetría y secuencia de respiración de la ventana seleccionada."""
+        if self.fractal_view_mode == "packets" and row < len(self.fractal_packets):
+            pkt = self.fractal_packets[row]
+            
+            lines = [
+                f"<b>📍 VENTANA {pkt['id']}: {pkt['start_date'].strftime('%d %b %Y')} ➔ {pkt['end_date'].strftime('%d %b %Y')}</b>",
+                f"• <b>Cúspide:</b> {pkt['peak_tzolkin']} ({pkt['peak_score']:.1f}%) el {pkt['peak_date'].strftime('%d %b %Y')} [{pkt['peak_long_count']}]",
+                f"• <b>Simetría de Solitón:</b> {pkt['symmetry_score']:.0f}% • Duración: {pkt['duration']} días",
+                f"• <b>Secuencia de Respiración Diaria:</b>"
+            ]
+            
+            for d in pkt['days']:
+                is_peak = (d['date'] == pkt['peak_date'])
+                prefix = "  ⭐ " if is_peak else "  ▫ "
+                lines.append(f"{prefix}{d['date'].strftime('%d %b')}: {d['tzolkin']} — <b>{d['score']:.1f}%</b> ({d['long_count']})")
+                
+            self.window_detail_box.setText("<br>".join(lines))
+        elif self.fractal_view_mode in ("chrono", "score") and row < len(self.fractal_events):
+            if self.fractal_view_mode == "chrono":
+                display_events = sorted(self.fractal_events, key=lambda x: x['date'])
+            else:
+                display_events = sorted(self.fractal_events, key=lambda x: x['score'], reverse=True)
+            evt = display_events[row]
+            self.window_detail_box.setText(
+                f"<b>📅 {evt['date'].strftime('%d %b %Y')}</b><br>"
+                f"• Score: <b>{evt['score']:.1f}%</b><br>"
+                f"• Tzolkin: {evt['tzolkin']} • Long Count: {evt['long_count']}<br>"
+                f"• Alineamientos: {', '.join(evt['alignments'])}"
+            )
+
+    def _on_timeline_date_clicked(self, date):
+        """Navega el calendario principal a la fecha clickeada en el osciloscopio."""
+        self.date_edit.setDate(QDate(date.year, date.month, date.day))
+        self.convert_date()
+        self.tabs.setCurrentIndex(0)  # Llevar al usuario a la vista de calendario
 
     def _export_fractal_results(self):
         if self.convergence_table.rowCount() == 0:
@@ -1276,9 +2177,9 @@ class MayanSteleApp(QMainWindow):
                         row_data.append(item.text() if item else "")
                     writer.writerow(row_data)
             
-            QMessageBox.information(self, "Export Successful", f"Results successfully exported to:\n{path}")
+            QMessageBox.information(self, "Export Successful", f"Resultados exitosamente exportados en modo '{self.fractal_view_mode}' a:\n{path}")
         except Exception as e:
-            QMessageBox.critical(self, "Export Failed", f"An error occurred while exporting:\n{str(e)}")
+            QMessageBox.critical(self, "Export Failed", f"Ocurrió un error al exportar:\n{str(e)}")
 
     def _change_correlation(self):
         index = self.combo_correlation.currentIndex()
