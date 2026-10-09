@@ -2,7 +2,7 @@
 
 A comprehensive, visually stunning Mayan calendar application built with Python and PySide6. Convert any Gregorian date to its Mayan equivalent, track deep cosmic eras, and discover personal fractal patterns within the ancient cycles using an advanced astronomical engine.
 
-![Mayan Stele](./assets/MayanStele.JPG)
+![Mayan Stele](./assets/MAYAN_STELE_UI.JPG)
 ![Python](https://img.shields.io/badge/Python-3.8+-blue.svg)
 ![PySide6](https://img.shields.io/badge/PySide6-6.0+-green.svg)
 
