@@ -15,7 +15,7 @@ from PySide6.QtWidgets import (
     QSpinBox, QScrollArea, QGroupBox, QSplitter, QSlider, QProgressBar, QComboBox,
     QFileDialog, QMessageBox, QSizePolicy
 )
-from PySide6.QtCore import QDate, Qt, QSize, QTimer, QPropertyAnimation, QEasingCurve, Property, QRectF, Signal, QPointF, QPoint
+from PySide6.QtCore import QDate, Qt, QSize, QTimer, QPropertyAnimation, QEasingCurve, Property, QRectF, Signal, QPointF, QPoint, QThread, Slot
 from PySide6.QtGui import QFont, QFontMetrics, QColor, QPalette, QIcon, QPainter, QPainterPath, QPen, QBrush, QRadialGradient, QLinearGradient, QConicalGradient, QPolygonF
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -336,8 +336,8 @@ class FractalPatternAnalyzer:
         
         return (alignments / weights) * 100.0 if weights > 0 else 0.0
 
-    def find_convergences(self, start_date, total_days=365, selected_cycles=None, natal_days=None):
-        """Optimized loop: Generates heavy dictionaries ONLY if the score hits the threshold."""
+    def find_convergences(self, start_date, total_days=365, selected_cycles=None, natal_days=None, progress_callback=None):
+        """Optimized loop: Precomputes cycle harmonic nodes and generates heavy dictionaries ONLY if the score hits the threshold."""
         if selected_cycles is None:
             selected_cycles = list(self.CYCLES.keys())
         
@@ -347,21 +347,72 @@ class FractalPatternAnalyzer:
         else:
             start = datetime(start_date, 1, 1)
             
+        checks = [
+            ('Tzolkin', 260, 1.0),
+            ('Haab', 365, 0.8),
+            ('Calendar Round', 18980, 1.2),
+            ('Lord of Night', 9, 0.5),
+            ('819-Day', 819, 0.7),
+            ('Venus', 584, 0.9),
+            ('Mars', 780, 0.6),
+            ('Tun', 360, 0.7),
+        ]
+        harmonics = [
+            (0.0, 1.0),
+            (0.5, 0.8),
+            (0.25, 0.6),
+            (0.75, 0.6),
+            (0.618034, 0.7),
+            (0.7836, 0.85),
+        ]
+        
+        precomputed = []
+        total_weight = 0.0
+        for name, cycle, weight in checks:
+            if selected_cycles is not None and name not in selected_cycles:
+                continue
+            total_weight += weight
+            max_w = min(cycle * 0.05, 13.0)
+            inv_max_w = 1.0 / max_w if max_w > 0 else 0.0
+            half_c = cycle / 2.0
+            nodes = [(cycle * hf, hw) for hf, hw in harmonics]
+            precomputed.append((cycle, weight, half_c, max_w, inv_max_w, nodes))
+            
+        scale = (100.0 / total_weight) if total_weight > 0 else 0.0
+
         # O(1) Optimization: Calculate the starting 'days_since_epoch' exactly once.
         start_jdn = self.converter._gregorian_to_jdn(start.year, start.month, start.day)
         base_days_since_epoch = start_jdn - self.converter.correlation_jdn
         
+        # Report progress in chunks of 20,000 days or 2%
+        step_progress = max(10000, total_days // 50)
+        
         for day_offset in range(total_days):
-            # Pure integer addition instead of date manipulation
+            if progress_callback and (day_offset % step_progress == 0 or day_offset == total_days - 1):
+                progress_callback(day_offset + 1, total_days)
+                
             current_days = base_days_since_epoch + day_offset
+            eval_days = current_days if natal_days is None else (current_days - natal_days)
             
-            # Pass the raw integer to the math engine
-            score = self.calculate_resonance_score(current_days, selected_cycles, natal_days)
+            alignments = 0.0
+            for cycle, weight, half_c, max_w, inv_max_w, nodes in precomputed:
+                pos = eval_days % cycle
+                best_al = 0.0
+                for node_pos, hw in nodes:
+                    dist = abs(pos - node_pos)
+                    if dist > half_c:
+                        dist = cycle - dist
+                    if dist <= max_w:
+                        al = (1.0 - dist * inv_max_w) * hw
+                        if al > best_al:
+                            best_al = al
+                alignments += best_al * weight
+                
+            score = alignments * scale
             
             # Condition check BEFORE building strings
-            if score > 60:
+            if score > 60.0:
                 current = start + timedelta(days=day_offset)
-                # Only request the heavy dictionary if it's a valid node
                 data = self.converter.get_full_date(current.year, current.month, current.day)
                 events.append({
                     'date': current,
@@ -509,6 +560,8 @@ class FractalPatternAnalyzer:
                         'summary': summary,
                         'label': f"{harmonics[0]}" if harmonics else f"{delta_days}d"
                     })
+        # Sort links by number of resonant harmonic coincidences and the sum of peak scores
+        links.sort(key=lambda l: (len(l['harmonics']), l['p1']['peak_score'] + l['p2']['peak_score']), reverse=True)
         return links
 
     def _get_alignments(self, days_since_epoch, natal_days=None):
@@ -568,6 +621,38 @@ class FractalPatternAnalyzer:
             current = next_date
         
         return projections
+
+
+class FractalAnalysisWorker(QThread):
+    """
+    Worker asíncrono para cálculo de resonancias y patrones fractales.
+    Ejecuta el escaneo en un hilo en segundo plano para mantener la GUI 100% fluida y receptiva.
+    """
+    progress = Signal(int, int)  # (current_day, total_days)
+    result_ready = Signal(list, list, list)  # (events, packets, links)
+
+    def __init__(self, analyzer, start_datetime, total_days, selected, natal_days):
+        super().__init__()
+        self.analyzer = analyzer
+        self.start_datetime = start_datetime
+        self.total_days = total_days
+        self.selected = selected
+        self.natal_days = natal_days
+
+    def run(self):
+        def _cb(curr, total):
+            self.progress.emit(curr, total)
+
+        events = self.analyzer.find_convergences(
+            self.start_datetime,
+            self.total_days,
+            self.selected,
+            self.natal_days,
+            progress_callback=_cb
+        )
+        packets = self.analyzer.group_into_wave_packets(events)
+        links = self.analyzer.detect_harmonic_links(packets)
+        self.result_ready.emit(events, packets, links)
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -1023,7 +1108,19 @@ class FractalTimelineWidget(QWidget):
         self._hover_x = -1
         self._hover_date = None
         self._hover_info = None
+        
+        # GPU/Vector Path Caches para repintado instantáneo (60+ FPS sin recálculos)
+        self._cached_wave_fill = None
+        self._cached_wave_line = None
+        self._cached_peak_markers = []
+        self._cached_peak_tags = []
+        self._cached_w = 0
+        self._cached_h = 0
     
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        self._rebuild_wave_cache()
+
     def set_data(self, events, wave_packets=None, harmonic_links=None, start_date=None, range_days=365):
         self._events = events or []
         self._wave_packets = wave_packets or []
@@ -1032,7 +1129,107 @@ class FractalTimelineWidget(QWidget):
         self._range_days = max(1, range_days)
         self._hover_x = -1
         self._hover_info = None
+        self._rebuild_wave_cache()
         self.update()
+
+    def _rebuild_wave_cache(self):
+        """Precomputa las trayectorias de onda y marcadores con LOD adaptativo anti-colisión."""
+        w, h = self.width(), self.height()
+        left, right = 45, 35
+        top, bottom = 32, 28
+        gw = w - left - right
+        gh = h - top - bottom
+
+        self._cached_wave_fill = None
+        self._cached_wave_line = None
+        self._cached_peak_markers = []
+        self._cached_peak_tags = []
+        self._cached_w = w
+        self._cached_h = h
+
+        if not self._events or not self._start_date or self._range_days <= 0 or gw <= 50:
+            return
+
+        # 1. Nodos de picos en espacio de coordenadas
+        peak_nodes = []
+        if self._wave_packets:
+            for pkt in self._wave_packets:
+                pk_days = (pkt['peak_date'] - self._start_date).days
+                if -50 <= pk_days <= (self._range_days + 50):
+                    pk_x = left + (pk_days / self._range_days) * gw
+                    dur_px = max(14.0, min(45.0, (pkt['duration'] / self._range_days) * gw * 2.5 + 16.0))
+                    peak_nodes.append((pk_x, pkt['peak_score'], dur_px))
+        else:
+            for e in self._events:
+                e_days = (e['date'] - self._start_date).days
+                if -10 <= e_days <= (self._range_days + 10):
+                    ex = left + (e_days / self._range_days) * gw
+                    peak_nodes.append((ex, e['score'], 14.0))
+
+        # 2. Muestreo de onda continua
+        num_samples = max(gw, 160)
+        wave_points = []
+        for s_idx in range(num_samples + 1):
+            px = left + (s_idx / num_samples) * gw
+            local_score = 0.0
+            for pk_x, pk_score, pk_sigma in peak_nodes:
+                d_px = abs(px - pk_x)
+                if d_px < pk_sigma * 3.5:
+                    contrib = pk_score * math.exp(-(d_px**2) / (2.0 * (pk_sigma**2)))
+                    if contrib > local_score:
+                        local_score = contrib
+            py = top + gh - int((local_score / 100.0) * gh)
+            wave_points.append(QPointF(px, py))
+
+        if wave_points:
+            p_fill = QPainterPath()
+            p_fill.moveTo(left, top + gh)
+            for pt in wave_points:
+                p_fill.lineTo(pt)
+            p_fill.lineTo(left + gw, top + gh)
+            p_fill.closeSubpath()
+            self._cached_wave_fill = p_fill
+
+            p_line = QPainterPath()
+            p_line.moveTo(wave_points[0])
+            for pt in wave_points[1:]:
+                p_line.lineTo(pt)
+            self._cached_wave_line = p_line
+
+        # 3. Marcadores de picos y etiquetas adaptativas anti-colisión
+        packets_in_view = []
+        for packet in self._wave_packets:
+            p_days = (packet['peak_date'] - self._start_date).days
+            if 0 <= p_days <= self._range_days:
+                pk_x = left + int((p_days / self._range_days) * gw)
+                pk_y = top + gh - int((packet['peak_score'] / 100.0) * gh)
+                self._cached_peak_markers.append((pk_x, pk_y, packet['peak_score']))
+                packets_in_view.append((pk_x, pk_y, packet))
+
+        # LOD Inteligente: badges de texto sin solapamiento
+        fm = QFontMetrics(QFont("Segoe UI", 8, QFont.Bold))
+        placed_intervals = []
+        # Priorizar picos de mayor score
+        sorted_pkts = sorted(packets_in_view, key=lambda x: x[2]['peak_score'], reverse=True)
+        max_tags = 22 if len(sorted_pkts) > 22 else len(sorted_pkts)
+
+        for pk_x, pk_y, packet in sorted_pkts:
+            tag_text = f"{packet['peak_tzolkin']} ({packet['peak_score']:.1f}%)"
+            tag_w = fm.horizontalAdvance(tag_text) + 10
+            tag_h = fm.height() + 4
+            tag_bx = pk_x - tag_w // 2
+            tag_by = max(top + 8, pk_y - 20)
+
+            # Evitar solapamientos horizontales
+            overlap = False
+            for prev_l, prev_r in placed_intervals:
+                if not (tag_bx + tag_w < prev_l or tag_bx > prev_r):
+                    overlap = True
+                    break
+
+            if not overlap and len(self._cached_peak_tags) < max_tags:
+                placed_intervals.append((tag_bx - 6, tag_bx + tag_w + 6))
+                self._cached_peak_tags.append((tag_bx, tag_by, tag_w, tag_h, tag_text))
 
     def set_events(self, events, range_days=365):
         """Retrocompatibilidad."""
@@ -1125,7 +1322,25 @@ class FractalTimelineWidget(QWidget):
             end_year = end_date.year
             year_span = end_year - start_year
             
-            step_years = 1 if year_span <= 3 else (2 if year_span <= 10 else 5)
+            if year_span <= 3:
+                step_years = 1
+            elif year_span <= 10:
+                step_years = 2
+            elif year_span <= 30:
+                step_years = 5
+            elif year_span <= 80:
+                step_years = 10
+            elif year_span <= 200:
+                step_years = 25
+            elif year_span <= 500:
+                step_years = 50
+            elif year_span <= 1000:
+                step_years = 100
+            elif year_span <= 2500:
+                step_years = 250
+            else:
+                step_years = 500
+
             first_mark = (start_year // step_years + 1) * step_years
             
             for y in range(first_mark, end_year + 1, step_years):
@@ -1146,111 +1361,54 @@ class FractalTimelineWidget(QWidget):
         painter.setPen(QPen(QColor(218, 165, 32, 110), 1))
         painter.drawText(left + 6, y_60 - 3, "--- Umbral de Coherencia Armónica (60%) ---")
 
-        # 5. Curva Continua de Coherencia Armónica (Osciloscopio / Envolvente Multiescala)
-        if self._events and self._start_date and self._range_days > 0 and gw > 50:
-            # Construir nodos de picos en espacio de píxeles para que la onda sea visible
-            # tanto a 1 año como a 70 años sin perder continuidad ni diluirse
-            peak_nodes = []
-            if self._wave_packets:
-                for pkt in self._wave_packets:
-                    pk_days = (pkt['peak_date'] - self._start_date).days
-                    if -50 <= pk_days <= (self._range_days + 50):
-                        pk_x = left + (pk_days / self._range_days) * gw
-                        # Ancho visible adaptativo en pantalla (entre 12 y 45 px)
-                        dur_px = max(14.0, min(45.0, (pkt['duration'] / self._range_days) * gw * 2.5 + 16.0))
-                        peak_nodes.append((pk_x, pkt['peak_score'], dur_px))
-            else:
-                for e in self._events:
-                    e_days = (e['date'] - self._start_date).days
-                    if -10 <= e_days <= (self._range_days + 10):
-                        ex = left + (e_days / self._range_days) * gw
-                        peak_nodes.append((ex, e['score'], 14.0))
+        # Check if cache is valid or needs lazy rebuild
+        if self._cached_w != w or self._cached_h != h or (self._events and self._cached_wave_fill is None):
+            self._rebuild_wave_cache()
 
-            num_samples = max(gw, 160)
-            wave_points = []
-            
-            for s_idx in range(num_samples + 1):
-                px = left + (s_idx / num_samples) * gw
-                
-                # Campo de potencial continuo en la coordenada horizontal
-                local_score = 0.0
-                for pk_x, pk_score, pk_sigma in peak_nodes:
-                    d_px = abs(px - pk_x)
-                    if d_px < pk_sigma * 3.5:
-                        contrib = pk_score * math.exp(-(d_px**2) / (2.0 * (pk_sigma**2)))
-                        if contrib > local_score:
-                            local_score = contrib
-                
-                py = top + gh - int((local_score / 100.0) * gh)
-                wave_points.append(QPointF(px, py))
-            
-            # Construir trazado relleno con degradado espectral
-            if wave_points:
-                path_fill = QPainterPath()
-                path_fill.moveTo(left, top + gh)
-                for pt in wave_points:
-                    path_fill.lineTo(pt)
-                path_fill.lineTo(left + gw, top + gh)
-                path_fill.closeSubpath()
-                
-                grad_wave = QLinearGradient(0, top, 0, top + gh)
-                grad_wave.setColorAt(0.0, QColor(241, 196, 15, 175))   # Cima Oro puro radiante
-                grad_wave.setColorAt(0.35, QColor(230, 126, 34, 125)) # Ámbar cósmico
-                grad_wave.setColorAt(0.75, QColor(39, 174, 96, 45))   # Verde jade suave
-                grad_wave.setColorAt(1.0, QColor(10, 8, 6, 10))
-                painter.setBrush(QBrush(grad_wave))
-                painter.setPen(Qt.NoPen)
-                painter.drawPath(path_fill)
-                
-                # Trazo de la cresta superior luminiscente de la onda
-                path_line = QPainterPath()
-                path_line.moveTo(wave_points[0])
-                for pt in wave_points[1:]:
-                    path_line.lineTo(pt)
-                pen_wave = QPen(QColor(241, 196, 15, 230), 1.8)
-                painter.setPen(pen_wave)
-                painter.setBrush(Qt.NoBrush)
-                painter.drawPath(path_line)
+        # 5. Curva Continua de Coherencia Armónica (Osciloscopio desde Cache Vectorial Instantáneo)
+        if self._cached_wave_fill and self._cached_wave_line:
+            grad_wave = QLinearGradient(0, top, 0, top + gh)
+            grad_wave.setColorAt(0.0, QColor(241, 196, 15, 175))   # Cima Oro puro radiante
+            grad_wave.setColorAt(0.35, QColor(230, 126, 34, 125)) # Ámbar cósmico
+            grad_wave.setColorAt(0.75, QColor(39, 174, 96, 45))   # Verde jade suave
+            grad_wave.setColorAt(1.0, QColor(10, 8, 6, 10))
+            painter.setBrush(QBrush(grad_wave))
+            painter.setPen(Qt.NoPen)
+            painter.drawPath(self._cached_wave_fill)
 
-        # 5. Cúspides de las Macro-Ventanas (Solitones destacados)
-        for packet in self._wave_packets:
-            if self._start_date and self._range_days > 0:
-                p_days = (packet['peak_date'] - self._start_date).days
-                if 0 <= p_days <= self._range_days:
-                    pk_x = left + int((p_days / self._range_days) * gw)
-                    pk_y = top + gh - int((packet['peak_score'] / 100.0) * gh)
-                    
-                    # Halo concéntrico de energía
-                    halo_grad = QRadialGradient(pk_x, pk_y, 14)
-                    halo_grad.setColorAt(0.0, QColor(255, 215, 0, 200))
-                    halo_grad.setColorAt(0.6, QColor(230, 126, 34, 80))
-                    halo_grad.setColorAt(1.0, QColor(0, 0, 0, 0))
-                    painter.setBrush(QBrush(halo_grad))
-                    painter.setPen(Qt.NoPen)
-                    painter.drawEllipse(QPointF(pk_x, pk_y), 14, 14)
-                    
-                    # Punto central radiante
-                    painter.setBrush(QBrush(QColor(255, 255, 255)))
-                    painter.setPen(QPen(QColor(218, 165, 32), 1.2))
-                    painter.drawEllipse(QPointF(pk_x, pk_y), 3.5, 3.5)
-                    
-                    # Etiqueta de la Cúspide con píldora de fondo
-                    painter.setFont(QFont("Segoe UI", 8, QFont.Bold))
-                    tag_text = f"{packet['peak_tzolkin']} ({packet['peak_score']:.1f}%)"
-                    tag_metrics = painter.fontMetrics()
-                    tag_w = tag_metrics.horizontalAdvance(tag_text) + 10
-                    tag_h = tag_metrics.height() + 4
-                    tag_bx = pk_x - tag_w // 2
-                    tag_by = max(top + 8, pk_y - 20)
-                    
-                    painter.setBrush(QBrush(QColor(18, 15, 12, 220)))
-                    painter.setPen(QPen(QColor(140, 115, 75), 1))
-                    painter.drawRoundedRect(tag_bx, tag_by, tag_w, tag_h, 3, 3)
-                    
-                    painter.setPen(QPen(QColor(255, 225, 130), 1))
-                    painter.drawText(tag_bx + 5, tag_by + tag_h - 4, tag_text)
+            pen_wave = QPen(QColor(241, 196, 15, 230), 1.8)
+            painter.setPen(pen_wave)
+            painter.setBrush(Qt.NoBrush)
+            painter.drawPath(self._cached_wave_line)
+
+        # 5b. Cúspides de las Macro-Ventanas (Solitones destacados con LOD)
+        for pk_x, pk_y, score in self._cached_peak_markers:
+            halo_r = 14 if score >= 75 else 10
+            halo_grad = QRadialGradient(pk_x, pk_y, halo_r)
+            halo_grad.setColorAt(0.0, QColor(255, 215, 0, 200))
+            halo_grad.setColorAt(0.6, QColor(230, 126, 34, 80))
+            halo_grad.setColorAt(1.0, QColor(0, 0, 0, 0))
+            painter.setBrush(QBrush(halo_grad))
+            painter.setPen(Qt.NoPen)
+            painter.drawEllipse(QPointF(pk_x, pk_y), halo_r, halo_r)
+
+            # Punto central radiante
+            painter.setBrush(QBrush(QColor(255, 255, 255)))
+            painter.setPen(QPen(QColor(218, 165, 32), 1.2))
+            painter.drawEllipse(QPointF(pk_x, pk_y), 3.5, 3.5)
+
+        # Etiquetas legibles sin solapamiento (LOD adaptativo)
+        painter.setFont(QFont("Segoe UI", 8, QFont.Bold))
+        for tag_bx, tag_by, tag_w, tag_h, tag_text in self._cached_peak_tags:
+            painter.setBrush(QBrush(QColor(18, 15, 12, 220)))
+            painter.setPen(QPen(QColor(140, 115, 75), 1))
+            painter.drawRoundedRect(tag_bx, tag_by, tag_w, tag_h, 3, 3)
+
+            painter.setPen(QPen(QColor(255, 225, 130), 1))
+            painter.drawText(tag_bx + 5, tag_by + tag_h - 4, tag_text)
 
         # 6. Arcos de Hiper-Enlaces Fractales entre Cúspides
+        placed_arc_x = []
         for link in self._harmonic_links[:3]:
             if self._start_date and self._range_days > 0:
                 p1_days = (link['p1']['peak_date'] - self._start_date).days
@@ -1258,6 +1416,8 @@ class FractalTimelineWidget(QWidget):
                 if 0 <= p1_days <= self._range_days and 0 <= p2_days <= self._range_days:
                     x1 = left + int((p1_days / self._range_days) * gw)
                     x2 = left + int((p2_days / self._range_days) * gw)
+                    if abs(x2 - x1) < 45:
+                        continue
                     y1 = top + gh - int((link['p1']['peak_score'] / 100.0) * gh)
                     y2 = top + gh - int((link['p2']['peak_score'] / 100.0) * gh)
                     
@@ -1283,12 +1443,14 @@ class FractalTimelineWidget(QWidget):
                     arc_bx = int(mid_x - arc_w // 2)
                     arc_by = int(apex_y - arc_h // 2)
                     
-                    painter.setBrush(QBrush(QColor(18, 15, 12, 235)))
-                    painter.setPen(QPen(QColor(218, 165, 32, 200), 1))
-                    painter.drawRoundedRect(arc_bx, arc_by, arc_w, arc_h, 4, 4)
-                    
-                    painter.setPen(QPen(QColor(245, 215, 110), 1))
-                    painter.drawText(arc_bx + 6, arc_by + arc_h - 4, lbl_arc)
+                    if not any(abs(arc_bx - px) < (arc_w + 10) for px in placed_arc_x):
+                        placed_arc_x.append(arc_bx)
+                        painter.setBrush(QBrush(QColor(18, 15, 12, 235)))
+                        painter.setPen(QPen(QColor(218, 165, 32, 200), 1))
+                        painter.drawRoundedRect(arc_bx, arc_by, arc_w, arc_h, 4, 4)
+                        
+                        painter.setPen(QPen(QColor(245, 215, 110), 1))
+                        painter.drawText(arc_bx + 6, arc_by + arc_h - 4, lbl_arc)
 
         # 7. Retícula de Cursor y HUD Flotante (Hover)
         if self._hover_x >= left and self._hover_x <= (left + gw) and self._hover_info:
@@ -1928,6 +2090,10 @@ class MayanSteleApp(QMainWindow):
         self._render_fractal_table()
 
     def _analyze_patterns(self):
+        # Evitar ejecuciones concurrentes si ya hay un cálculo activo
+        if hasattr(self, '_analysis_worker') and self._analysis_worker and self._analysis_worker.isRunning():
+            return
+
         start_date = self.date_fractal_start.date()
         end_date = self.date_fractal_end.date()
         total_days = start_date.daysTo(end_date)
@@ -1943,24 +2109,43 @@ class MayanSteleApp(QMainWindow):
             if n_date != self.date_natal.minimumDate():
                 natal_data = self.converter.get_full_date(n_date.year(), n_date.month(), n_date.day())
                 natal_days = natal_data['days_since_epoch']
-            
-        # 1. Detección de Convergencias y Puntuación
-        events = self.analyzer.find_convergences(start_datetime, total_days, selected, natal_days)
-        
-        # 2. Agrupamiento en Paquetes de Onda Coherente (Solitones)
-        packets = self.analyzer.group_into_wave_packets(events)
-        
-        # 3. Detección de Hiper-Enlaces Fractales entre Cúspides
-        links = self.analyzer.detect_harmonic_links(packets)
-        
+
+        # Actualizar estado visual de la UI (bloqueo suave del botón y feedback inmediato)
+        self.btn_analyze.setEnabled(False)
+        self.btn_analyze.setText("⏳ Analizando resonancia...")
+        if hasattr(self, 'btn_export'):
+            self.btn_export.setEnabled(False)
+
+        self.lbl_fractal_summary.setText("Iniciando escaneo armónico multiescala...")
+        self.lbl_fractal_summary.setStyleSheet("color: #F1C40F; font-size: 11px;")
+
+        self._analysis_start_datetime = start_datetime
+        self._analysis_total_days = total_days
+
+        # Lanzar worker en segundo plano
+        self._analysis_worker = FractalAnalysisWorker(
+            self.analyzer, start_datetime, total_days, selected, natal_days
+        )
+        self._analysis_worker.progress.connect(self._on_analysis_progress)
+        self._analysis_worker.result_ready.connect(self._on_analysis_finished)
+        self._analysis_worker.start()
+
+    def _on_analysis_progress(self, current, total):
+        pct = (current / total) * 100.0
+        self.lbl_fractal_summary.setText(f"⏳ Analizando resonancias: {pct:.0f}% ({current:,} / {total:,} días)...")
+
+    def _on_analysis_finished(self, events, packets, links):
+        self.btn_analyze.setEnabled(True)
+        self.btn_analyze.setText("🔮 Find Convergences")
+
         self.fractal_events = events
         self.fractal_packets = packets
         self.fractal_links = links
-        
-        # 4. Actualizar Osciloscopio Continuo
-        self.fractal_timeline.set_data(events, packets, links, start_datetime, total_days)
-        
-        # 5. Actualizar Barra de Resumen
+
+        # Actualizar Osciloscopio Continuo
+        self.fractal_timeline.set_data(events, packets, links, self._analysis_start_datetime, self._analysis_total_days)
+
+        # Actualizar Barra de Resumen
         if packets:
             self.lbl_fractal_summary.setText(
                 f"✦ {len(packets)} Ventanas Coherentes detectadas ({len(events)} días de alta resonancia) • {len(links)} Hiper-Enlaces Fractales"
@@ -1969,11 +2154,11 @@ class MayanSteleApp(QMainWindow):
         else:
             self.lbl_fractal_summary.setText("No se encontraron convergencias que superen el umbral de coherencia del 60%.")
             self.lbl_fractal_summary.setStyleSheet("color: #aaa; font-size: 11px;")
-            
-        # 6. Renderizar Tabla y Panel de Hiper-Fractales
+
+        # Renderizar Tabla y Panel de Hiper-Fractales
         self._render_fractal_table()
         self._render_harmonic_panel()
-        
+
         if hasattr(self, 'btn_export'):
             self.btn_export.setEnabled(len(events) > 0)
 
@@ -2084,8 +2269,18 @@ class MayanSteleApp(QMainWindow):
             self.harmonic_content_layout.addWidget(lbl_empty)
             self.harmonic_content_layout.addStretch()
             return
-            
-        for link in self.fractal_links:
+
+        total_links = len(self.fractal_links)
+        max_cards = 40
+        display_links = self.fractal_links[:max_cards]
+
+        if total_links > max_cards:
+            lbl_info = QLabel(f"Mostrando los {max_cards} hiper-enlaces de mayor orden armónico (de {total_links:,} detectados):")
+            lbl_info.setStyleSheet("color: #E67E22; font-size: 10px; font-style: italic; margin-bottom: 4px;")
+            lbl_info.setWordWrap(True)
+            self.harmonic_content_layout.addWidget(lbl_info)
+
+        for link in display_links:
             card = QFrame()
             card.setStyleSheet("""
                 QFrame {
@@ -2214,6 +2409,13 @@ class MayanSteleApp(QMainWindow):
             f"{data['moon_phase']}"
         )
         self.statusBar().showMessage(clock_text)
+
+    def closeEvent(self, event):
+        """Asegurar que el hilo de cálculo fractal termine limpiamente al cerrar la ventana."""
+        if hasattr(self, '_analysis_worker') and self._analysis_worker and self._analysis_worker.isRunning():
+            self._analysis_worker.quit()
+            self._analysis_worker.wait(500)
+        event.accept()
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
