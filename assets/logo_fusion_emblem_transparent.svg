@@ -1,0 +1,248 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 900" width="100%" height="100%">
+  <defs>
+    <!-- Metallic Gold Gradient -->
+    <linearGradient id="goldShine" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFF5B8" />
+      <stop offset="35%" stop-color="#F4D03F" />
+      <stop offset="70%" stop-color="#D4AC0D" />
+      <stop offset="100%" stop-color="#9A7D0A" />
+    </linearGradient>
+
+    <!-- Cyan Laser Gradient -->
+    <linearGradient id="cyanNeon" x1="0%" y1="100%" x2="0%" y2="0%">
+      <stop offset="0%" stop-color="#00E5FF" />
+      <stop offset="50%" stop-color="#00FFB2" />
+      <stop offset="100%" stop-color="#FFFFFF" />
+    </linearGradient>
+
+    <!-- Obsidian & Basalt Tier Gradients -->
+    <linearGradient id="tierTopGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#143445" />
+      <stop offset="100%" stop-color="#0B1E28" />
+    </linearGradient>
+    <linearGradient id="tierLeftGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0C202B" />
+      <stop offset="100%" stop-color="#051016" />
+    </linearGradient>
+    <linearGradient id="tierRightGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1A4054" />
+      <stop offset="100%" stop-color="#0E232E" />
+    </linearGradient>
+
+    <!-- Violet Glow Gradient -->
+    <linearGradient id="violetAura" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#BB8FCE" />
+      <stop offset="50%" stop-color="#8E44AD" />
+      <stop offset="100%" stop-color="#4A235A" />
+    </linearGradient>
+
+    <!-- Glow Filters -->
+    <filter id="laserBeamGlow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="12" result="blur" />
+      <feMerge>
+        <feMergeNode in="blur" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+    <filter id="goldGlow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="8" result="blur" />
+      <feMerge>
+        <feMergeNode in="blur" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+    <filter id="cyanGlow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="5" result="blur" />
+      <feMerge>
+        <feMergeNode in="blur" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- ========================================== -->
+  <!-- LAYER 1: HOLOGRAPHIC MAYAN CALENDAR WHEELS -->
+  <!-- ========================================== -->
+  <g transform="translate(450, 480)" filter="url(#cyanGlow)">
+    <!-- Outer Tzolk'in 260-Day Gear Ring -->
+    <circle cx="0" cy="0" r="390" fill="none" stroke="#00E5FF" stroke-width="1.5" stroke-dasharray="8 14" opacity="0.45" />
+    <circle cx="0" cy="0" r="365" fill="none" stroke="url(#goldShine)" stroke-width="2.5" stroke-dasharray="24 8" opacity="0.85" />
+    <circle cx="0" cy="0" r="340" fill="none" stroke="#00FFB2" stroke-width="1.8" opacity="0.6" />
+
+    <!-- 20 Segmented Tzolk'in Solar Seal Cartouches along Wheel Rim -->
+    <g stroke="url(#goldShine)" stroke-width="2" fill="#061219" opacity="0.9">
+      <rect x="-14" y="-380" width="28" height="24" rx="4" transform="rotate(0)" />
+      <rect x="-14" y="-380" width="28" height="24" rx="4" transform="rotate(18)" />
+      <rect x="-14" y="-380" width="28" height="24" rx="4" transform="rotate(36)" />
+      <rect x="-14" y="-380" width="28" height="24" rx="4" transform="rotate(54)" />
+      <rect x="-14" y="-380" width="28" height="24" rx="4" transform="rotate(72)" />
+      <rect x="-14" y="-380" width="28" height="24" rx="4" transform="rotate(90)" />
+      <rect x="-14" y="-380" width="28" height="24" rx="4" transform="rotate(108)" />
+      <rect x="-14" y="-380" width="28" height="24" rx="4" transform="rotate(126)" />
+      <rect x="-14" y="-380" width="28" height="24" rx="4" transform="rotate(144)" />
+      <rect x="-14" y="-380" width="28" height="24" rx="4" transform="rotate(162)" />
+      <rect x="-14" y="-380" width="28" height="24" rx="4" transform="rotate(180)" />
+      <rect x="-14" y="-380" width="28" height="24" rx="4" transform="rotate(198)" />
+      <rect x="-14" y="-380" width="28" height="24" rx="4" transform="rotate(216)" />
+      <rect x="-14" y="-380" width="28" height="24" rx="4" transform="rotate(234)" />
+      <rect x="-14" y="-380" width="28" height="24" rx="4" transform="rotate(252)" />
+      <rect x="-14" y="-380" width="28" height="24" rx="4" transform="rotate(270)" />
+      <rect x="-14" y="-380" width="28" height="24" rx="4" transform="rotate(288)" />
+      <rect x="-14" y="-380" width="28" height="24" rx="4" transform="rotate(306)" />
+      <rect x="-14" y="-380" width="28" height="24" rx="4" transform="rotate(324)" />
+      <rect x="-14" y="-380" width="28" height="24" rx="4" transform="rotate(342)" />
+    </g>
+
+    <!-- Inner Haab' 365-Day Solar Gear Ring -->
+    <circle cx="0" cy="0" r="300" fill="none" stroke="#00E5FF" stroke-width="2.5" stroke-dasharray="4 6" opacity="0.7" />
+    <circle cx="0" cy="0" r="280" fill="none" stroke="#9B59B6" stroke-width="1.8" stroke-dasharray="16 10" opacity="0.6" />
+
+    <!-- Cardinal Astronomical Pointer Rays -->
+    <line x1="0" y1="-395" x2="0" y2="-320" stroke="#FFF5B8" stroke-width="3.5" />
+    <line x1="0" y1="395" x2="0" y2="320" stroke="#FFF5B8" stroke-width="3.5" />
+    <line x1="-395" y1="0" x2="-320" y2="0" stroke="#FFF5B8" stroke-width="3.5" />
+    <line x1="395" y1="0" x2="320" y2="0" stroke="#FFF5B8" stroke-width="3.5" />
+  </g>
+
+  <!-- ========================================== -->
+  <!-- LAYER 2: COSMIC STARGATE BEAM (AXIS MUNDI) -->
+  <!-- ========================================== -->
+  <g filter="url(#laserBeamGlow)">
+    <line x1="450" y1="330" x2="450" y2="30" stroke="url(#cyanNeon)" stroke-width="18" stroke-linecap="round" />
+    <line x1="450" y1="330" x2="450" y2="30" stroke="#FFFFFF" stroke-width="6" stroke-linecap="round" />
+    
+    <!-- Concentric Harmonic Resonance Rings Ascending into Space -->
+    <ellipse cx="450" cy="230" rx="48" ry="15" fill="none" stroke="#00FFB2" stroke-width="2.5" />
+    <ellipse cx="450" cy="150" rx="78" ry="22" fill="none" stroke="#00E5FF" stroke-width="3" />
+    <ellipse cx="450" cy="70" rx="115" ry="28" fill="none" stroke="url(#goldShine)" stroke-width="3.5" stroke-dasharray="14 10" />
+  </g>
+
+  <!-- ========================================== -->
+  <!-- LAYER 3: LEVITATING VOXEL STEP-PYRAMID     -->
+  <!-- ========================================== -->
+
+  <!-- TIER 1 (Grand Base Tier - Floating at Y=640) -->
+  <g filter="url(#cyanGlow)">
+    <polygon points="450,570 710,640 450,710 190,640" fill="url(#tierTopGrad)" stroke="#00E5FF" stroke-width="3" />
+    <polygon points="190,640 450,710 450,748 190,678" fill="url(#tierLeftGrad)" stroke="#00E5FF" stroke-width="3" />
+    <polygon points="450,710 710,640 710,678 450,748" fill="url(#tierRightGrad)" stroke="#00E5FF" stroke-width="3" />
+    <!-- Center Stairway Illuminator -->
+    <polygon points="450,570 488,580 450,710 412,700" fill="#00FFB2" opacity="0.45" />
+  </g>
+
+  <!-- TIER 2 (Middle Tier - Levitating with Gap at Y=540) -->
+  <g filter="url(#cyanGlow)">
+    <polygon points="450,490 640,540 450,590 260,540" fill="url(#tierTopGrad)" stroke="#00FFB2" stroke-width="3" />
+    <polygon points="260,540 450,590 450,622 260,572" fill="url(#tierLeftGrad)" stroke="#00FFB2" stroke-width="3" />
+    <polygon points="450,590 640,540 640,572 450,622" fill="url(#tierRightGrad)" stroke="#00FFB2" stroke-width="3" />
+    <polygon points="450,490 482,498 450,590 418,582" fill="#00FFB2" opacity="0.5" />
+  </g>
+
+  <!-- TIER 3 (Upper Tier - Levitating at Y=445) -->
+  <g filter="url(#cyanGlow)">
+    <polygon points="450,412 568,452 450,492 332,452" fill="url(#tierTopGrad)" stroke="#00E5FF" stroke-width="3" />
+    <polygon points="332,452 450,492 450,518 332,478" fill="url(#tierLeftGrad)" stroke="#00E5FF" stroke-width="3" />
+    <polygon points="450,492 568,452 568,478 450,518" fill="url(#tierRightGrad)" stroke="#00E5FF" stroke-width="3" />
+    <polygon points="450,412 478,419 450,492 422,485" fill="#00FFB2" opacity="0.55" />
+  </g>
+
+  <!-- ========================================== -->
+  <!-- LAYER 4: 4 AHAU SOLAR QUANTUM CYBER-MASK   -->
+  <!-- ========================================== -->
+  <g transform="translate(450, 325)">
+
+    <!-- Halo Octagonal Solar Cartouche -->
+    <polygon points="0,-124 88,-88 124,0 88,88 0,124 -88,88 -124,0 -88,-88" 
+             fill="#080512" stroke="url(#goldShine)" stroke-width="4.5" filter="url(#goldGlow)" />
+    <polygon points="0,-104 74,-74 104,0 74,74 0,104 -74,74 -104,0 -74,-74" 
+             fill="none" stroke="#9B59B6" stroke-width="2.2" stroke-dasharray="8 6" opacity="0.8" />
+
+    <!-- Forehead Diadem & Brow Geometry -->
+    <polygon points="-72,-46 0,-70 72,-46 52,-15 0,-25 -52,-15" 
+             fill="#1A102E" stroke="url(#goldShine)" stroke-width="3.2" />
+
+    <!-- Shamanic Third Eye (Quantum Kuramoto Oscillator) -->
+    <g transform="translate(0, -70)" filter="url(#goldGlow)">
+      <circle cx="0" cy="0" r="25" fill="#0D0719" stroke="url(#goldShine)" stroke-width="3.5" />
+      <circle cx="0" cy="0" r="17" fill="none" stroke="#00E5FF" stroke-width="2.5" stroke-dasharray="5 3" />
+      <circle cx="0" cy="0" r="10" fill="#FFF5B8" />
+      <circle cx="0" cy="0" r="4.5" fill="#FFFFFF" />
+      <!-- Ray Emitters -->
+      <line x1="0" y1="-25" x2="0" y2="-42" stroke="url(#goldShine)" stroke-width="3.5" />
+      <line x1="-17" y1="-19" x2="-30" y2="-32" stroke="url(#goldShine)" stroke-width="2.8" />
+      <line x1="17" y1="-19" x2="28" y2="-32" stroke="url(#goldShine)" stroke-width="2.8" />
+    </g>
+
+    <!-- Angular Solar Visor Eyes (Cybernetic HUD) -->
+    <g filter="url(#goldGlow)">
+      <!-- Left Eye -->
+      <polygon points="-60,8 -14,-2 -22,26 -66,23" fill="#180C2C" stroke="url(#goldShine)" stroke-width="3" />
+      <polygon points="-52,11 -18,4 -24,21 -56,19" fill="url(#goldShine)" opacity="0.95" />
+      <!-- Right Eye -->
+      <polygon points="60,8 14,-2 22,26 66,23" fill="#180C2C" stroke="url(#goldShine)" stroke-width="3" />
+      <polygon points="52,11 18,4 24,21 56,19" fill="url(#goldShine)" opacity="0.95" />
+    </g>
+
+    <!-- Nose Bridge & Solar Keystones -->
+    <polygon points="-13,-20 13,-20 17,52 -17,52" fill="#120822" stroke="#9B59B6" stroke-width="2.5" />
+    <polygon points="-17,52 17,52 25,72 -25,72" fill="#201138" stroke="url(#goldShine)" stroke-width="3" />
+
+    <!-- 4 Ahau Circular Solar Resonance Cheeks -->
+    <g filter="url(#goldGlow)">
+      <circle cx="-68" cy="56" r="23" fill="#0C0717" stroke="url(#goldShine)" stroke-width="3" />
+      <circle cx="-68" cy="56" r="15" fill="none" stroke="#00E5FF" stroke-width="2" stroke-dasharray="4 4" />
+      <circle cx="-68" cy="56" r="6.5" fill="url(#goldShine)" />
+
+      <circle cx="68" cy="56" r="23" fill="#0C0717" stroke="url(#goldShine)" stroke-width="3" />
+      <circle cx="68" cy="56" r="15" fill="none" stroke="#00E5FF" stroke-width="2" stroke-dasharray="4 4" />
+      <circle cx="68" cy="56" r="6.5" fill="url(#goldShine)" />
+    </g>
+
+    <!-- Solar Breath Mouth (Harmonic Frequency Synthesizer) -->
+    <rect x="-44" y="82" width="88" height="25" rx="5" fill="#0B0616" stroke="url(#goldShine)" stroke-width="3" filter="url(#goldGlow)" />
+    <line x1="-32" y1="88" x2="-32" y2="101" stroke="#FFF5B8" stroke-width="2.8" />
+    <line x1="-16" y1="86" x2="-16" y2="103" stroke="#FFF5B8" stroke-width="2.8" />
+    <line x1="0" y1="84" x2="0" y2="105" stroke="#FFF5B8" stroke-width="3.5" />
+    <line x1="16" y1="86" x2="16" y2="103" stroke="#FFF5B8" stroke-width="2.8" />
+    <line x1="32" y1="88" x2="32" y2="101" stroke="#FFF5B8" stroke-width="2.8" />
+  </g>
+
+  <!-- ========================================== -->
+  <!-- LAYER 5: THE 4 SACRED CAPACITOR NODES (4 AHAU) -->
+  <!-- ========================================== -->
+  <g filter="url(#goldGlow)">
+    <circle cx="160" cy="180" r="24" fill="#080E17" stroke="url(#goldShine)" stroke-width="4" />
+    <circle cx="160" cy="180" r="10" fill="#00E5FF" />
+    
+    <circle cx="740" cy="180" r="24" fill="#080E17" stroke="url(#goldShine)" stroke-width="4" />
+    <circle cx="740" cy="180" r="10" fill="#00E5FF" />
+    
+    <circle cx="110" cy="680" r="24" fill="#080E17" stroke="url(#goldShine)" stroke-width="4" />
+    <circle cx="110" cy="680" r="10" fill="#00FFB2" />
+    
+    <circle cx="790" cy="680" r="24" fill="#080E17" stroke="url(#goldShine)" stroke-width="4" />
+    <circle cx="790" cy="680" r="10" fill="#00FFB2" />
+  </g>
+
+  <!-- ========================================== -->
+  <!-- LAYER 6: FLOATING VIGESIMAL CODE SATELLITES -->
+  <!-- ========================================== -->
+  <!-- Left Side: Number 13 (2 Bars = 10, 3 Dots = 3) -->
+  <g transform="translate(65, 420)" filter="url(#cyanGlow)">
+    <circle cx="16" cy="0" r="8" fill="#00FFB2" />
+    <circle cx="40" cy="0" r="8" fill="#00FFB2" />
+    <circle cx="64" cy="0" r="8" fill="#00FFB2" />
+    <rect x="5" y="16" width="70" height="10" rx="3" fill="#00E5FF" />
+    <rect x="5" y="32" width="70" height="10" rx="3" fill="#00E5FF" />
+    <text x="40" y="64" font-family="'Montserrat', monospace" font-size="12" font-weight="700" fill="#00FFB2" text-anchor="middle" letter-spacing="2">TONE 13</text>
+  </g>
+
+  <!-- Right Side: Sacred Shell Glyph (0 Zero Point / Completion) -->
+  <g transform="translate(755, 420)" filter="url(#goldGlow)">
+    <path d="M 8,24 C 8,0 72,0 72,24 C 72,48 8,48 8,24 Z" fill="#0A1622" stroke="url(#goldShine)" stroke-width="3.5" />
+    <line x1="18" y1="24" x2="62" y2="24" stroke="url(#goldShine)" stroke-width="2.5" />
+    <line x1="22" y1="14" x2="58" y2="14" stroke="url(#goldShine)" stroke-width="1.8" />
+    <line x1="22" y1="34" x2="58" y2="34" stroke="url(#goldShine)" stroke-width="1.8" />
+    <text x="40" y="66" font-family="'Montserrat', monospace" font-size="12" font-weight="700" fill="url(#goldShine)" text-anchor="middle" letter-spacing="2">ZERO • 0</text>
+  </g>
+</svg>
