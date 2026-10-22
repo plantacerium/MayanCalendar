@@ -105,6 +105,8 @@ TOOLS = [
                     "description": "Hacia el futuro ('forward') o hacia el pasado ('backward')"
                 },
                 "days": {"type": "integer", "description": "Número total de días a sumar/restar (opcional si se desglosa en partes)"},
+                "piktun": {"type": "integer", "default": 0, "description": "Piktunes (x 2,880,000 días, macro era)"},
+                "baktun": {"type": "integer", "default": 0, "description": "Baktunes (x 144,000 días)"},
                 "katun": {"type": "integer", "default": 0, "description": "Katunes (x 7200 días)"},
                 "tun": {"type": "integer", "default": 0, "description": "Tunes (x 360 días)"},
                 "uinal": {"type": "integer", "default": 0, "description": "Uinales (x 20 días)"},
@@ -166,13 +168,17 @@ TOOLS = [
                     "enum": ["Tzolkin", "Haab", "Tun", "Venus", "Mars", "819-Day", "LordOfNight"],
                     "description": "Nombre del primer ciclo"
                 },
-                "cycle1_target": {"type": "integer", "description": "Posición objetivo dentro del primer ciclo"},
+                "cycle1_target": {
+                    "description": "Posición objetivo en el ciclo: entero (ej. 0..259) o nombre epigráfico (ej. '4 Ahau', '1 Imix', '8 Cumku', 'G9')"
+                },
                 "cycle2_name": {
                     "type": "string",
                     "enum": ["Tzolkin", "Haab", "Tun", "Venus", "Mars", "819-Day", "LordOfNight"],
                     "description": "Nombre del segundo ciclo"
                 },
-                "cycle2_target": {"type": "integer", "description": "Posición objetivo dentro del segundo ciclo"},
+                "cycle2_target": {
+                    "description": "Posición objetivo en el segundo ciclo: entero o nombre epigráfico (ej. '8 Cumku', '0 Pop', '4 Ahau')"
+                },
                 "max_steps": {"type": "integer", "default": 1000, "description": "Máximo de iteraciones de búsqueda (por defecto 1000)"}
             },
             "required": ["start_year", "cycle1_name", "cycle1_target", "cycle2_name", "cycle2_target"]
@@ -297,11 +303,13 @@ def execute_tool(name, args):
         # Calculate total delta days
         total_delta = args.get("days", 0)
         if total_delta == 0:
+            pik = args.get("piktun", 0)
+            bak = args.get("baktun", 0)
             kat = args.get("katun", 0)
             tun = args.get("tun", 0)
             uin = args.get("uinal", 0)
             kin = args.get("kin", 0)
-            total_delta = kat * 7200 + tun * 360 + uin * 20 + kin
+            total_delta = pik * 2880000 + bak * 144000 + kat * 7200 + tun * 360 + uin * 20 + kin
             
         direction = args.get("direction", "forward")
         signed_delta = total_delta if direction == "forward" else -total_delta
@@ -411,11 +419,53 @@ def execute_tool(name, args):
             "Tzolkin": 260, "Haab": 365, "Tun": 360, "Venus": 584, "Mars": 780,
             "819-Day": 819, "LordOfNight": 9
         }
-        
+
+        def parse_cycle_target(c_name, val):
+            """Parses numeric target or epigraphic name into linear cycle phase."""
+            if isinstance(val, str):
+                val_s = val.strip().lower()
+                if c_name == "Tzolkin":
+                    parts = val_s.split()
+                    if len(parts) >= 2 and parts[0].isdigit():
+                        t = int(parts[0])
+                        sign_str = parts[1]
+                        s = -1
+                        for idx, (name, *_) in enumerate(converter.TZOLKIN_DATA):
+                            if name.lower() in sign_str:
+                                s = idx
+                                break
+                        if 1 <= t <= 13 and s != -1:
+                            # CRT Biyection: 4 Ahau at epoch (days=0) -> 0
+                            return (40 * ((t - 4) % 13) - 39 * s) % 260
+                elif c_name == "Haab":
+                    parts = val_s.split()
+                    if len(parts) >= 2 and parts[0].isdigit():
+                        day_in_m = int(parts[0])
+                        m_str = parts[1]
+                        m_idx = -1
+                        for idx, (name, *_) in enumerate(converter.HAAB_DATA):
+                            if name.lower() in m_str:
+                                m_idx = idx
+                                break
+                        if m_idx != -1:
+                            return (m_idx * 20 + day_in_m) % 365
+                elif c_name == "LordOfNight":
+                    digits = [c for c in val_s if c.isdigit()]
+                    if digits:
+                        return (int("".join(digits)) - 1) % 9
+                try:
+                    return int(val)
+                except ValueError:
+                    return 0
+            elif isinstance(val, (int, float)):
+                return int(val)
+            return 0
+
         def get_cycle_pos(c_name, days_val):
             if c_name == "Tzolkin":
-                # Combined Tzolkin index (0..259)
-                return ((days_val + 3) % 13) * 20 + (days_val % 20)
+                # Continuous linear day position in 260-day cycle (4 Ahau = 0)
+                # Increments strictly +1 each day
+                return days_val % 260
             elif c_name == "Haab":
                 return (days_val + 348) % 365
             elif c_name == "Venus":
@@ -434,8 +484,10 @@ def execute_tool(name, args):
         c2_name = args["cycle2_name"]
         c1_len = cycle_lengths.get(c1_name, 260)
         c2_len = cycle_lengths.get(c2_name, 365)
-        t1 = args["cycle1_target"] % c1_len
-        t2 = args["cycle2_target"] % c2_len
+        raw_t1 = args["cycle1_target"]
+        raw_t2 = args["cycle2_target"]
+        t1 = parse_cycle_target(c1_name, raw_t1) % c1_len
+        t2 = parse_cycle_target(c2_name, raw_t2) % c2_len
         max_steps = args.get("max_steps", 5000)
 
         # Step forward until cycle1 matches

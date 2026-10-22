@@ -4,10 +4,40 @@ Complete implementation with all calendar systems, fractal pattern detection,
 and stunning visual displays.
 """
 import sys
+import os
 import math
+from pathlib import Path
 from functools import reduce
 from datetime import datetime, timedelta
 import csv
+
+BASE_DIR = Path(__file__).resolve().parent
+
+def _resolve_logo(*rel_paths):
+    for rel in rel_paths:
+        p = BASE_DIR / rel
+        if p.exists():
+            return p
+    return BASE_DIR / rel_paths[0]
+
+LOGO_PATH = _resolve_logo(
+    "assets/logo_fusion_quantum_pyramid_calendar.svg",
+    "assets/logos/logo_fusion_quantum_pyramid_calendar.svg"
+)
+LOGO_JPG_PATH = _resolve_logo(
+    "assets/logo_fusion_quantum_pyramid_calendar.jpg",
+    "assets/logos/logo_fusion_quantum_pyramid_calendar.jpg"
+)
+LOGO_TRANSPARENT_PATH = _resolve_logo(
+    "assets/logo_fusion_emblem_transparent.svg",
+    "assets/logos/logo_fusion_emblem_transparent.svg"
+)
+LOGO_ICO_PATH = _resolve_logo(
+    "assets/mayan_stele.ico",
+    "assets/logos/mayan_stele.ico",
+    "mayan_stele.ico"
+)
+
 try:
     from PySide6.QtWidgets import (
         QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QGridLayout,
@@ -22,7 +52,7 @@ try:
         QRectF, Signal, QPointF, QPoint, QThread, Slot
     )
     from PySide6.QtGui import (
-        QFont, QFontMetrics, QColor, QPalette, QIcon, QPainter, QPainterPath,
+        QFont, QFontMetrics, QColor, QPalette, QIcon, QPixmap, QPainter, QPainterPath,
         QPen, QBrush, QRadialGradient, QLinearGradient, QConicalGradient, QPolygonF
     )
     HAS_PYSIDE6 = True
@@ -36,7 +66,7 @@ except ImportError:
     QFileDialog = QMessageBox = QSizePolicy = QDialog = QTextEdit = QPlainTextEdit = object
     QRadioButton = QButtonGroup = object
     QDate = Qt = QSize = QTimer = QPropertyAnimation = QEasingCurve = QRectF = QPointF = QPoint = QThread = object
-    QFont = QFontMetrics = QColor = QPalette = QIcon = QPainter = QPainterPath = object
+    QFont = QFontMetrics = QColor = QPalette = QIcon = QPixmap = QPainter = QPainterPath = object
     QPen = QBrush = QRadialGradient = QLinearGradient = QConicalGradient = QPolygonF = object
     def Signal(*args, **kwargs): return None
     def Slot(*args, **kwargs): return lambda f: f
@@ -773,7 +803,8 @@ class FractalPatternAnalyzer:
         }
         def get_cycle_pos(c_name, days_val):
             if c_name == "Tzolkin":
-                return ((days_val + 3) % 13) * 20 + (days_val % 20)
+                # Posición lineal de 0..259 días en el ciclo Tzolk'in sagrado (4 Ahau = 0)
+                return days_val % 260
             elif c_name == "Haab":
                 return (days_val + 348) % 365
             elif c_name == "Venus":
@@ -1724,6 +1755,8 @@ class MayanProfileExportDialog(QDialog):
         self.gregorian_str = gregorian_str
         self.correlation_name = correlation_name
         self.setWindowTitle(f"📜 Exportador de Perfil Arqueo-Astronómico Maya — {gregorian_str}")
+        if LOGO_PATH.exists():
+            self.setWindowIcon(QIcon(str(LOGO_PATH)))
         self.resize(780, 640)
         self.setStyleSheet("""
             QDialog { background: #181512; color: #E0C090; }
@@ -1744,7 +1777,7 @@ class MayanProfileExportDialog(QDialog):
         header.setStyleSheet("background: #24201A; border: 1px solid #4D412F; border-radius: 6px; padding: 10px;")
         h_layout = QHBoxLayout(header)
         h_info = (
-            f"<b>⚱ ESTELA: {full_data.get('long_count', '')}</b> • "
+            f"<b>✦ ESTELA: {full_data.get('long_count', '')}</b> • "
             f"Tzolk'in: <b style='color:#F1C40F'>{full_data.get('tzolkin', '')}</b> • "
             f"Haab': <b style='color:#E67E22'>{full_data.get('haab', '')}</b> • "
             f"Señor: <b style='color:#5DADE2'>{full_data.get('lord', '')}</b>"
@@ -1882,7 +1915,11 @@ class MayanSteleApp(QMainWindow):
         self.fractal_packets = []
         self.fractal_links = []
         self.fractal_view_mode = "packets"
-        self.setWindowTitle("🌟 MAYAN STELE - Ultimate Calendar & Fractal Pattern Analyzer")
+        self.setWindowTitle("MAYAN STELE - Ultimate Calendar & Fractal Pattern Analyzer")
+        if LOGO_ICO_PATH.exists():
+            self.setWindowIcon(QIcon(str(LOGO_ICO_PATH)))
+        elif LOGO_PATH.exists():
+            self.setWindowIcon(QIcon(str(LOGO_PATH)))
         self.resize(1000, 800)
         self._apply_global_style()
         self._setup_ui()
@@ -1947,7 +1984,19 @@ class MayanSteleApp(QMainWindow):
 
         # Header
         header_layout = QHBoxLayout()
-        title = StoneLabel("⚱ MAYAN STELE", size=28, is_bold=True, color="#d4af37")
+        header_layout.setSpacing(12)
+
+        # Vector Logo Icon in top-left (replacing the old urn/pot)
+        target_logo = LOGO_TRANSPARENT_PATH if LOGO_TRANSPARENT_PATH.exists() else LOGO_PATH
+        if target_logo.exists():
+            logo_lbl = QLabel()
+            pix = QPixmap(str(target_logo)).scaled(44, 44, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+            logo_lbl.setPixmap(pix)
+            logo_lbl.setFixedSize(46, 46)
+            logo_lbl.setStyleSheet("background: transparent; border: none;")
+            header_layout.addWidget(logo_lbl)
+
+        title = StoneLabel("MAYAN STELE", size=26, is_bold=True, color="#d4af37")
         subtitle = StoneLabel("Ultimate Calendar & Fractal Pattern Analyzer", size=14, color="#888")
         header_layout.addWidget(title)
         header_layout.addStretch()
@@ -2372,44 +2421,51 @@ class MayanSteleApp(QMainWindow):
         spins_layout.setContentsMargins(8, 6, 8, 6)
 
         spin_style = "QSpinBox { background: #201C16; color: #F4D03F; border: 1px solid #4D3F2C; padding: 5px; border-radius: 4px; font-weight: bold; min-width: 90px; }"
+        self.dn_spin_baktun = QSpinBox(); self.dn_spin_baktun.setRange(0, 999); self.dn_spin_baktun.setPrefix("Baktun: "); self.dn_spin_baktun.setStyleSheet(spin_style)
         self.dn_spin_katun = QSpinBox(); self.dn_spin_katun.setRange(0, 999); self.dn_spin_katun.setPrefix("Katun: "); self.dn_spin_katun.setStyleSheet(spin_style)
         self.dn_spin_tun = QSpinBox(); self.dn_spin_tun.setRange(0, 999); self.dn_spin_tun.setPrefix("Tun: "); self.dn_spin_tun.setStyleSheet(spin_style)
         self.dn_spin_uinal = QSpinBox(); self.dn_spin_uinal.setRange(0, 17); self.dn_spin_uinal.setPrefix("Uinal: "); self.dn_spin_uinal.setStyleSheet(spin_style)
         self.dn_spin_kin = QSpinBox(); self.dn_spin_kin.setRange(0, 19); self.dn_spin_kin.setPrefix("Kin: "); self.dn_spin_kin.setStyleSheet(spin_style)
-        self.dn_spin_days = QSpinBox(); self.dn_spin_days.setRange(0, 9999999); self.dn_spin_days.setPrefix("Días: "); self.dn_spin_days.setStyleSheet(spin_style)
+        self.dn_spin_days = QSpinBox(); self.dn_spin_days.setRange(0, 99999999); self.dn_spin_days.setPrefix("Días: "); self.dn_spin_days.setStyleSheet(spin_style)
 
         def _update_dn_from_parts():
+            b = self.dn_spin_baktun.value()
             k = self.dn_spin_katun.value()
             t = self.dn_spin_tun.value()
             u = self.dn_spin_uinal.value()
             kin = self.dn_spin_kin.value()
-            total = k * 7200 + t * 360 + u * 20 + kin
+            total = b * 144000 + k * 7200 + t * 360 + u * 20 + kin
             self.dn_spin_days.blockSignals(True)
             self.dn_spin_days.setValue(total)
             self.dn_spin_days.blockSignals(False)
 
         def _update_dn_from_days():
             tot = self.dn_spin_days.value()
-            k = tot // 7200
-            rem = tot % 7200
+            b = tot // 144000
+            rem = tot % 144000
+            k = rem // 7200
+            rem %= 7200
             t = rem // 360
             rem %= 360
             u = rem // 20
             kin = rem % 20
+            self.dn_spin_baktun.blockSignals(True)
             self.dn_spin_katun.blockSignals(True)
             self.dn_spin_tun.blockSignals(True)
             self.dn_spin_uinal.blockSignals(True)
             self.dn_spin_kin.blockSignals(True)
+            self.dn_spin_baktun.setValue(b)
             self.dn_spin_katun.setValue(k)
             self.dn_spin_tun.setValue(t)
             self.dn_spin_uinal.setValue(u)
             self.dn_spin_kin.setValue(kin)
+            self.dn_spin_baktun.blockSignals(False)
             self.dn_spin_katun.blockSignals(False)
             self.dn_spin_tun.blockSignals(False)
             self.dn_spin_uinal.blockSignals(False)
             self.dn_spin_kin.blockSignals(False)
 
-        for s in (self.dn_spin_katun, self.dn_spin_tun, self.dn_spin_uinal, self.dn_spin_kin):
+        for s in (self.dn_spin_baktun, self.dn_spin_katun, self.dn_spin_tun, self.dn_spin_uinal, self.dn_spin_kin):
             s.valueChanged.connect(_update_dn_from_parts)
             spins_layout.addWidget(s)
         self.dn_spin_days.valueChanged.connect(_update_dn_from_days)
@@ -2700,7 +2756,7 @@ class MayanSteleApp(QMainWindow):
         try:
             if c_name == "Tzolkin":
                 val = val % 260
-                tone = (val // 20) + 1
+                tone = (val + 3) % 13 + 1
                 sign_idx = val % 20
                 sign_name = self.converter.TZOLKIN_DATA[sign_idx][0] if sign_idx < len(self.converter.TZOLKIN_DATA) else "Ahau"
                 return f"✦ {tone} {sign_name}"
@@ -2739,12 +2795,12 @@ class MayanSteleApp(QMainWindow):
 
     def _on_ret_preset_changed(self, idx):
         presets = {
-            1: ("Tzolkin", 60, "Haab", 348),        # 4 Ahau 8 Cumku
-            2: ("Tzolkin", 60, "Venus", 0),          # 4 Ahau + Venus Inf. Conj.
-            3: ("Tzolkin", 60, "819-Day", 0),        # 4 Ahau + K'awiil Este
-            4: ("Tzolkin", 60, "LordOfNight", 8),    # 4 Ahau + G9
-            5: ("Tzolkin", 17, "Haab", 0),           # 1 Caban 0 Pop
-            6: ("Venus", 100, "Haab", 0),            # Venus Matutina + 0 Pop
+            1: ("Tzolkin", 0, "Haab", 348),         # 4 Ahau 8 Cumku (Era / Rueda Calendárica)
+            2: ("Tzolkin", 0, "Venus", 0),          # 4 Ahau + Venus Inf. Conj.
+            3: ("Tzolkin", 0, "819-Day", 0),        # 4 Ahau + K'awiil Este
+            4: ("Tzolkin", 0, "LordOfNight", 8),    # 4 Ahau + G9
+            5: ("Tzolkin", 257, "Haab", 0),         # 1 Caban 0 Pop
+            6: ("Venus", 100, "Haab", 0),           # Venus Matutina + 0 Pop
         }
         if idx in presets:
             c1, v1, c2, v2 = presets[idx]
@@ -3063,7 +3119,59 @@ class MayanSteleApp(QMainWindow):
         content = QWidget()
         content.setStyleSheet("background-color: #181512;")
         content_layout = QVBoxLayout(content)
-        
+        content_layout.setSpacing(16)
+        content_layout.setContentsMargins(15, 15, 15, 15)
+
+        # Banner del Emblema Maestro (Logo Cuántico y Calendario Maya)
+        ref_logo = LOGO_TRANSPARENT_PATH if LOGO_TRANSPARENT_PATH.exists() else LOGO_PATH
+        if ref_logo.exists():
+            banner_card = QFrame()
+            banner_card.setStyleSheet("""
+                QFrame {
+                    background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #1D1812, stop:1 #110E0B);
+                    border: 1px solid #4D3F2C; border-left: 5px solid #F4D03F;
+                    border-radius: 10px;
+                }
+            """)
+            b_layout = QHBoxLayout(banner_card)
+            b_layout.setContentsMargins(18, 14, 18, 14)
+            b_layout.setSpacing(22)
+            
+            logo_img_lbl = QLabel()
+            pix_banner = QPixmap(str(ref_logo)).scaled(130, 130, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+            logo_img_lbl.setPixmap(pix_banner)
+            logo_img_lbl.setFixedSize(134, 134)
+            logo_img_lbl.setAlignment(Qt.AlignCenter)
+            logo_img_lbl.setStyleSheet("""
+                QLabel {
+                    background: qradialgradient(cx:0.5, cy:0.5, radius:0.6, fx:0.5, fy:0.5, stop:0 #101826, stop:1 #06090F);
+                    border: 2px solid #D4AC0D;
+                    border-radius: 14px;
+                    padding: 2px;
+                }
+            """)
+            b_layout.addWidget(logo_img_lbl)
+            
+            text_layout = QVBoxLayout()
+            text_layout.setSpacing(6)
+            lbl_title = QLabel("✦ EMBLEMA OFICIAL: QUANTUM PYRAMID & CALENDAR CORE")
+            lbl_title.setStyleSheet("color: #F4D03F; font-size: 16px; font-weight: bold; font-family: 'Georgia', serif; background: transparent;")
+            lbl_sub = QLabel("Insignia de Integración Vigesimal, Sincronización de Kuramoto y Códice de Dresde")
+            lbl_sub.setStyleSheet("color: #00E5FF; font-size: 11px; font-weight: bold; letter-spacing: 1px; background: transparent;")
+            lbl_desc = QLabel(
+                "• <b>Rueda Calendárica Holográfica:</b> Anillos concéntricos del Tzolk'in (260d) y Haab' (365d) engranados en oro solar.<br>"
+                "• <b>Pirámide Voxel de Kukulkán:</b> Templo levitante en terrazas de basalto con filos de neón turquesa y escaleras sagradas.<br>"
+                "• <b>Máscara Solar 4 Ahau:</b> La coordenada de la Creación y del Solitón 2032 con el Tercer Ojo Kuramoto (Ψ) y el rayo Axis Mundi."
+            )
+            lbl_desc.setWordWrap(True)
+            lbl_desc.setStyleSheet("color: #D5C2A5; font-size: 12px; line-height: 1.6; background: transparent;")
+            text_layout.addWidget(lbl_title)
+            text_layout.addWidget(lbl_sub)
+            text_layout.addWidget(lbl_desc)
+            b_layout.addLayout(text_layout, stretch=1)
+            
+            content_layout.addWidget(banner_card)
+
         # Tzolkin reference
         tz_group = QGroupBox("Tzolkin Day Signs (20 Days)")
         tz_layout = QGridLayout(tz_group)
@@ -3649,7 +3757,17 @@ if __name__ == "__main__":
         print(" Nota: El servidor MCP ('mayan_mcp_server.py') y las funciones")
         print(" matemáticas funcionan con Python puro estándar sin dependencias.\n")
         sys.exit(1)
+    if sys.platform == "win32":
+        try:
+            import ctypes
+            ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID('plantacerium.mayanstele.calendar.v2')
+        except Exception:
+            pass
     app = QApplication(sys.argv)
+    if LOGO_ICO_PATH.exists():
+        app.setWindowIcon(QIcon(str(LOGO_ICO_PATH)))
+    elif LOGO_PATH.exists():
+        app.setWindowIcon(QIcon(str(LOGO_PATH)))
     app.setStyle("Fusion")
     window = MayanSteleApp()
     window.show()
