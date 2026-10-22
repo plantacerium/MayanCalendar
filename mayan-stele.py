@@ -8,16 +8,39 @@ import math
 from functools import reduce
 from datetime import datetime, timedelta
 import csv
-from PySide6.QtWidgets import (
-    QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QGridLayout,
-    QLabel, QDateEdit, QPushButton, QFrame, QGraphicsDropShadowEffect,
-    QTabWidget, QTableWidget, QTableWidgetItem, QHeaderView, QCheckBox,
-    QSpinBox, QScrollArea, QGroupBox, QSplitter, QSlider, QProgressBar, QComboBox,
-    QFileDialog, QMessageBox, QSizePolicy, QDialog, QTextEdit, QPlainTextEdit,
-    QRadioButton, QButtonGroup
-)
-from PySide6.QtCore import QDate, Qt, QSize, QTimer, QPropertyAnimation, QEasingCurve, Property, QRectF, Signal, QPointF, QPoint, QThread, Slot
-from PySide6.QtGui import QFont, QFontMetrics, QColor, QPalette, QIcon, QPainter, QPainterPath, QPen, QBrush, QRadialGradient, QLinearGradient, QConicalGradient, QPolygonF
+try:
+    from PySide6.QtWidgets import (
+        QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QGridLayout,
+        QLabel, QDateEdit, QPushButton, QFrame, QGraphicsDropShadowEffect,
+        QTabWidget, QTableWidget, QTableWidgetItem, QHeaderView, QCheckBox,
+        QSpinBox, QScrollArea, QGroupBox, QSplitter, QSlider, QProgressBar, QComboBox,
+        QFileDialog, QMessageBox, QSizePolicy, QDialog, QTextEdit, QPlainTextEdit,
+        QRadioButton, QButtonGroup
+    )
+    from PySide6.QtCore import (
+        QDate, Qt, QSize, QTimer, QPropertyAnimation, QEasingCurve, Property,
+        QRectF, Signal, QPointF, QPoint, QThread, Slot
+    )
+    from PySide6.QtGui import (
+        QFont, QFontMetrics, QColor, QPalette, QIcon, QPainter, QPainterPath,
+        QPen, QBrush, QRadialGradient, QLinearGradient, QConicalGradient, QPolygonF
+    )
+    HAS_PYSIDE6 = True
+except ImportError:
+    HAS_PYSIDE6 = False
+    # Fallback dummy base classes and decorators for headless / CLI / MCP use
+    QApplication = QMainWindow = QWidget = QVBoxLayout = QHBoxLayout = QGridLayout = object
+    QLabel = QDateEdit = QPushButton = QFrame = QGraphicsDropShadowEffect = object
+    QTabWidget = QTableWidget = QTableWidgetItem = QHeaderView = QCheckBox = object
+    QSpinBox = QScrollArea = QGroupBox = QSplitter = QSlider = QProgressBar = QComboBox = object
+    QFileDialog = QMessageBox = QSizePolicy = QDialog = QTextEdit = QPlainTextEdit = object
+    QRadioButton = QButtonGroup = object
+    QDate = Qt = QSize = QTimer = QPropertyAnimation = QEasingCurve = QRectF = QPointF = QPoint = QThread = object
+    QFont = QFontMetrics = QColor = QPalette = QIcon = QPainter = QPainterPath = object
+    QPen = QBrush = QRadialGradient = QLinearGradient = QConicalGradient = QPolygonF = object
+    def Signal(*args, **kwargs): return None
+    def Slot(*args, **kwargs): return lambda f: f
+    def Property(*args, **kwargs): return lambda f: f
 
 # Import modular exporter and biocymatic dictionary
 try:
@@ -3617,6 +3640,15 @@ class MayanSteleApp(QMainWindow):
         event.accept()
 
 if __name__ == "__main__":
+    if not HAS_PYSIDE6:
+        print("\n" + "=" * 65)
+        print(" [!] PySide6 no está instalado en este entorno de Python.")
+        print(" Para abrir la aplicación gráfica de la Estela Maya:")
+        print("     pip install -r requirements.txt")
+        print("=" * 65)
+        print(" Nota: El servidor MCP ('mayan_mcp_server.py') y las funciones")
+        print(" matemáticas funcionan con Python puro estándar sin dependencias.\n")
+        sys.exit(1)
     app = QApplication(sys.argv)
     app.setStyle("Fusion")
     window = MayanSteleApp()

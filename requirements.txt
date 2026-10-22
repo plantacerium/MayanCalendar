@@ -1,0 +1,6 @@
+# Mayan Stele & MCP Server - Dependencies
+# =====================================================================
+# Única dependencia externa (requerida para la Interfaz Gráfica Qt6)
+# El servidor MCP y las librerías matemáticas pueden correr en modo headless.
+# =====================================================================
+PySide6>=6.5.0
