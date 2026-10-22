@@ -13,10 +13,22 @@ from PySide6.QtWidgets import (
     QLabel, QDateEdit, QPushButton, QFrame, QGraphicsDropShadowEffect,
     QTabWidget, QTableWidget, QTableWidgetItem, QHeaderView, QCheckBox,
     QSpinBox, QScrollArea, QGroupBox, QSplitter, QSlider, QProgressBar, QComboBox,
-    QFileDialog, QMessageBox, QSizePolicy
+    QFileDialog, QMessageBox, QSizePolicy, QDialog, QTextEdit, QPlainTextEdit,
+    QRadioButton, QButtonGroup
 )
 from PySide6.QtCore import QDate, Qt, QSize, QTimer, QPropertyAnimation, QEasingCurve, Property, QRectF, Signal, QPointF, QPoint, QThread, Slot
 from PySide6.QtGui import QFont, QFontMetrics, QColor, QPalette, QIcon, QPainter, QPainterPath, QPen, QBrush, QRadialGradient, QLinearGradient, QConicalGradient, QPolygonF
+
+# Import modular exporter and biocymatic dictionary
+try:
+    from mayan_exporter import MayanProfileExporter
+except ImportError:
+    MayanProfileExporter = None
+
+try:
+    from resonaxers import RESONANCE_MAP
+except ImportError:
+    RESONANCE_MAP = None
 
 # ══════════════════════════════════════════════════════════════════════════════
 # SECTION 1: MAYAN CALENDAR ARITHMETIC CORE
@@ -261,7 +273,7 @@ class MayanConverter:
 # ══════════════════════════════════════════════════════════════════════════════
 
 class FractalPatternAnalyzer:
-    """Detect harmonic convergences and fractal patterns in Mayan cycles."""
+    """Detect harmonic convergences, Kuramoto synchronization, and Dresden Eclipse patterns in Mayan cycles."""
     
     CYCLES = {
         'Tzolkin': 260,
@@ -274,11 +286,111 @@ class FractalPatternAnalyzer:
         '819-Day': 819,
         'Venus': 584,
         'Mars': 780,
+        'Dresden Eclipse': 11960,
+        'Eclipse Node': 173.31,
         'Lunar': 30,
     }
     
     def __init__(self, converter):
         self.converter = converter
+
+    def get_dresden_eclipse_info(self, days_since_epoch):
+        """
+        Calcula la correlación con la Tabla de Eclipses del Códice de Dresde (pp. 51a-58b).
+        405 lunaciones = 11,960 días = 46 Tzolk'ins.
+        Medio año dracónico de eclipses = 173.3100 días.
+        """
+        # Distancia al nodo en el medio año de eclipses (173.31 días)
+        node_cycle = 173.3100
+        node_pos = days_since_epoch % node_cycle
+        dist_to_node = min(node_pos, node_cycle - node_pos)
+        
+        # Fase lunar sinódica (29.530588853 días)
+        synodic_cycle = 29.530588853
+        lunar_age = (days_since_epoch + 14.765) % synodic_cycle
+        
+        dist_to_new_moon = min(lunar_age, synodic_cycle - lunar_age)
+        dist_to_full_moon = abs(lunar_age - (synodic_cycle / 2.0))
+        
+        is_near_new_moon = dist_to_new_moon <= 1.8
+        is_near_full_moon = dist_to_full_moon <= 1.8
+        is_node_window = dist_to_node <= 17.5
+        
+        is_eclipse = is_node_window and (is_near_new_moon or is_near_full_moon)
+        eclipse_type = None
+        if is_eclipse:
+            eclipse_type = "Solar (Luna Nueva)" if is_near_new_moon else "Lunar (Luna Llena)"
+                
+        dresden_day = int(days_since_epoch % 11960)
+        
+        return {
+            "is_eclipse_window": is_eclipse,
+            "eclipse_type": eclipse_type,
+            "dist_to_node_days": round(dist_to_node, 2),
+            "lunar_age_days": round(lunar_age, 2),
+            "dresden_cycle_day": dresden_day,
+            "dresden_total_days": 11960,
+            "warning": f"⚠️ ALERTA DRESDE: Eclipse {eclipse_type} (Fos. 51a-58b)" if is_eclipse else None
+        }
+
+    def calculate_kuramoto_order(self, days_since_epoch, selected_cycles=None, natal_days=None):
+        """
+        Calcula el parámetro de orden macroscópico de Kuramoto (R, Ψ) para los osciladores mayas.
+        R ∈ [0, 1] mide la coherencia y sincronización de fase global.
+        Ψ ∈ [0°, 360°) representa el Vector Director Cósmico (fase resultante colectiva).
+        """
+        import math
+        checks = [
+            ('Tzolkin', 260.0, 1.0, 0.0),
+            ('Haab', 365.0, 0.8, 348.0),
+            ('Calendar Round', 18980.0, 1.2, 0.0),
+            ('Tun', 360.0, 0.7, 0.0),
+            ('Venus', 584.0, 0.9, 448.0),
+            ('Mars', 780.0, 0.6, 0.0),
+            ('819-Day', 819.0, 0.7, 0.0),
+            ('Lord of Night', 9.0, 0.5, 8.0),
+            ('Dresden Eclipse', 11960.0, 0.85, 0.0),
+            ('Eclipse Node', 173.3100, 0.8, 0.0),
+            ('Lunar Synodic', 29.53059, 0.6, 0.0),
+        ]
+        
+        sum_cos = 0.0
+        sum_sin = 0.0
+        sum_cos2 = 0.0
+        sum_sin2 = 0.0
+        total_w = 0.0
+        
+        d_val = days_since_epoch if natal_days is None else (days_since_epoch - natal_days)
+        
+        for name, cycle, weight, offset in checks:
+            if selected_cycles is not None and name not in selected_cycles:
+                continue
+            phase = 2.0 * math.pi * (((d_val + offset) % cycle) / cycle)
+            
+            sum_cos += weight * math.cos(phase)
+            sum_sin += weight * math.sin(phase)
+            sum_cos2 += weight * math.cos(2.0 * phase)
+            sum_sin2 += weight * math.sin(2.0 * phase)
+            total_w += weight
+            
+        if total_w == 0.0:
+            return {"r": 0.0, "psi_deg": 0.0, "r_score": 0.0, "is_locked": False, "r2": 0.0}
+            
+        r1 = math.sqrt(sum_cos**2 + sum_sin**2) / total_w
+        r2 = math.sqrt(sum_cos2**2 + sum_sin2**2) / total_w
+        psi_rad = math.atan2(sum_sin, sum_cos)
+        psi_deg = (math.degrees(psi_rad)) % 360.0
+        
+        r_composite = ((r1 * 1.0 + r2 * 0.4) / 1.4) * 100.0
+        is_locked = r1 >= 0.45 or r_composite >= 55.0
+        
+        return {
+            "r": round(r1, 4),
+            "r2": round(r2, 4),
+            "psi_deg": round(psi_deg, 1),
+            "r_score": round(r_composite, 2),
+            "is_locked": is_locked
+        }
     
     def calculate_resonance_score(self, days_since_epoch, selected_cycles=None, natal_days=None):
         """Calculate how many cycles align using raw integers. No strings attached."""
@@ -288,12 +400,14 @@ class FractalPatternAnalyzer:
         checks = [
             ('Tzolkin', 260, 1.0),
             ('Haab', 365, 0.8),
-            ('Calendar Round', 18980, 1.2),  # Reduced from 2.0 to balance double counting
+            ('Calendar Round', 18980, 1.2),
             ('Lord of Night', 9, 0.5),
             ('819-Day', 819, 0.7),
             ('Venus', 584, 0.9),
             ('Mars', 780, 0.6),
             ('Tun', 360, 0.7),
+            ('Dresden Eclipse', 11960, 0.8),
+            ('Eclipse Node', 173.31, 0.75),
         ]
         
         harmonics = [
@@ -414,15 +528,20 @@ class FractalPatternAnalyzer:
             if score > 60.0:
                 current = start + timedelta(days=day_offset)
                 data = self.converter.get_full_date(current.year, current.month, current.day)
+                km = self.calculate_kuramoto_order(current_days, selected_cycles, natal_days)
+                ecl = self.get_dresden_eclipse_info(current_days)
+                al_list = self._get_alignments(current_days, natal_days)
                 events.append({
                     'date': current,
                     'score': score,
                     'tzolkin': data['tzolkin'],
                     'haab': data['haab'],
                     'long_count': data['long_count'],
-                    'alignments': self._get_alignments(current_days, natal_days),
+                    'alignments': al_list,
                     'days_since_epoch': current_days,
-                    'day_offset': day_offset
+                    'day_offset': day_offset,
+                    'kuramoto': km,
+                    'eclipse': ecl
                 })
         
         # Mantener los eventos ordenados por score por defecto
@@ -487,6 +606,14 @@ class FractalPatternAnalyzer:
                 if a not in all_alignments:
                     all_alignments.append(a)
                     
+        peak_km = peak_evt.get('kuramoto', {})
+        has_ecl = any(e.get('eclipse', {}).get('is_eclipse_window') for e in cluster)
+        ecl_type = None
+        for e in cluster:
+            if e.get('eclipse', {}).get('is_eclipse_window'):
+                ecl_type = e['eclipse']['eclipse_type']
+                break
+
         return {
             'id': f"W{packet_id}",
             'start_date': start_d,
@@ -502,6 +629,9 @@ class FractalPatternAnalyzer:
             'symmetry_score': symmetry_score,
             'days': cluster,
             'alignments': all_alignments,
+            'peak_kuramoto': peak_km,
+            'has_eclipse': has_ecl,
+            'eclipse_type': ecl_type,
             'archetype': f"Solitón Solar {peak_evt['tzolkin']}" if 'Ahau' in peak_evt['tzolkin'] else f"Resonancia {peak_evt['tzolkin']}"
         }
 
@@ -588,6 +718,10 @@ class FractalPatternAnalyzer:
             if min_dist <= max_window and max_window > 0:
                 alignments.append(name)
             
+        ecl = self.get_dresden_eclipse_info(days_since_epoch)
+        if ecl.get("is_eclipse_window"):
+            alignments.append(f"Dresden {ecl['eclipse_type']}")
+            
         return alignments
 
     def find_exact_returns(self, start_days, cycle1_len, target1, cycle2_len, target2, max_steps=1000):
@@ -604,6 +738,48 @@ class FractalPatternAnalyzer:
             d += cycle1_len
             
         return None # No solution if exact overlap is impossible (GCD constraints)
+
+    def find_cycle_overlap(self, start_days, c1_name, t1, c2_name, t2, max_steps=5000):
+        """
+        Buscador de conjunción sagrada multivariante.
+        Resuelve el Teorema del Resto Chino considerando los desfases epocales mayas.
+        """
+        cycle_lengths = {
+            "Tzolkin": 260, "Haab": 365, "Tun": 360, "Venus": 584, "Mars": 780,
+            "819-Day": 819, "LordOfNight": 9
+        }
+        def get_cycle_pos(c_name, days_val):
+            if c_name == "Tzolkin":
+                return ((days_val + 3) % 13) * 20 + (days_val % 20)
+            elif c_name == "Haab":
+                return (days_val + 348) % 365
+            elif c_name == "Venus":
+                return (days_val - 1364360) % 584
+            elif c_name == "Tun":
+                return days_val % 360
+            elif c_name == "Mars":
+                return days_val % 780
+            elif c_name == "819-Day":
+                return days_val % 819
+            elif c_name == "LordOfNight":
+                return (days_val + 8) % 9
+            return days_val % 260
+
+        c1_len = cycle_lengths.get(c1_name, 260)
+        c2_len = cycle_lengths.get(c2_name, 365)
+        t1 = t1 % c1_len
+        t2 = t2 % c2_len
+
+        cur_d = start_days
+        while get_cycle_pos(c1_name, cur_d) != t1:
+            cur_d += 1
+
+        for _ in range(max_steps):
+            if get_cycle_pos(c2_name, cur_d) == t2:
+                return cur_d
+            cur_d += c1_len
+
+        return None
     
     def project_pattern(self, base_date, pattern_days, count=10):
         """Project a pattern forward in time."""
@@ -1459,15 +1635,15 @@ class FractalTimelineWidget(QWidget):
             painter.drawLine(self._hover_x, top, self._hover_x, top + gh)
             
             # Dibujar caja HUD flotante
-            hud_w, hud_h = 195, 62
+            hud_w, hud_h = 225, 76
             hud_x = self._hover_x + 12
             if hud_x + hud_w > w - 10:
                 hud_x = self._hover_x - hud_w - 12
             hud_y = top + 8
             
-            painter.setBrush(QBrush(QColor(15, 12, 10, 235)))
-            painter.setPen(QPen(QColor(218, 165, 32, 190), 1.2))
-            painter.drawRoundedRect(hud_x, hud_y, hud_w, hud_h, 5, 5)
+            painter.setBrush(QBrush(QColor(15, 12, 10, 240)))
+            painter.setPen(QPen(QColor(218, 165, 32, 200), 1.2))
+            painter.drawRoundedRect(hud_x, hud_y, hud_w, hud_h, 6, 6)
             
             dt_str = self._hover_info['date'].strftime("%b %d, %Y")
             painter.setFont(QFont("Segoe UI", 8, QFont.Bold))
@@ -1480,17 +1656,194 @@ class FractalTimelineWidget(QWidget):
             painter.setFont(QFont("Segoe UI", 8))
             if evt:
                 painter.setPen(QPen(QColor(230, 230, 230), 1))
-                painter.drawText(hud_x + 8, hud_y + 32, f"Score: {evt['score']:.1f}% • {evt['tzolkin']}")
-                painter.setPen(QPen(QColor(170, 170, 170), 1))
-                painter.drawText(hud_x + 8, hud_y + 48, f"{evt['long_count']}")
+                painter.drawText(hud_x + 8, hud_y + 31, f"Score: {evt['score']:.1f}% • {evt['tzolkin']}")
+                
+                # Kuramoto metrics
+                km = evt.get('kuramoto', {})
+                km_r = km.get('r', 0.0) * 100.0
+                km_psi = km.get('psi_deg', 0.0)
+                painter.setPen(QPen(QColor(93, 173, 226), 1))
+                painter.drawText(hud_x + 8, hud_y + 46, f"Kuramoto R: {km_r:.1f}%  Ψ: {km_psi:.0f}°")
+                
+                # Eclipse warning or Long Count
+                ecl = evt.get('eclipse', {})
+                if ecl.get('is_eclipse_window'):
+                    painter.setPen(QPen(QColor(231, 76, 60), 1))
+                    painter.drawText(hud_x + 8, hud_y + 61, f"⚠️ ECLIPSE: {ecl.get('eclipse_type', '')}")
+                else:
+                    painter.setPen(QPen(QColor(170, 170, 170), 1))
+                    painter.drawText(hud_x + 8, hud_y + 61, f"{evt['long_count']}")
             elif pkt:
                 painter.setPen(QPen(QColor(93, 173, 226), 1))
-                painter.drawText(hud_x + 8, hud_y + 32, f"Ventana: {pkt['id']} ({pkt['duration']} días)")
+                painter.drawText(hud_x + 8, hud_y + 31, f"Ventana: {pkt['id']} ({pkt['duration']} días)")
                 painter.setPen(QPen(QColor(170, 170, 170), 1))
-                painter.drawText(hud_x + 8, hud_y + 48, f"Cúspide: {pkt['peak_tzolkin']} ({pkt['peak_score']:.1f}%)")
+                painter.drawText(hud_x + 8, hud_y + 46, f"Cúspide: {pkt['peak_tzolkin']} ({pkt['peak_score']:.1f}%)")
+                if pkt.get('has_eclipse'):
+                    painter.setPen(QPen(QColor(231, 76, 60), 1))
+                    painter.drawText(hud_x + 8, hud_y + 61, f"⚠️ ECLIPSE DRESDE: {pkt.get('eclipse_type', '')}")
+                else:
+                    painter.setPen(QPen(QColor(241, 196, 15), 1))
+                    painter.drawText(hud_x + 8, hud_y + 61, f"Simetría Solitón: {pkt['symmetry_score']:.0f}%")
             else:
                 painter.setPen(QPen(QColor(130, 130, 130), 1))
                 painter.drawText(hud_x + 8, hud_y + 36, "Campo en equilibrio basal")
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# SECTION 3.5: PROFILE EXPORT DIALOG
+# ══════════════════════════════════════════════════════════════════════════════
+
+class MayanProfileExportDialog(QDialog):
+    """Diálogo completo de exportación de perfiles mayas (SVG, MD, Texto, JSON)."""
+    def __init__(self, parent, full_data, gregorian_str, correlation_name="GMT (584283)"):
+        super().__init__(parent)
+        self.full_data = full_data
+        self.gregorian_str = gregorian_str
+        self.correlation_name = correlation_name
+        self.setWindowTitle(f"📜 Exportador de Perfil Arqueo-Astronómico Maya — {gregorian_str}")
+        self.resize(780, 640)
+        self.setStyleSheet("""
+            QDialog { background: #181512; color: #E0C090; }
+            QTabWidget::pane { border: 1px solid #4D412F; background: #201C17; border-radius: 6px; }
+            QTabBar::tab { background: #2B251E; color: #BBB; padding: 8px 16px; margin-right: 2px; }
+            QTabBar::tab:selected { background: #4D412F; color: #F1C40F; font-weight: bold; }
+            QPlainTextEdit { background: #12100E; color: #F4D03F; border: 1px solid #3A3225; font-family: 'Consolas', 'Courier New', monospace; font-size: 11px; padding: 8px; border-radius: 4px; }
+            QPushButton { background: #3E3224; color: #FFF; border: 1px solid #7A684D; border-radius: 4px; padding: 8px 14px; font-weight: bold; }
+            QPushButton:hover { background: #554532; border-color: #F1C40F; color: #F1C40F; }
+        """)
+
+        layout = QVBoxLayout(self)
+        layout.setSpacing(12)
+        layout.setContentsMargins(15, 15, 15, 15)
+
+        # Header Banner
+        header = QFrame()
+        header.setStyleSheet("background: #24201A; border: 1px solid #4D412F; border-radius: 6px; padding: 10px;")
+        h_layout = QHBoxLayout(header)
+        h_info = (
+            f"<b>⚱ ESTELA: {full_data.get('long_count', '')}</b> • "
+            f"Tzolk'in: <b style='color:#F1C40F'>{full_data.get('tzolkin', '')}</b> • "
+            f"Haab': <b style='color:#E67E22'>{full_data.get('haab', '')}</b> • "
+            f"Señor: <b style='color:#5DADE2'>{full_data.get('lord', '')}</b>"
+        )
+        lbl_h = QLabel(h_info)
+        lbl_h.setStyleSheet("font-size: 13px; color: #E0C090;")
+        h_layout.addWidget(lbl_h)
+        layout.addWidget(header)
+
+        # Precompute exports
+        if MayanProfileExporter:
+            self.svg_text = MayanProfileExporter.export_svg(full_data, gregorian_date_str=gregorian_str)
+            self.md_text = MayanProfileExporter.export_markdown(full_data, gregorian_date_str=gregorian_str, correlation_name=correlation_name)
+            self.txt_text = MayanProfileExporter.export_text(full_data, gregorian_date_str=gregorian_str, correlation_name=correlation_name)
+            self.json_text = MayanProfileExporter.export_json(full_data, correlation_name=correlation_name)
+        else:
+            self.svg_text = "<svg></svg>"
+            self.md_text = "# Perfil Maya"
+            self.txt_text = "Estela Maya"
+            self.json_text = "{}"
+
+        # Tabs
+        self.tabs = QTabWidget()
+        
+        # Tab SVG
+        self.edit_svg = QPlainTextEdit(self.svg_text)
+        self.edit_svg.setReadOnly(True)
+        self.tabs.addTab(self.edit_svg, "🖼️ SVG Vectorial")
+
+        # Tab Markdown
+        self.edit_md = QPlainTextEdit(self.md_text)
+        self.edit_md.setReadOnly(True)
+        self.tabs.addTab(self.edit_md, "📝 Markdown Dossier")
+
+        # Tab Plain Text
+        self.edit_txt = QPlainTextEdit(self.txt_text)
+        self.edit_txt.setReadOnly(True)
+        self.tabs.addTab(self.edit_txt, "📜 Texto Estela")
+
+        # Tab JSON
+        self.edit_json = QPlainTextEdit(self.json_text)
+        self.edit_json.setReadOnly(True)
+        self.tabs.addTab(self.edit_json, "{ } JSON Estructurado")
+
+        layout.addWidget(self.tabs, stretch=1)
+
+        # Actions toolbar
+        btn_bar = QHBoxLayout()
+        btn_bar.setSpacing(10)
+
+        self.btn_copy = QPushButton("📋 Copiar Formato Activo")
+        self.btn_copy.clicked.connect(self._copy_current)
+        btn_bar.addWidget(self.btn_copy)
+
+        self.btn_save = QPushButton("💾 Guardar Formato Activo...")
+        self.btn_save.clicked.connect(self._save_current)
+        btn_bar.addWidget(self.btn_save)
+
+        self.btn_save_all = QPushButton("📦 Exportar Paquete Completo (4 Archivos)")
+        self.btn_save_all.setStyleSheet("background: #6C3483; color: #F4D03F; border: 1px solid #BB8FCE; font-weight: bold;")
+        self.btn_save_all.clicked.connect(self._save_all_bundle)
+        btn_bar.addWidget(self.btn_save_all)
+
+        btn_bar.addStretch()
+
+        btn_close = QPushButton("Cerrar")
+        btn_close.clicked.connect(self.accept)
+        btn_bar.addWidget(btn_close)
+
+        layout.addLayout(btn_bar)
+
+    def _get_current_content_and_ext(self):
+        idx = self.tabs.currentIndex()
+        if idx == 0:
+            return self.svg_text, "svg", "Archivos SVG (*.svg)"
+        elif idx == 1:
+            return self.md_text, "md", "Archivos Markdown (*.md)"
+        elif idx == 2:
+            return self.txt_text, "txt", "Archivos de Texto (*.txt)"
+        else:
+            return self.json_text, "json", "Archivos JSON (*.json)"
+
+    def _copy_current(self):
+        content, ext, _ = self._get_current_content_and_ext()
+        clipboard = QApplication.clipboard()
+        clipboard.setText(content)
+        QMessageBox.information(self, "Copiado", f"El contenido en formato .{ext} se ha copiado al portapapeles.")
+
+    def _save_current(self):
+        content, ext, flt = self._get_current_content_and_ext()
+        clean_date = self.gregorian_str.replace(" ", "_").replace(",", "")
+        default_name = f"Estela_Maya_{clean_date}.{ext}"
+        path, _ = QFileDialog.getSaveFileName(self, f"Guardar como .{ext}", default_name, flt)
+        if path:
+            try:
+                with open(path, "w", encoding="utf-8") as f:
+                    f.write(content)
+                QMessageBox.information(self, "Guardado", f"Archivo guardado exitosamente en:\n{path}")
+            except Exception as e:
+                QMessageBox.critical(self, "Error", f"No se pudo guardar el archivo:\n{str(e)}")
+
+    def _save_all_bundle(self):
+        folder = QFileDialog.getExistingDirectory(self, "Seleccionar Carpeta para Exportar el Paquete")
+        if folder:
+            clean_date = self.gregorian_str.replace(" ", "_").replace(",", "")
+            import os
+            base_filename = os.path.join(folder, f"Estela_Maya_{clean_date}")
+            try:
+                with open(f"{base_filename}.svg", "w", encoding="utf-8") as f:
+                    f.write(self.svg_text)
+                with open(f"{base_filename}.md", "w", encoding="utf-8") as f:
+                    f.write(self.md_text)
+                with open(f"{base_filename}.txt", "w", encoding="utf-8") as f:
+                    f.write(self.txt_text)
+                with open(f"{base_filename}.json", "w", encoding="utf-8") as f:
+                    f.write(self.json_text)
+                QMessageBox.information(
+                    self, "Paquete Exportado",
+                    f"¡Se han generado exitosamente los 4 formatos (.svg, .md, .txt, .json) en:\n{folder}"
+                )
+            except Exception as e:
+                QMessageBox.critical(self, "Error", f"Error exportando el paquete:\n{str(e)}")
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -1526,29 +1879,39 @@ class MayanSteleApp(QMainWindow):
         self.setStyleSheet("""
             QMainWindow { background-color: #1a1815; }
             QWidget { font-family: 'Segoe UI', 'Georgia', serif; color: #e0c090; }
-            QTabWidget::pane { border: 2px solid #444; background: #222; border-radius: 8px; }
-            QTabBar::tab { background: #333; color: #aaa; padding: 10px 20px; margin: 2px;
+            QTabWidget::pane { border: 2px solid #3E3426; background-color: #181512; border-radius: 8px; }
+            QTabBar::tab { background: #28241F; color: #aaa; padding: 10px 20px; margin: 2px;
                           border-top-left-radius: 6px; border-top-right-radius: 6px; }
-            QTabBar::tab:selected { background: #444; color: #f4d03f; }
-            QDateEdit { background-color: #333; color: #e0c090; border: 2px solid #555;
+            QTabBar::tab:selected { background: #3E3529; color: #f4d03f; font-weight: bold; }
+            QDateEdit { background-color: #24201A; color: #e0c090; border: 2px solid #555;
                        padding: 8px; font-size: 14px; border-radius: 6px; }
-            QDateEdit::drop-down { border-left: 1px solid #555; background: #444; }
-            QPushButton { background-color: #5d4037; color: #fff; font-weight: bold;
-                         border: 2px solid #3e2723; border-radius: 6px; padding: 10px 16px; }
-            QPushButton:hover { background-color: #6d4c41; }
-            QPushButton:pressed { background-color: #3e2723; }
-            QTableWidget { background-color: #252220; color: #e0c090; gridline-color: #444;
-                          border: 1px solid #444; }
-            QTableWidget::item:selected { background-color: #5d4037; }
-            QHeaderView::section { background-color: #333; color: #f4d03f; padding: 6px;
-                                  border: 1px solid #444; }
+            QDateEdit::drop-down { border-left: 1px solid #555; background: #383127; }
+            QPushButton { background-color: #4A3A2A; color: #fff; font-weight: bold;
+                         border: 2px solid #5C4834; border-radius: 6px; padding: 10px 16px; }
+            QPushButton:hover { background-color: #634E39; border-color: #F1C40F; }
+            QPushButton:pressed { background-color: #2E241A; }
+            QTableWidget { background-color: #161310; color: #e0c090; gridline-color: #383023;
+                          border: 1px solid #443725; }
+            QTableWidget::item:selected { background-color: #4D3B1E; color: #F4D03F; }
+            QHeaderView::section { background-color: #241E17; color: #f4d03f; padding: 6px;
+                                  border: 1px solid #3A3020; font-weight: bold; }
             QCheckBox { color: #e0c090; spacing: 8px; }
             QCheckBox::indicator { width: 18px; height: 18px; }
             QGroupBox { border: 2px solid #444; border-radius: 8px; margin-top: 10px;
-                       padding-top: 10px; color: #f4d03f; }
+                       padding-top: 10px; color: #f4d03f; background-color: #181512; }
             QGroupBox::title { subcontrol-origin: margin; left: 10px; padding: 0 5px; }
-            QScrollArea { border: none; background: transparent; }
-            QSpinBox { background: #333; color: #e0c090; border: 1px solid #555;
+            QScrollArea { border: none; background-color: #181512; }
+            QScrollArea > QWidget { background-color: #181512; }
+            QScrollArea > QWidget > QWidget { background-color: #181512; }
+            QScrollBar:vertical { background: #151310; width: 10px; margin: 0px; border-radius: 4px; }
+            QScrollBar::handle:vertical { background: #4D3F2C; min-height: 25px; border-radius: 4px; }
+            QScrollBar::handle:vertical:hover { background: #F1C40F; }
+            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height: 0px; }
+            QScrollBar:horizontal { background: #151310; height: 10px; margin: 0px; border-radius: 4px; }
+            QScrollBar::handle:horizontal { background: #4D3F2C; min-width: 25px; border-radius: 4px; }
+            QScrollBar::handle:horizontal:hover { background: #F1C40F; }
+            QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal { width: 0px; }
+            QSpinBox { background: #24201A; color: #e0c090; border: 1px solid #555;
                       padding: 5px; border-radius: 4px; }
         """)
 
@@ -1598,6 +1961,25 @@ class MayanSteleApp(QMainWindow):
         self.btn_next.clicked.connect(lambda: self._adjust_date(1))
         input_layout.addWidget(self.btn_next)
         
+        input_layout.addSpacing(15)
+        self.btn_export_profile = QPushButton("📜 Exportar Perfil (SVG/MD/TXT/JSON)")
+        self.btn_export_profile.setStyleSheet("""
+            QPushButton {
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #8E44AD, stop:1 #4A235A);
+                color: #F4D03F;
+                border: 2px solid #BB8FCE;
+                font-weight: bold;
+                border-radius: 6px;
+                padding: 8px 14px;
+            }
+            QPushButton:hover {
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #9B59B6, stop:1 #5B2C6F);
+                color: #FFF;
+            }
+        """)
+        self.btn_export_profile.clicked.connect(self._open_export_profile_dialog)
+        input_layout.addWidget(self.btn_export_profile)
+
         input_layout.addStretch()
         main_layout.addLayout(input_layout)
 
@@ -1636,8 +2018,14 @@ class MayanSteleApp(QMainWindow):
         
         # Tab 2: Fractal Patterns
         self._setup_fractal_tab()
+
+        # Tab 3: Operaciones Sagradas & Retornos
+        self._setup_operations_tab()
+
+        # Tab 4: Resonancia Biológica y Cimática
+        self._setup_biological_tab()
         
-        # Tab 3: Reference
+        # Tab 5: Reference
         self._setup_reference_tab()
 
         # Footer
@@ -1869,13 +2257,788 @@ class MayanSteleApp(QMainWindow):
         
         self.tabs.addTab(tab, "🔮 Fractal Patterns")
 
-    def _setup_reference_tab(self):
+    def _setup_operations_tab(self):
         tab = QWidget()
+        tab.setStyleSheet("background-color: #181512; color: #E0C090;")
         layout = QVBoxLayout(tab)
         
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
+        scroll.setStyleSheet("QScrollArea { background-color: #181512; border: none; }")
+        if scroll.viewport():
+            scroll.viewport().setStyleSheet("background-color: #181512;")
         content = QWidget()
+        content.setStyleSheet("background-color: #181512;")
+        content_layout = QVBoxLayout(content)
+        content_layout.setSpacing(18)
+        content_layout.setContentsMargins(12, 12, 12, 12)
+
+        box_qss = """
+            QGroupBox {
+                border: 2px solid #4D3F2C;
+                border-radius: 8px;
+                margin-top: 14px;
+                padding-top: 14px;
+                color: #F4D03F;
+                font-weight: bold;
+                background-color: #181512;
+            }
+            QGroupBox::title {
+                subcontrol-origin: margin;
+                left: 14px;
+                padding: 0 8px;
+                color: #F1C40F;
+                font-size: 13px;
+            }
+        """
+
+        # ── SECCIÓN 1: NÚMEROS DE DISTANCIA (DISTANCE NUMBERS) ──
+        dn_group = QGroupBox("🏛️ 1. Calculadora de Número de Distancia (Distance Numbers / Cuentas Secundarias)")
+        dn_group.setStyleSheet(box_qss)
+        dn_layout = QVBoxLayout(dn_group)
+        dn_layout.setSpacing(12)
+        dn_layout.setContentsMargins(14, 16, 14, 14)
+
+        dn_desc = (
+            "En la epigrafía maya clásica (ej. Palenque, Quiriguá, Yaxchilán), los Números de Distancia unen fechas clave "
+            "sumando o restando intervalos de K'ines (1d), Uinales (20d), Tunes (360d) y Katunes (7,200d)."
+        )
+        lbl_dn_desc = StoneLabel(dn_desc, size=11, color="#BDC3C7")
+        lbl_dn_desc.setWordWrap(True)
+        dn_layout.addWidget(lbl_dn_desc)
+
+        # Row 1: Fecha Base + Modo
+        dn_top_row = QHBoxLayout()
+        dn_top_row.setSpacing(10)
+        dn_top_row.addWidget(StoneLabel("Fecha Base:", size=11, is_bold=True, color="#E0C090"))
+        
+        self.dn_base_date = QDateEdit()
+        self.dn_base_date.setCalendarPopup(True)
+        self.dn_base_date.setDisplayFormat("yyyy-MM-dd")
+        self.dn_base_date.setDate(QDate.currentDate())
+        self.dn_base_date.setStyleSheet("QDateEdit { background: #24201A; color: #F4D03F; border: 1px solid #5A4A32; padding: 5px 8px; border-radius: 4px; font-weight: bold; }")
+        dn_top_row.addWidget(self.dn_base_date)
+
+        btn_sync_dn = QPushButton("🔄 Usar Fecha Activa")
+        btn_sync_dn.setStyleSheet("""
+            QPushButton {
+                background: #2E261D; color: #E0C090; border: 1px solid #63523B;
+                padding: 5px 12px; border-radius: 4px; font-weight: bold;
+            }
+            QPushButton:hover { background: #423628; color: #F1C40F; border-color: #F1C40F; }
+        """)
+        btn_sync_dn.clicked.connect(lambda: self.dn_base_date.setDate(self.date_edit.date()))
+        dn_top_row.addWidget(btn_sync_dn)
+
+        dn_top_row.addSpacing(16)
+        self.dn_dir_forward = QRadioButton("➕ Hacia el Futuro")
+        self.dn_dir_forward.setChecked(True)
+        self.dn_dir_forward.setStyleSheet("QRadioButton { color: #52BE80; font-weight: bold; spacing: 6px; }")
+        self.dn_dir_backward = QRadioButton("➖ Hacia el Pasado")
+        self.dn_dir_backward.setStyleSheet("QRadioButton { color: #E74C3C; font-weight: bold; spacing: 6px; }")
+        dn_top_row.addWidget(self.dn_dir_forward)
+        dn_top_row.addWidget(self.dn_dir_backward)
+        dn_top_row.addStretch()
+        dn_layout.addLayout(dn_top_row)
+
+        # Row 2: Jerarquía de Unidades Mayas
+        spins_frame = QFrame()
+        spins_frame.setStyleSheet("background: #14110E; border: 1px solid #382F22; border-radius: 6px; padding: 8px;")
+        spins_layout = QHBoxLayout(spins_frame)
+        spins_layout.setSpacing(10)
+        spins_layout.setContentsMargins(8, 6, 8, 6)
+
+        spin_style = "QSpinBox { background: #201C16; color: #F4D03F; border: 1px solid #4D3F2C; padding: 5px; border-radius: 4px; font-weight: bold; min-width: 90px; }"
+        self.dn_spin_katun = QSpinBox(); self.dn_spin_katun.setRange(0, 999); self.dn_spin_katun.setPrefix("Katun: "); self.dn_spin_katun.setStyleSheet(spin_style)
+        self.dn_spin_tun = QSpinBox(); self.dn_spin_tun.setRange(0, 999); self.dn_spin_tun.setPrefix("Tun: "); self.dn_spin_tun.setStyleSheet(spin_style)
+        self.dn_spin_uinal = QSpinBox(); self.dn_spin_uinal.setRange(0, 17); self.dn_spin_uinal.setPrefix("Uinal: "); self.dn_spin_uinal.setStyleSheet(spin_style)
+        self.dn_spin_kin = QSpinBox(); self.dn_spin_kin.setRange(0, 19); self.dn_spin_kin.setPrefix("Kin: "); self.dn_spin_kin.setStyleSheet(spin_style)
+        self.dn_spin_days = QSpinBox(); self.dn_spin_days.setRange(0, 9999999); self.dn_spin_days.setPrefix("Días: "); self.dn_spin_days.setStyleSheet(spin_style)
+
+        def _update_dn_from_parts():
+            k = self.dn_spin_katun.value()
+            t = self.dn_spin_tun.value()
+            u = self.dn_spin_uinal.value()
+            kin = self.dn_spin_kin.value()
+            total = k * 7200 + t * 360 + u * 20 + kin
+            self.dn_spin_days.blockSignals(True)
+            self.dn_spin_days.setValue(total)
+            self.dn_spin_days.blockSignals(False)
+
+        def _update_dn_from_days():
+            tot = self.dn_spin_days.value()
+            k = tot // 7200
+            rem = tot % 7200
+            t = rem // 360
+            rem %= 360
+            u = rem // 20
+            kin = rem % 20
+            self.dn_spin_katun.blockSignals(True)
+            self.dn_spin_tun.blockSignals(True)
+            self.dn_spin_uinal.blockSignals(True)
+            self.dn_spin_kin.blockSignals(True)
+            self.dn_spin_katun.setValue(k)
+            self.dn_spin_tun.setValue(t)
+            self.dn_spin_uinal.setValue(u)
+            self.dn_spin_kin.setValue(kin)
+            self.dn_spin_katun.blockSignals(False)
+            self.dn_spin_tun.blockSignals(False)
+            self.dn_spin_uinal.blockSignals(False)
+            self.dn_spin_kin.blockSignals(False)
+
+        for s in (self.dn_spin_katun, self.dn_spin_tun, self.dn_spin_uinal, self.dn_spin_kin):
+            s.valueChanged.connect(_update_dn_from_parts)
+            spins_layout.addWidget(s)
+        self.dn_spin_days.valueChanged.connect(_update_dn_from_days)
+        spins_layout.addWidget(self.dn_spin_days)
+
+        self.btn_calc_dn = QPushButton("⚡ Calcular Salto Epigráfico")
+        self.btn_calc_dn.setStyleSheet("""
+            QPushButton {
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #1E8449, stop:1 #117864);
+                color: #FFF; font-weight: bold; border: 1px solid #52BE80; border-radius: 5px;
+                padding: 7px 16px; font-size: 11px;
+            }
+            QPushButton:hover {
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #27AE60, stop:1 #16A085);
+                border-color: #F1C40F; color: #F1C40F;
+            }
+        """)
+        self.btn_calc_dn.clicked.connect(self._exec_distance_number)
+        spins_layout.addWidget(self.btn_calc_dn)
+        dn_layout.addWidget(spins_frame)
+
+        # Result Integrated Card
+        dn_card = QFrame()
+        dn_card.setStyleSheet("""
+            QFrame {
+                background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #25201A, stop:1 #181512);
+                border: 1px solid #4D3F2C;
+                border-left: 4px solid #F1C40F;
+                border-radius: 6px;
+            }
+        """)
+        dn_card_layout = QHBoxLayout(dn_card)
+        dn_card_layout.setContentsMargins(14, 10, 14, 10)
+        dn_card_layout.setSpacing(15)
+
+        self.dn_result_box = QLabel("Configura un Número de Distancia y presiona 'Calcular Salto Epigráfico' para proyectar la fecha resultante.")
+        self.dn_result_box.setStyleSheet("color: #E0C090; font-size: 12px; background: transparent; border: none;")
+        self.dn_result_box.setWordWrap(True)
+        dn_card_layout.addWidget(self.dn_result_box, stretch=1)
+
+        self.btn_goto_dn = QPushButton("📍 Sincronizar en Estela")
+        self.btn_goto_dn.setEnabled(False)
+        self.btn_goto_dn.setCursor(Qt.PointingHandCursor)
+        self.btn_goto_dn.setStyleSheet("""
+            QPushButton {
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #9A7D0A, stop:1 #6E5606);
+                color: #FFF; border: 1px solid #F4D03F; border-radius: 5px;
+                padding: 9px 18px; font-weight: bold; font-size: 11px; min-width: 150px;
+            }
+            QPushButton:hover {
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #B7950B, stop:1 #7D6608);
+                border-color: #FFF; color: #F1C40F;
+            }
+            QPushButton:disabled {
+                background: #25211B; color: #665D4F; border: 1px solid #3D3528;
+            }
+        """)
+        self.btn_goto_dn.clicked.connect(self._jump_from_dn_result)
+        dn_card_layout.addWidget(self.btn_goto_dn)
+        dn_layout.addWidget(dn_card)
+        content_layout.addWidget(dn_group)
+
+        # ── SECCIÓN 2: BUSCADOR DE RETORNOS SAGRADOS (CRT SOLVER) ──
+        ret_group = QGroupBox("🔍 2. Buscador de Retornos Sagrados y Conjunciones (Teorema del Resto Chino / CRT)")
+        ret_group.setStyleSheet(box_qss)
+        ret_layout = QVBoxLayout(ret_group)
+        ret_layout.setSpacing(12)
+        ret_layout.setContentsMargins(14, 16, 14, 14)
+
+        ret_desc = (
+            "Permite resolver intersecciones sagradas: ¿cuándo volverá a coincidir un determinado signo Tzolk'in "
+            "con un mes/día Haab', una fase de Venus, o un cuadrante del ciclo de 819 días?"
+        )
+        lbl_ret_desc = StoneLabel(ret_desc, size=11, color="#BDC3C7")
+        lbl_ret_desc.setWordWrap(True)
+        ret_layout.addWidget(lbl_ret_desc)
+
+        # Presets Bar
+        preset_layout = QHBoxLayout()
+        preset_layout.addWidget(StoneLabel("Preajustes Sagrados:", size=11, is_bold=True, color="#BB8FCE"))
+        self.ret_preset_combo = QComboBox()
+        self.ret_preset_combo.addItems([
+            "⚙️ (Seleccionar Preajuste Sagrado o Configurar Manualmente...)",
+            "🏛️ 4 Ahau 8 Cumku (Creación Cósmica / Fin 13 Baktún)",
+            "⭐ 4 Ahau + Venus en Conjunción Inferior",
+            "🔥 4 Ahau + K'awiil Cuadrante Este (Rojo)",
+            "👑 4 Ahau + Señor de la Noche G9",
+            "🌱 1 Caban 0 Pop (Año Nuevo Maya)",
+            "🌌 Venus Estrella Matutina + Haab 0 Pop"
+        ])
+        self.ret_preset_combo.setStyleSheet("QComboBox { background: #261E2E; color: #D7BDE2; border: 1px solid #6C3483; padding: 5px 10px; border-radius: 4px; font-weight: bold; }")
+        self.ret_preset_combo.currentIndexChanged.connect(self._on_ret_preset_changed)
+        preset_layout.addWidget(self.ret_preset_combo, stretch=1)
+        ret_layout.addLayout(preset_layout)
+
+        # Custom Controls Form
+        ret_form_frame = QFrame()
+        ret_form_frame.setStyleSheet("background: #14110E; border: 1px solid #382F22; border-radius: 6px; padding: 8px;")
+        ret_form = QHBoxLayout(ret_form_frame)
+        ret_form.setSpacing(8)
+        ret_form.setContentsMargins(8, 6, 8, 6)
+
+        ret_form.addWidget(StoneLabel("Ciclo 1:", size=11, color="#E0C090"))
+        self.ret_c1_combo = QComboBox()
+        self.ret_c1_combo.addItems(["Tzolkin", "Haab", "Venus", "Tun", "819-Day", "LordOfNight"])
+        self.ret_c1_combo.setStyleSheet("QComboBox { background: #201C16; color: #F4D03F; border: 1px solid #4D3F2C; padding: 5px; border-radius: 4px; font-weight: bold; }")
+        ret_form.addWidget(self.ret_c1_combo)
+
+        ret_form.addWidget(StoneLabel("Objetivo 1:", size=11, color="#E0C090"))
+        self.ret_c1_val = QSpinBox(); self.ret_c1_val.setRange(0, 819); self.ret_c1_val.setValue(60) # 60 = 4 Ahau
+        self.ret_c1_val.setStyleSheet("QSpinBox { background: #201C16; color: #F4D03F; border: 1px solid #4D3F2C; padding: 5px; border-radius: 4px; font-weight: bold; min-width: 65px; }")
+        ret_form.addWidget(self.ret_c1_val)
+
+        self.lbl_ret_c1_info = QLabel("✦ 4 Ahau")
+        self.lbl_ret_c1_info.setStyleSheet("color: #F1C40F; background: #262118; border: 1px solid #5A4A32; padding: 4px 8px; border-radius: 4px; font-weight: bold; font-size: 11px;")
+        ret_form.addWidget(self.lbl_ret_c1_info)
+
+        ret_form.addSpacing(10)
+        ret_form.addWidget(StoneLabel("Ciclo 2:", size=11, color="#E0C090"))
+        self.ret_c2_combo = QComboBox()
+        self.ret_c2_combo.addItems(["Haab", "Tzolkin", "Venus", "Tun", "819-Day", "LordOfNight"])
+        self.ret_c2_combo.setCurrentIndex(0)
+        self.ret_c2_combo.setStyleSheet("QComboBox { background: #201C16; color: #F4D03F; border: 1px solid #4D3F2C; padding: 5px; border-radius: 4px; font-weight: bold; }")
+        ret_form.addWidget(self.ret_c2_combo)
+
+        ret_form.addWidget(StoneLabel("Objetivo 2:", size=11, color="#E0C090"))
+        self.ret_c2_val = QSpinBox(); self.ret_c2_val.setRange(0, 819); self.ret_c2_val.setValue(348) # 348 = 8 Cumku
+        self.ret_c2_val.setStyleSheet("QSpinBox { background: #201C16; color: #F4D03F; border: 1px solid #4D3F2C; padding: 5px; border-radius: 4px; font-weight: bold; min-width: 65px; }")
+        ret_form.addWidget(self.ret_c2_val)
+
+        self.lbl_ret_c2_info = QLabel("✦ 8 Cumku")
+        self.lbl_ret_c2_info.setStyleSheet("color: #E67E22; background: #262118; border: 1px solid #5A4A32; padding: 4px 8px; border-radius: 4px; font-weight: bold; font-size: 11px;")
+        ret_form.addWidget(self.lbl_ret_c2_info)
+
+        self.ret_c1_combo.currentIndexChanged.connect(self._update_ret_labels)
+        self.ret_c1_val.valueChanged.connect(self._update_ret_labels)
+        self.ret_c2_combo.currentIndexChanged.connect(self._update_ret_labels)
+        self.ret_c2_val.valueChanged.connect(self._update_ret_labels)
+
+        self.btn_calc_ret = QPushButton("🔮 Encontrar Conjunción")
+        self.btn_calc_ret.setStyleSheet("""
+            QPushButton {
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #6C3483, stop:1 #4A235A);
+                color: #FFF; font-weight: bold; border: 1px solid #BB8FCE; border-radius: 5px;
+                padding: 7px 16px; font-size: 11px;
+            }
+            QPushButton:hover {
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #8E44AD, stop:1 #5B2C6F);
+                border-color: #F4D03F; color: #F4D03F;
+            }
+        """)
+        self.btn_calc_ret.clicked.connect(self._exec_cycle_overlap)
+        ret_form.addWidget(self.btn_calc_ret)
+        ret_layout.addWidget(ret_form_frame)
+
+        # Result Integrated Card
+        ret_card = QFrame()
+        ret_card.setStyleSheet("""
+            QFrame {
+                background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #25201A, stop:1 #181512);
+                border: 1px solid #4D3F2C;
+                border-left: 4px solid #BB8FCE;
+                border-radius: 6px;
+            }
+        """)
+        ret_card_layout = QHBoxLayout(ret_card)
+        ret_card_layout.setContentsMargins(14, 10, 14, 10)
+        ret_card_layout.setSpacing(15)
+
+        self.ret_result_box = QLabel("Configura los ciclos y presiona 'Encontrar Conjunción'. (Ej. Tzolk'in 60 [4 Ahau] + Haab 348 [8 Cumku] halla el fin de era 4 Ahau 8 Cumku).")
+        self.ret_result_box.setStyleSheet("color: #E0C090; font-size: 12px; background: transparent; border: none;")
+        self.ret_result_box.setWordWrap(True)
+        ret_card_layout.addWidget(self.ret_result_box, stretch=1)
+
+        self.btn_goto_ret = QPushButton("📍 Sincronizar en Estela")
+        self.btn_goto_ret.setEnabled(False)
+        self.btn_goto_ret.setCursor(Qt.PointingHandCursor)
+        self.btn_goto_ret.setStyleSheet("""
+            QPushButton {
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #6C3483, stop:1 #4A235A);
+                color: #FFF; border: 1px solid #BB8FCE; border-radius: 5px;
+                padding: 9px 18px; font-weight: bold; font-size: 11px; min-width: 150px;
+            }
+            QPushButton:hover {
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #8E44AD, stop:1 #5B2C6F);
+                border-color: #FFF; color: #F4D03F;
+            }
+            QPushButton:disabled {
+                background: #25211B; color: #665D4F; border: 1px solid #3D3528;
+            }
+        """)
+        self.btn_goto_ret.clicked.connect(self._jump_from_ret_result)
+        ret_card_layout.addWidget(self.btn_goto_ret)
+        ret_layout.addWidget(ret_card)
+        content_layout.addWidget(ret_group)
+
+        # ── SECCIÓN 3: PROYECTOR DE PATRONES ARMÓNICOS ──
+        proj_group = QGroupBox("🚀 3. Proyector de Patrones y Líneas de Tiempo Armónicas")
+        proj_group.setStyleSheet(box_qss)
+        proj_layout = QVBoxLayout(proj_group)
+        proj_layout.setSpacing(12)
+        proj_layout.setContentsMargins(14, 16, 14, 14)
+
+        proj_desc = (
+            "Proyecta pulsos armónicos en el tiempo a través de múltiplos de Katunes (7,200d), Tunes (360d), "
+            "Ciclos de Venus (584d) o ventanas de solitón, generando una serie cronológica completa."
+        )
+        lbl_proj_desc = StoneLabel(proj_desc, size=11, color="#BDC3C7")
+        lbl_proj_desc.setWordWrap(True)
+        proj_layout.addWidget(lbl_proj_desc)
+
+        proj_form_frame = QFrame()
+        proj_form_frame.setStyleSheet("background: #14110E; border: 1px solid #382F22; border-radius: 6px; padding: 8px;")
+        proj_form = QHBoxLayout(proj_form_frame)
+        proj_form.setSpacing(10)
+        proj_form.setContentsMargins(8, 6, 8, 6)
+
+        proj_form.addWidget(StoneLabel("Intervalo de Proyección:", size=11, is_bold=True, color="#E0C090"))
+        self.proj_interval_combo = QComboBox()
+        self.proj_interval_combo.addItems([
+            "1 Katún (7,200 días • ~19.7 años)",
+            "1 Tún (360 días • ~0.98 años)",
+            "1 Rueda Calendárica (18,980 días • 52 años)",
+            "1 Ciclo de Venus (584 días • ~1.6 años)",
+            "1 Ciclo Tzolk'in (260 días)",
+            "1 Ciclo K'awiil (819 días)",
+            "Ventana Solitón Coherente (52 días)",
+            "Personalizado..."
+        ])
+        self.proj_interval_combo.setStyleSheet("QComboBox { background: #201C16; color: #F4D03F; border: 1px solid #4D3F2C; padding: 5px 10px; border-radius: 4px; font-weight: bold; }")
+        proj_form.addWidget(self.proj_interval_combo, stretch=1)
+
+        self.proj_custom_days = QSpinBox()
+        self.proj_custom_days.setRange(1, 999999)
+        self.proj_custom_days.setValue(7200)
+        self.proj_custom_days.setPrefix("Días: ")
+        self.proj_custom_days.setStyleSheet(spin_style)
+        self.proj_custom_days.setVisible(False)
+        proj_form.addWidget(self.proj_custom_days)
+
+        def _on_proj_combo_changed(idx):
+            self.proj_custom_days.setVisible(idx == 7)
+        self.proj_interval_combo.currentIndexChanged.connect(_on_proj_combo_changed)
+
+        proj_form.addWidget(StoneLabel("Saltos:", size=11, color="#E0C090"))
+        self.proj_count_spin = QSpinBox(); self.proj_count_spin.setRange(1, 50); self.proj_count_spin.setValue(10)
+        self.proj_count_spin.setStyleSheet(spin_style)
+        proj_form.addWidget(self.proj_count_spin)
+
+        self.btn_exec_proj = QPushButton("🌟 Proyectar Serie")
+        self.btn_exec_proj.setStyleSheet("""
+            QPushButton {
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #2E4053, stop:1 #1B2631);
+                color: #5DADE2; border: 1px solid #5DADE2; border-radius: 5px;
+                padding: 7px 18px; font-weight: bold; font-size: 11px;
+            }
+            QPushButton:hover {
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #34495E, stop:1 #212F3D);
+                border-color: #F1C40F; color: #F1C40F;
+            }
+        """)
+        self.btn_exec_proj.clicked.connect(self._exec_pattern_projection)
+        proj_form.addWidget(self.btn_exec_proj)
+        proj_layout.addWidget(proj_form_frame)
+
+        # Projections Table
+        self.proj_table = QTableWidget()
+        self.proj_table.setMinimumHeight(220)
+        self.proj_table.setStyleSheet("""
+            QTableWidget {
+                background-color: #15120F; color: #E0C090; border: 1px solid #443725;
+                gridline-color: #2D251A; font-size: 11px; selection-background-color: #4D3B1E;
+            }
+            QHeaderView::section {
+                background-color: #241E17; color: #F1C40F; border: 1px solid #3A3020;
+                padding: 6px; font-weight: bold;
+            }
+        """)
+        self.proj_table.cellClicked.connect(self._on_proj_cell_clicked)
+        proj_layout.addWidget(self.proj_table)
+        content_layout.addWidget(proj_group)
+
+        scroll.setWidget(content)
+        layout.addWidget(scroll)
+        self.tabs.addTab(tab, "⏳ Operaciones & Retornos")
+
+    def _get_cycle_target_desc(self, c_name, val):
+        try:
+            if c_name == "Tzolkin":
+                val = val % 260
+                tone = (val // 20) + 1
+                sign_idx = val % 20
+                sign_name = self.converter.TZOLKIN_DATA[sign_idx][0] if sign_idx < len(self.converter.TZOLKIN_DATA) else "Ahau"
+                return f"✦ {tone} {sign_name}"
+            elif c_name == "Haab":
+                val = val % 365
+                month_idx = min(val // 20, 18)
+                day_in_month = val % 20 if month_idx < 18 else val - 360
+                m_name = self.converter.HAAB_DATA[month_idx][0] if month_idx < len(self.converter.HAAB_DATA) else "Pop"
+                return f"✦ {day_in_month} {m_name}"
+            elif c_name == "LordOfNight":
+                val = val % 9
+                return f"✦ G{val + 1} ({self.converter.LORDS_OF_NIGHT[val][1]})"
+            elif c_name == "Venus":
+                val = val % 584
+                if val < 8: return f"✦ Conjunción Inferior (d{val})"
+                elif val < 244: return f"✦ Estrella Matutina (d{val})"
+                elif val < 334: return f"✦ Conjunción Superior (d{val})"
+                else: return f"✦ Estrella Vespertina (d{val})"
+            elif c_name == "819-Day":
+                val = val % 819
+                q = (val // (819 // 4)) % 4
+                dirs = ["Este (Rojo)", "Norte (Blanco)", "Oeste (Negro)", "Sur (Amarillo)"]
+                return f"✦ {dirs[q]}"
+            return f"✦ Posición {val}"
+        except Exception:
+            return f"✦ Pos {val}"
+
+    def _update_ret_labels(self):
+        c1 = self.ret_c1_combo.currentText()
+        v1 = self.ret_c1_val.value()
+        self.lbl_ret_c1_info.setText(self._get_cycle_target_desc(c1, v1))
+
+        c2 = self.ret_c2_combo.currentText()
+        v2 = self.ret_c2_val.value()
+        self.lbl_ret_c2_info.setText(self._get_cycle_target_desc(c2, v2))
+
+    def _on_ret_preset_changed(self, idx):
+        presets = {
+            1: ("Tzolkin", 60, "Haab", 348),        # 4 Ahau 8 Cumku
+            2: ("Tzolkin", 60, "Venus", 0),          # 4 Ahau + Venus Inf. Conj.
+            3: ("Tzolkin", 60, "819-Day", 0),        # 4 Ahau + K'awiil Este
+            4: ("Tzolkin", 60, "LordOfNight", 8),    # 4 Ahau + G9
+            5: ("Tzolkin", 17, "Haab", 0),           # 1 Caban 0 Pop
+            6: ("Venus", 100, "Haab", 0),            # Venus Matutina + 0 Pop
+        }
+        if idx in presets:
+            c1, v1, c2, v2 = presets[idx]
+            self.ret_c1_combo.setCurrentText(c1)
+            self.ret_c1_val.setValue(v1)
+            self.ret_c2_combo.setCurrentText(c2)
+            self.ret_c2_val.setValue(v2)
+            self._update_ret_labels()
+
+    def _exec_distance_number(self):
+        b_date = self.dn_base_date.date()
+        base_jdn = self.converter._gregorian_to_jdn(b_date.year(), b_date.month(), b_date.day())
+        
+        days_val = self.dn_spin_days.value()
+        is_forward = self.dn_dir_forward.isChecked()
+        signed_days = days_val if is_forward else -days_val
+        
+        dest_y, dest_m, dest_d = self.converter.add_distance_number(base_jdn, signed_days)
+        dest_data = self.converter.get_full_date(dest_y, dest_m, dest_d)
+        
+        self._last_dn_dest_date = QDate(dest_y, dest_m, dest_d)
+        self.btn_goto_dn.setEnabled(True)
+        
+        dir_sign = "+" if is_forward else "-"
+        res_text = (
+            f"<b>📍 FECHA DESTINO: <span style='color:#F4D03F; font-size:13px;'>{dest_d:02d}/{dest_m:02d}/{dest_y:04d}</span> "
+            f"({dir_sign}{days_val:,} días)</b><br>"
+            f"• <b>Cuenta Larga:</b> <span style='color:#F1C40F'>{dest_data['long_count']}</span> • "
+            f"<b>Tzolk'in:</b> {dest_data['tzolkin_glyph']} {dest_data['tzolkin']} ({dest_data['tzolkin_meaning']})<br>"
+            f"• <b>Haab':</b> {dest_data['haab']} ({dest_data['haab_meaning']}) • "
+            f"<b>Rueda Calendárica:</b> {dest_data['calendar_round']} • <b>Señor:</b> {dest_data['lord']}"
+        )
+        self.dn_result_box.setText(res_text)
+
+    def _jump_from_dn_result(self):
+        if hasattr(self, '_last_dn_dest_date'):
+            self.date_edit.setDate(self._last_dn_dest_date)
+            self.tabs.setCurrentIndex(0)
+
+    def _exec_cycle_overlap(self):
+        cur_d = self.date_edit.date()
+        base_jdn = self.converter._gregorian_to_jdn(cur_d.year(), cur_d.month(), cur_d.day())
+        start_days = base_jdn - self.converter.correlation_jdn
+        
+        c1 = self.ret_c1_combo.currentText()
+        t1 = self.ret_c1_val.value()
+        c2 = self.ret_c2_combo.currentText()
+        t2 = self.ret_c2_val.value()
+        
+        match_days = self.analyzer.find_cycle_overlap(start_days + 1, c1, t1, c2, t2, max_steps=5000)
+        if match_days is not None:
+            dest_jdn = self.converter.correlation_jdn + match_days
+            ry, rm, rd = self.converter._jdn_to_gregorian(dest_jdn)
+            r_data = self.converter.get_full_date(ry, rm, rd)
+            self._last_ret_date = QDate(ry, rm, rd)
+            self.btn_goto_ret.setEnabled(True)
+            
+            delta = match_days - start_days
+            self.ret_result_box.setText(
+                f"<b>⭐ CONJUNCIÓN ENCONTRADA: <span style='color:#F4D03F; font-size:13px;'>{rd:02d}/{rm:02d}/{ry:04d}</span> "
+                f"(+{delta:,} días desde hoy)</b><br>"
+                f"• <b>Cuenta Larga:</b> <span style='color:#F1C40F'>{r_data['long_count']}</span> • "
+                f"<b>Rueda Calendárica:</b> {r_data['calendar_round']} • <b>Señor:</b> {r_data['lord']}<br>"
+                f"• <b>Fase Venus:</b> {r_data['venus_phase']} • <b>Luna:</b> {r_data['moon_phase']}"
+            )
+        else:
+            self.ret_result_box.setText("❌ No se encontró coincidencia en los próximos 5,000 ciclos analizados.")
+            self.btn_goto_ret.setEnabled(False)
+
+    def _jump_from_ret_result(self):
+        if hasattr(self, '_last_ret_date'):
+            self.date_edit.setDate(self._last_ret_date)
+            self.tabs.setCurrentIndex(0)
+
+    def _exec_pattern_projection(self):
+        cur_d = self.date_edit.date()
+        base_dt = datetime(cur_d.year(), cur_d.month(), cur_d.day())
+        
+        idx = self.proj_interval_combo.currentIndex()
+        preset_days = [7200, 360, 18980, 584, 260, 819, 52]
+        interval = preset_days[idx] if idx < len(preset_days) else self.proj_custom_days.value()
+        
+        count = self.proj_count_spin.value()
+        projections = self.analyzer.project_pattern(base_dt, interval, count)
+        
+        headers = ["Paso", "Fecha Gregoriana", "Días Acumulados", "Cuenta Larga", "Tzolk'in", "Haab'", "Señor", "Venus"]
+        self.proj_table.clear()
+        self.proj_table.setColumnCount(len(headers))
+        self.proj_table.setHorizontalHeaderLabels(headers)
+        self.proj_table.setRowCount(len(projections))
+        
+        self._proj_dates = []
+        for row, p in enumerate(projections):
+            dt = p["date"]
+            self._proj_dates.append(QDate(dt.year, dt.month, dt.day))
+            d_data = self.converter.get_full_date(dt.year, dt.month, dt.day)
+            
+            self.proj_table.setItem(row, 0, QTableWidgetItem(f"+{row + 1}"))
+            self.proj_table.setItem(row, 1, QTableWidgetItem(dt.strftime("%Y-%m-%d")))
+            self.proj_table.setItem(row, 2, QTableWidgetItem(f"+{(row + 1) * interval:,}d"))
+            self.proj_table.setItem(row, 3, QTableWidgetItem(d_data["long_count"]))
+            self.proj_table.setItem(row, 4, QTableWidgetItem(d_data["tzolkin"]))
+            self.proj_table.setItem(row, 5, QTableWidgetItem(d_data["haab"]))
+            self.proj_table.setItem(row, 6, QTableWidgetItem(d_data["lord"]))
+            self.proj_table.setItem(row, 7, QTableWidgetItem(d_data["venus_phase"]))
+            
+        self.proj_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeToContents)
+        self.proj_table.horizontalHeader().setStretchLastSection(True)
+
+    def _on_proj_cell_clicked(self, row, col):
+        if hasattr(self, '_proj_dates') and row < len(self._proj_dates):
+            target_date = self._proj_dates[row]
+            self.date_edit.setDate(target_date)
+            self.tabs.setCurrentIndex(0)
+
+    def _setup_biological_tab(self):
+        tab = QWidget()
+        tab.setStyleSheet("background-color: #181512; color: #E0C090;")
+        layout = QVBoxLayout(tab)
+        
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setStyleSheet("QScrollArea { background-color: #181512; border: none; }")
+        if scroll.viewport():
+            scroll.viewport().setStyleSheet("background-color: #181512;")
+        content = QWidget()
+        content.setStyleSheet("background-color: #181512;")
+        content_layout = QVBoxLayout(content)
+        content_layout.setSpacing(16)
+        content_layout.setContentsMargins(14, 14, 14, 14)
+
+        # Header Info Banner
+        header_box = QGroupBox("🧬 Matriz de Resonancia Biológica y Cimática (Tzolk'in ➔ Aminoácidos)")
+        header_box.setStyleSheet("""
+            QGroupBox {
+                border: 2px solid #27AE60;
+                border-left: 6px solid #2ECC71;
+                border-radius: 8px;
+                margin-top: 14px;
+                padding-top: 14px;
+                color: #2ECC71;
+                font-weight: bold;
+                background-color: #151A16;
+            }
+            QGroupBox::title {
+                subcontrol-origin: margin;
+                left: 14px;
+                padding: 0 8px;
+                color: #58D68D;
+                font-size: 13px;
+            }
+        """)
+        h_box_layout = QVBoxLayout(header_box)
+        h_box_layout.setContentsMargins(14, 12, 14, 14)
+        bio_intro = (
+            "Cada uno de los 20 sellos solares del Tzolk'in maya corresponde de forma isomorfa a uno de los 20 aminoácidos "
+            "canónicos esenciales del código genético universal, vibrando en frecuencias vocálicas Kototama y matrices geométricas de enlace."
+        )
+        lbl_intro = StoneLabel(bio_intro, size=11, color="#BDC3C7")
+        lbl_intro.setWordWrap(True)
+        h_box_layout.addWidget(lbl_intro)
+        content_layout.addWidget(header_box)
+
+        # Bio details cards with custom chromatic accents
+        grid = QGridLayout()
+        grid.setSpacing(14)
+
+        self.bio_card_seal = StonePanel("Sello Tzolk'in Activo", "4 Ahau", "Sol / Señor Solar")
+        self.bio_card_seal.setStyleSheet("""
+            StonePanel {
+                background-color: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #1F2E22, stop:1 #131E15);
+                border: 2px solid #27AE60; border-top-color: #52BE80; border-radius: 8px;
+            }
+        """)
+        self.bio_card_amino = StonePanel("Aminoácido Resonante", "Triptófano (Trp)", "Fórmula: C11H12N2O2")
+        self.bio_card_amino.setStyleSheet("""
+            StonePanel {
+                background-color: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #332B1A, stop:1 #1F190D);
+                border: 2px solid #D4AC0D; border-top-color: #F4D03F; border-radius: 8px;
+            }
+        """)
+        self.bio_card_group = StonePanel("Grupo Bioquímico", "Aromático Mayor", "Sistema Indol Bicíclico")
+        self.bio_card_group.setStyleSheet("""
+            StonePanel {
+                background-color: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #2C1F33, stop:1 #1A1220);
+                border: 2px solid #8E44AD; border-top-color: #BB8FCE; border-radius: 8px;
+            }
+        """)
+        self.bio_card_kototama = StonePanel("Kototama & Mantra", "I ➔ A ➔ O ➔ U ➔ E", "Bīja Mantra: AUM")
+        self.bio_card_kototama.setStyleSheet("""
+            StonePanel {
+                background-color: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #162B2B, stop:1 #0D1C1C);
+                border: 2px solid #16A085; border-top-color: #48C9B0; border-radius: 8px;
+            }
+        """)
+
+        grid.addWidget(self.bio_card_seal, 0, 0)
+        grid.addWidget(self.bio_card_amino, 0, 1)
+        grid.addWidget(self.bio_card_group, 1, 0)
+        grid.addWidget(self.bio_card_kototama, 1, 1)
+        content_layout.addLayout(grid)
+
+        # Codons and detailed instruction
+        instr_group = QGroupBox("📜 Instrucción Alquímica & Codones de ARN")
+        instr_group.setStyleSheet("""
+            QGroupBox {
+                border: 2px solid #5A4A32;
+                border-left: 6px solid #E67E22;
+                border-radius: 8px;
+                margin-top: 14px;
+                padding-top: 14px;
+                color: #F39C12;
+                font-weight: bold;
+                background-color: #171410;
+            }
+            QGroupBox::title {
+                subcontrol-origin: margin;
+                left: 14px;
+                padding: 0 8px;
+                color: #F39C12;
+                font-size: 13px;
+            }
+        """)
+        instr_layout = QVBoxLayout(instr_group)
+        instr_layout.setContentsMargins(14, 14, 14, 14)
+        instr_layout.setSpacing(10)
+
+        self.lbl_bio_instruction = QLabel("")
+        self.lbl_bio_instruction.setStyleSheet("color: #F1C40F; font-size: 12px; font-weight: bold; line-height: 1.4;")
+        self.lbl_bio_instruction.setWordWrap(True)
+        instr_layout.addWidget(self.lbl_bio_instruction)
+
+        self.lbl_bio_codons = QLabel("")
+        self.lbl_bio_codons.setStyleSheet("color: #E0C090; font-size: 11px;")
+        self.lbl_bio_codons.setWordWrap(True)
+        instr_layout.addWidget(self.lbl_bio_codons)
+        content_layout.addWidget(instr_group)
+
+        # Copy button
+        self.btn_copy_bio = QPushButton("📋 Copiar Perfil Bio-Vibracional al Portapapeles")
+        self.btn_copy_bio.setStyleSheet("""
+            QPushButton {
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #1F618D, stop:1 #154360);
+                color: #F4D03F; border: 1px solid #5DADE2; border-radius: 6px;
+                padding: 10px 18px; font-weight: bold; font-size: 12px;
+            }
+            QPushButton:hover {
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #2980B9, stop:1 #1B4F72);
+                color: #FFF; border-color: #F4D03F;
+            }
+        """)
+        self.btn_copy_bio.clicked.connect(self._copy_bio_profile)
+        content_layout.addWidget(self.btn_copy_bio)
+
+        content_layout.addStretch()
+        scroll.setWidget(content)
+        layout.addWidget(scroll)
+        self.tabs.addTab(tab, "🧬 Resonancia Biológica")
+
+    def _update_biological_tab(self, data):
+        if not hasattr(self, 'bio_card_seal'):
+            return
+        tz_name = data.get("tzolkin_name", "")
+        tz_full = f"{data.get('tzolkin_glyph', '')} {data.get('tzolkin', '')}"
+        self.bio_card_seal.update_data(tz_full, data.get("tzolkin_meaning", ""))
+        
+        bio = MayanProfileExporter._extract_bio_resonance(tz_name) if MayanProfileExporter else None
+        if bio:
+            self.bio_card_amino.update_data(bio.get("amino", ""), f"Fórmula: {bio.get('formula', '')}")
+            self.bio_card_group.update_data(bio.get("group", ""), "Clasificación estructural")
+            self.bio_card_kototama.update_data(bio.get("kototama", ""), f"Bīja Mantra: {bio.get('bija', '')}")
+            self.lbl_bio_instruction.setText(f"✦ Instrucción: {bio.get('instruction', '')}")
+            
+            codon_cards = []
+            for c in bio.get("codons", []):
+                codon_cards.append(
+                    f"<div style='margin-bottom: 6px;'>"
+                    f"<span style='background:#2C3E50; color:#F4D03F; border:1px solid #5DADE2; padding:2px 8px; border-radius:4px; font-family:Consolas, monospace; font-weight:bold;'>Triplete {c['triplet']}</span> "
+                    f"<span style='color:#ECF0F1;'>— {c.get('action', '')}</span> "
+                    f"<span style='color:#85929E; font-size:10px;'>[Kototama: {c.get('kototama', '')}]</span>"
+                    f"</div>"
+                )
+            self.lbl_bio_codons.setText("".join(codon_cards))
+        else:
+            self.bio_card_amino.update_data("Información no disponible", "")
+            self.lbl_bio_instruction.setText("")
+            self.lbl_bio_codons.setText("")
+
+    def _copy_bio_profile(self):
+        tz_name = self.panel_tzolkin.lbl_main.text()
+        text = f"Perfil Bio-Vibracional Maya: {tz_name}\nAminoácido: {self.bio_card_amino.lbl_main.text()}\nGrupo: {self.bio_card_group.lbl_main.text()}\nKototama & Mantra: {self.bio_card_kototama.lbl_main.text()}\n{self.lbl_bio_instruction.text()}\n{self.lbl_bio_codons.text()}"
+        QApplication.clipboard().setText(text)
+        QMessageBox.information(self, "Copiado", "Perfil bio-vibracional copiado al portapapeles.")
+
+    def _open_export_profile_dialog(self):
+        if not hasattr(self, '_current_mayan_data') or not self._current_mayan_data:
+            gregorian_date = self.date_edit.date()
+            self._current_mayan_data = self.converter.get_full_date(
+                gregorian_date.year(), gregorian_date.month(), gregorian_date.day()
+            )
+        gregorian_str = self.date_edit.date().toString("MMMM d, yyyy")
+        corr_str = self.combo_correlation.currentText()
+        dialog = MayanProfileExportDialog(self, self._current_mayan_data, gregorian_str, corr_str)
+        dialog.exec()
+
+    def _setup_reference_tab(self):
+        tab = QWidget()
+        tab.setStyleSheet("background-color: #181512; color: #E0C090;")
+        layout = QVBoxLayout(tab)
+        
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setStyleSheet("QScrollArea { background-color: #181512; border: none; }")
+        if scroll.viewport():
+            scroll.viewport().setStyleSheet("background-color: #181512;")
+        content = QWidget()
+        content.setStyleSheet("background-color: #181512;")
         content_layout = QVBoxLayout(content)
         
         # Tzolkin reference
@@ -2067,6 +3230,9 @@ class MayanSteleApp(QMainWindow):
             f"{dc[3]} Piktun",
             f"Kalabtun: {dc[2]} | Kinchiltun: {dc[1]}"
         )
+        self._current_mayan_data = data
+        if hasattr(self, '_update_biological_tab'):
+            self._update_biological_tab(data)
 
     def _jump_to_fractal_analysis(self):
         """Sincroniza la fecha activa del calendario con el analizador fractal (±2 años) y ejecuta la detección."""
@@ -2168,7 +3334,7 @@ class MayanSteleApp(QMainWindow):
         
         if self.fractal_view_mode == "packets":
             # MODO 1: VENTANAS HOLÍSTICAS (EL TODO / PAQUETES DE ONDA)
-            headers = ["ID", "Ventana Temporal", "Duración", "Cúspide / Pico", "Score Máx", "Energía Acum.", "Simetría (Solitón)", "Alineamientos Clave"]
+            headers = ["ID", "Ventana Temporal", "Duración", "Cúspide / Pico", "Score Máx", "Kuramoto R", "Simetría (Solitón)", "Eclipse Dresde", "Alineamientos Clave"]
             self.convergence_table.setColumnCount(len(headers))
             self.convergence_table.setHorizontalHeaderLabels(headers)
             self.convergence_table.setRowCount(len(self.fractal_packets))
@@ -2199,23 +3365,36 @@ class MayanSteleApp(QMainWindow):
                     item_sc.setForeground(QColor("#F1C40F"))
                 self.convergence_table.setItem(row, 4, item_sc)
                 
-                # Energía Acumulada
-                item_en = QTableWidgetItem(f"{pkt['total_energy']:.1f}")
-                item_en.setTextAlignment(Qt.AlignCenter)
-                self.convergence_table.setItem(row, 5, item_en)
+                # Kuramoto R
+                p_km = pkt.get('peak_kuramoto', {})
+                km_val = p_km.get('r', 0.0) * 100.0
+                item_km = QTableWidgetItem(f"{km_val:.1f}%")
+                item_km.setTextAlignment(Qt.AlignCenter)
+                if p_km.get('is_locked'):
+                    item_km.setForeground(QColor("#00DCFF"))
+                self.convergence_table.setItem(row, 5, item_km)
                 
                 # Simetría
                 sym_label = "Solitón Puro" if pkt['symmetry_score'] >= 88 else ("Campana Coherente" if pkt['symmetry_score'] >= 70 else "Onda Asimétrica")
                 item_sym = QTableWidgetItem(f"{pkt['symmetry_score']:.0f}% ({sym_label})")
                 item_sym.setTextAlignment(Qt.AlignCenter)
                 self.convergence_table.setItem(row, 6, item_sym)
+
+                # Eclipse Dresde
+                ecl_str = pkt.get('eclipse_type') or "—"
+                item_ecl = QTableWidgetItem(ecl_str)
+                item_ecl.setTextAlignment(Qt.AlignCenter)
+                if pkt.get('has_eclipse'):
+                    item_ecl.setForeground(QColor("#E74C3C"))
+                    item_ecl.setFont(QFont("Segoe UI", 9, QFont.Bold))
+                self.convergence_table.setItem(row, 7, item_ecl)
                 
                 # Alineamientos
-                self.convergence_table.setItem(row, 7, QTableWidgetItem(", ".join(pkt['alignments'])))
+                self.convergence_table.setItem(row, 8, QTableWidgetItem(", ".join(pkt['alignments'])))
                 
         else:
             # MODOS INDIVIDUALES: CRONOLÓGICO O SCORE DESCENDENTE
-            headers = ["Fecha", "Score", "Long Count", "Tzolkin", "Ventana", "Alineamientos"]
+            headers = ["Fecha", "Score", "Long Count", "Tzolkin", "Ventana", "Kuramoto R (Ψ)", "Eclipse Dresde", "Alineamientos"]
             self.convergence_table.setColumnCount(len(headers))
             self.convergence_table.setHorizontalHeaderLabels(headers)
             
@@ -2248,8 +3427,28 @@ class MayanSteleApp(QMainWindow):
                 item_pkt = QTableWidgetItem(pkt_id)
                 item_pkt.setTextAlignment(Qt.AlignCenter)
                 self.convergence_table.setItem(row, 4, item_pkt)
+
+                # Kuramoto R (Ψ)
+                km = evt.get('kuramoto', {})
+                km_r = km.get('r', 0.0) * 100.0
+                km_psi = km.get('psi_deg', 0.0)
+                item_km = QTableWidgetItem(f"{km_r:.1f}% ({km_psi:.0f}°)")
+                item_km.setTextAlignment(Qt.AlignCenter)
+                if km.get('is_locked'):
+                    item_km.setForeground(QColor("#00DCFF"))
+                self.convergence_table.setItem(row, 5, item_km)
+
+                # Eclipse Dresde
+                ecl = evt.get('eclipse', {})
+                ecl_str = ecl.get('eclipse_type') or "—"
+                item_ecl = QTableWidgetItem(ecl_str)
+                item_ecl.setTextAlignment(Qt.AlignCenter)
+                if ecl.get('is_eclipse_window'):
+                    item_ecl.setForeground(QColor("#E74C3C"))
+                    item_ecl.setFont(QFont("Segoe UI", 9, QFont.Bold))
+                self.convergence_table.setItem(row, 6, item_ecl)
                 
-                self.convergence_table.setItem(row, 5, QTableWidgetItem(", ".join(evt['alignments'])))
+                self.convergence_table.setItem(row, 7, QTableWidgetItem(", ".join(evt['alignments'])))
                 
         self.convergence_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeToContents)
         self.convergence_table.horizontalHeader().setStretchLastSection(True)
