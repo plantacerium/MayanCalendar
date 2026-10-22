@@ -11,6 +11,13 @@ A comprehensive, mathematically rigorous Mayan calendar application and **Model 
 
 ---
 
+## Logo
+<p align="center">
+  <img src="./assets/logo_fusion_quantum_pyramid_calendar.svg" alt="Mayan Stele - Quantum Pyramid & Calendar Core" width="2032" />
+</p>
+
+---
+
 ## Table of Contents
 
 1. [Architectural Overview](#architectural-overview)
