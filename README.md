@@ -1,8 +1,12 @@
+
+
 # Mayan Stele - Ultimate Calendar, Fractal Pattern Analyzer & MCP Server
 
 A comprehensive, mathematically rigorous Mayan calendar application and **Model Context Protocol (MCP)** server built with Python and PySide6. Convert any Gregorian date to its exact Mayan equivalent, compute Kuramoto phase synchronization across planetary cycles, detect Dresden Codex eclipse windows, explore biocymatic/genetic resonances, and empower AI agents to interact with ancient mesoamerican chronometry.
 
-![Mayan Stele](./assets/MAYAN_STELE_UI_V1.JPG)
+<p align="center">
+  <img src="./assets/screenshots/tab0_calendar.png" alt="Mayan Stele - Calendario, Estela & Ruedas Interlocking" width="100%" />
+</p>
 
 [![Python](https://img.shields.io/badge/Python-3.8+-3776AB?logo=python&logoColor=white)](https://python.org)
 [![PySide6](https://img.shields.io/badge/GUI-PySide6%20(Qt6)-41CD52?logo=qt&logoColor=white)](https://pypi.org/project/PySide6/)
@@ -29,6 +33,7 @@ A comprehensive, mathematically rigorous Mayan calendar application and **Model 
 3. [Advanced Chronometry & Astronomical Engines](#advanced-chronometry--astronomical-engines)
    - [Kuramoto Coupled Oscillators Synchronization ($R, \Psi$)](#kuramoto-coupled-oscillators-synchronization)
    - [Dresden Codex Eclipse Warning Engine](#dresden-codex-eclipse-warning-engine)
+   - [Dresden Codex Mars Table & The Celestial Beast (pp. 43b–45b)](#dresden-codex-mars-table--the-celestial-beast-pp-43b45b)
    - [Deep Time Eras (up to Alautun)](#deep-time-eras)
    - [Correlation Constants](#correlation-constants)
 4. [Desktop GUI Application (`mayan-stele.py`)](#desktop-gui-application)
@@ -142,7 +147,7 @@ Add the server configuration to your MCP settings or plugin directory:
 
 ### Available MCP Tools Reference
 
-The server exposes **9 specialized tools**:
+The server exposes **13 specialized tools**:
 
 | Tool Name | Purpose | Key Arguments |
 |-----------|---------|---------------|
@@ -154,6 +159,10 @@ The server exposes **9 specialized tools**:
 | `mayan_exact_cycle_returns` | Chinese Remainder Theorem (CRT) modular solver for multi-cycle returns | `start_year`, `cycle1_name`, `cycle1_target`, `cycle2_name`, `cycle2_target` |
 | `mayan_project_pattern` | Projects cyclic harmonic steps forward or backward | `base_year`, `base_month`, `base_day`, `interval_days`, `count` |
 | `mayan_get_biomolecular_profile` | Maps Tzolk'in solar seal to amino acids, RNA codons & Kototama | `tzolkin_sign` (e.g. `Ahau`, `Imix`, `Cauac`) |
+| `mayan_get_paris_zodiac` | Paris Codex (pp. 21-24) 13 Maya Ecliptic Constellations (Meeus solar algorithm) | `year`, `month`, `day` (optional: omit for full catalog) |
+| `mayan_resolve_serpent_series` | Dresden Codex (pp. 61–69) Serpent Series & Ring Numbers Deep Time calculator (~33,000 yrs) | `serpent_index` (0–4) or `ring_days` + `serpent_distance_days`, `correlation` |
+| `mayan_get_364_day_season` | Dresden Codex (pp. 65a–69b) 364-Day Seasonal Year & 4 Cardinal Quarters (Chac deities, 91d stations, 1,820d cycle) | `year`, `month`, `day`, `correlation` |
+| `mayan_get_mars_table` | Dresden Codex (pp. 43b–45b) 780-day Mars Synodic Table & Celestial Beast Retrograde Loop (10x78d stations, 9,360d & 56,940d macro-cycles) | `year`, `month`, `day`, `correlation` |
 | `mayan_export_profile` | Generates full profile in SVG, Markdown, ASCII, or JSON format | `year`, `month`, `day`, `format`, `correlation` |
 
 ---
@@ -269,6 +278,29 @@ The engine evaluates syzygies against the lunar node passages:
 
 ---
 
+### Dresden Codex Mars Table & The Celestial Beast (pp. 43b–45b)
+
+Pages 43b–45b of the **Dresden Codex** preserve the famous Maya synodic table of **Mars**, structured around a precise cycle of **780 days** ($3 \times 260\text{d}$ Tzolk'in):
+
+- **Canonical Epigraphic Anchor**: Anchored to `9.19.7.15.8 3 Lamat` (Day 1,435,628 from 0.0.0.0.0).
+- **Invariable Sacred Coefficient 3**: The 780-day cycle is divided into **10 stations of 78 days** ($6 \times 13$ trecenas). Because $78 \equiv 0 \pmod{13}$, the tonal numeral **3** never changes across the entire table:
+  1. **3 Lamat** (Day 0 / 780d) — *Morning Heliacal Rising* (Act I)
+  2. **3 Cimi** (Day 78 / 780d) — *Prograde Advance 1* (Act I)
+  3. **3 Kan** (Day 156 / 780d) — *Prograde Advance 2* (Act I)
+  4. **3 Ik** (Day 234 / 780d) — *Pre-Stationary Deceleration* (Act I)
+  5. **3 Ahau** (Day 312 / 780d) — *1st Stationary Point: Entrance to Retrograde Loop* (Act II)
+  6. **3 Etznab** (Day 390 / 780d) — *Solar Opposition & Retrograde Apex: The Celestial Beast* (Act II)
+  7. **3 Cib** (Day 468 / 780d) — *2nd Stationary Point: Resumption of Direct Motion* (Act II)
+  8. **3 Ix** (Day 546 / 780d) — *Evening Sky Advance* (Act III)
+  9. **3 Eb** (Day 624 / 780d) — *Heliacal Setting & Solar Twilight Approach* (Act III)
+  10. **3 Oc** (Day 702 / 780d) — *Solar Conjunction: Underworld Passage* (Act III)
+- **The Celestial Beast Loop**: In Act II (days 312 to 468, centered on solar opposition at day 390 in 3 Etznab), Mars exhibits apparent retrograde motion. The Dresden scribes illustrated this terrifying sky phenomenon as a **Celestial Beast** (Mars Beast) hanging from the skyband with wide open jaws.
+- **Cosmic Commensurabilities**:
+  - **Super-Tun of 9,360 Days**: $12 \times 780\text{d} = 9,360\text{d} = 26\text{ Tuns} = 36\text{ Tzolk'in}$.
+  - **Grand Return of 56,940 Days**: $73 \times 780\text{d} = 56,940\text{d} = 156\text{ Haab'} = 3\text{ Calendar Rounds}$ (exact solar-Martian-Tzolk'in synchronization).
+
+---
+
 ### Deep Time Eras
 
 The Maya Long Count extends far beyond the 13 Baktun creation era:
@@ -310,31 +342,67 @@ Built with **PySide6** and styled with an authentic stone-carved, basalt obsidia
 ```
 
 ### 1. Calendario & Estela
-- **Interactive Rotary Wheel**: Concentric rings for Haab' months, Tzolk'in days, Lords of the Night, and Lunar Glyphs.
+
+<p align="center">
+  <img src="./assets/screenshots/tab0_calendar.png" alt="Mayan Stele - Calendario, Estela & Ruedas Interlocking" width="100%" />
+</p>
+
+- **Universal Historical Date Selector**: Completely removes the classic Qt year 100 limit (`QDateEdit` limitation). Custom `HistoricalDateSelector` and `ChronoDate` engine support proleptic Gregorian calculation across $-99,999$ BCE to $+99,999$ CE with dedicated **"🏛️ 3114 a.C. Creación"** instant jump (13.0.0.0.0 4 Ahau 8 Cumku) and bidirectional day-by-day navigation.
+- **Interactive Rotary Wheel**: Concentric rings for the Paris Codex Zodiac (13 Ecliptic Constellations), Haab' civil months (19), Tzolk'in sacred days (20), and Lords of the Night (9).
+- **Paris Codex Ecliptic Zodiac Panel**: Real-time astronomical calculation (Jean Meeus algorithm) of the apparent solar longitude $\lambda_{\odot}$ mapping the Sun's transit across the 13 indigenous Maya constellations (*Códice de París*, pp. 21-24: Tzab, Ak, K'ek'en, Chuen, Koh, K'uk'ul, Chitam, Zina'an, Balam, Sotz', Muan, Pez, Xoc).
+- **364-Day Seasonal Computing Year Panel (Dresden pp. 65a-69b)**: Dedicated StonePanel and embedded `Season364Bar` tracking the 4 Cardinal Quarters ($4 \times 91 = 364\text{d}$) and 7 trecenas per quarter ($7 \times 13 = 91\text{d}$), directional Chac deities, and the 1,820-day Grand Return ($5 \times 364 = 7 \times 260\text{d}$).
+- **Mars Table & Celestial Beast Panel (Dresden pp. 43b-45b)**: Dedicated StonePanel and custom visual `MarsPhaseBar` displaying the 780-day synodic cycle, active station of 78 days (with immutable sacred coefficient 3), Tzolk'in acts (1 to 3), Celestial Beast retrograde indicators, solar opposition windows, and the 9,360-day Super-Tun commensurability.
 - **Glyph Cartouches**: Vectorized iconography for Day Signs and Glyphs A, C, X.
 - **Live Clock & Deep Time Counter**: Real-time ticking odometer displaying cosmic coordinates.
 
 ### 2. Analizador Fractal
+
+<p align="center">
+  <img src="./assets/screenshots/tab1_fractal.png" alt="Mayan Stele - Analizador Fractal & Dinámica Kuramoto" width="100%" />
+</p>
+
 - **Continuous Kuramoto Gauge**: Visual indicator showing collective phase coherence $R$ and angle $\Psi$.
 - **Dresden Codex Warning Banner**: Highlights active solar/lunar eclipse corridors.
-- **Wave Packet & Soliton Table**: Identifies multi-day convergence clusters where multiple sacred periods coincide.
+- **Wave Packet & Soliton Table**: Identifies multi-day convergence clusters where multiple sacred periods coincide across deep history.
 - **Personal Natal Resonance**: Computes individualized alignment scores with personal birth matrices.
 
 ### 3. ⏳ Operaciones & Retornos
-- **Distance Numbers**: Add or subtract historical vectors ($k$ Katún, $t$ Tún, $u$ Uinal, $k$ K'in) to any epoch.
+
+<p align="center">
+  <img src="./assets/screenshots/tab2_operations.png" alt="Mayan Stele - Operaciones & Retornos (Vista Superior)" width="100%" />
+</p>
+
+- **Distance Numbers**: Add or subtract historical vectors ($k$ Katún, $t$ Tún, $u$ Uinal, $k$ K'in) to any epoch with full BCE/CE support.
 - **CRT Exact Cycle Solver**: Solves simultaneous modular congruences using the Chinese Remainder Theorem:
   - *Calendar Round Return* (Tzolk'in + Haab' = 18,980 days / ~52 years)
   - *Venus Great Cycle* (Tzolk'in + Venus = 37,960 days / ~104 years)
   - *Tzolk'in-Tún Grand Conjunction* (260 + 360 = 93,600 days / 260 Tún)
-- **Harmonic Pattern Projector**: Projects forward/backward steps over arbitrary cycle frequencies.
+- **Harmonic Pattern Projector**: Projects forward/backward steps over arbitrary cycle frequencies into deep time.
+- **Cuentas Serpentinas y Números de Anillo (Dresden Codex pp. 61–69)**: Explores Deep Time chronology (~12.3 to 12.5 million days / >33,000 years) using Ring Numbers tied with red ribbons to subtract intervals prior to the Creation date 13.0.0.0.0 4 Ahau 8 Cumku (3114 BCE) into primordial chaos, then projecting forward to historical arrival dates. Includes one-click stele synchronizers for both Primordial Base Dates and Terminal Arrival Dates.
+- **Cómputo de 364 Días y Estaciones Cósmicas (Dresden Codex pp. 65a–69b)**: Solves the exact next seasonal transitions (Equinoccio de Primavera, Solsticio de Verano, Equinoccio de Otoño, Solsticio de Invierno) and the 1,820-day Grand Return alignment with Tzolk'in, featuring 1-click synchronization to the main calendar stele.
+- **La Tabla de Marte y la Bestia Celeste (Dresden Codex pp. 43b–45b)**: Interactive section computing next station jumps for all 10 canonical stations of 78 days (3 Lamat, 3 Cimi, 3 Kan, 3 Ik, 3 Ahau, 3 Etznab, 3 Cib, 3 Ix, 3 Eb, 3 Oc), the 9,360-day Super-Tun ($12\text{ Marte} = 26\text{ Tuns} = 36\text{ Tzolk'in}$), and the 56,940-day Grand Return ($73\text{ Marte} = 156\text{ Haab'} = 3\text{ Ruedas Calendáricas}$) with direct 1-click stele alignment.
+
+<p align="center">
+  <img src="./assets/screenshots/tab2_operations_mars.png" alt="Mayan Stele - Operaciones & Retornos (Cómputo 364d y Tabla de Marte)" width="100%" />
+</p>
 
 ### 4. 🧬 Resonancia Biológica
+
+<p align="center">
+  <img src="./assets/screenshots/tab3_biological.png" alt="Mayan Stele - Resonancia Biológica & Genética" width="100%" />
+</p>
+
 - **20 Solar Seals $\to$ 20 Amino Acids**: Symmetrical mapping grounded in molecular charge, hydropathy, and aromaticity.
 - **RNA Genetic Triplets**: Direct codon assignments for every Tzolk'in sign.
 - **Kototama Phonetics & Bīja Mantras**: Traditional vocalic frequencies associated with daily vibrational archetypes.
 
 ### 5. 📚 Enciclopedia & Basalt Obsidian Styling
+
+<p align="center">
+  <img src="./assets/screenshots/tab4_reference.png" alt="Mayan Stele - Enciclopedia & Referencia Epigráfica" width="100%" />
+</p>
 - Comprehensive scholarly reference for all 13 Galactic Tones, 9 Underworld Lords, Venus Helical Risings, and Lunar Patrons.
+- **Quantum Insignia & Showcase**: Features the official *Quantum Pyramid & Calendar Core* vector emblem integrated into the application header, window icon, and reference codex. Explore all 5 design variants in [`assets/logos/showcase.html`](./assets/logos/showcase.html).
 - Seamless Dark Obsidian and Basque Gold CSS palettes without white artifact bleeds.
 
 ---

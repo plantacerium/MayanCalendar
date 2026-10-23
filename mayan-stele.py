@@ -133,36 +133,467 @@ class MayanConverter:
     
     # 819-day cycle colors and directions
     KAWIIL_COLORS = ["Red (East)", "White (North)", "Black (West)", "Yellow (South)"]
+
+    # Paris Codex (pp. 21-24) - 13 Constellations of the Maya Ecliptic Zodiac
+    # (Maya Name, Spanish Name, Glyph/Emoji, Western Constellation, Start Deg, End Deg, Cosmovision)
+    PARIS_ZODIAC_DATA = [
+        ("Tzab", "Serpiente de Cascabel", "🐍", "Tauro / Pléyades", 0.0, 27.69, "Cascabeleo estelar y apertura del ciclo pluvial"),
+        ("Ak", "Tortuga Cósmica", "🐢", "Orión", 27.69, 55.38, "Tres piedras del fogón de la creación maya"),
+        ("K'ek'en", "Pecaríes Gemelos", "🐗", "Géminis", 55.38, 83.08, "Dualidad sagrada y estrellas gemelas celestes"),
+        ("Chuen", "Mono Artesano", "🐒", "Cáncer", 83.08, 110.77, "Patrono de los artistas, escribas y tejedores"),
+        ("Koh", "Puma / León Montañés", "🦁", "Leo", 110.77, 138.46, "Poder solar de mediodía y soberanía selvática"),
+        ("K'uk'ul", "Ave Quetzal Sagrada", "🦜", "Virgo", 138.46, 166.15, "Plumaje celeste y fertilidad de la cosecha"),
+        ("Chitam", "Jabalí de Selva", "🐗", "Libra", 166.15, 193.85, "Equilibrio vegetal del sotobosque y raíces"),
+        ("Zina'an", "Escorpión Celeste", "🦂", "Escorpio", 193.85, 221.54, "Guardián de la Vía Láctea y aguijón de fuego"),
+        ("Balam", "Jaguar Ocelote", "🐆", "Sagitario", 221.54, 249.23, "Fuerza nocturna del inframundo y estrellas"),
+        ("Sotz'", "Murciélago Cósmico", "🦇", "Capricornio", 249.23, 276.92, "Vuelo nocturno del solsticio y umbral de cavernas"),
+        ("Muan", "Pájaro Moan / Lechuza", "🦉", "Acuario", 276.92, 304.62, "Ave de las nubes de tormenta y agua cósmica"),
+        ("Pez", "Monstruo Marino / Pez", "🐟", "Piscis", 304.62, 332.31, "Aguas primordiales del océano celeste"),
+        ("Xoc", "Tiburón Cósmico", "🦈", "Aries / Cetus", 332.31, 360.00, "Monstruo del abismo marino y umbral del año")
+    ]
+
+    @staticmethod
+    def calculate_solar_ecliptic_longitude(jdn):
+        """
+        Cálculo astronómico de la longitud eclíptica aparente del Sol (algoritmo Jean Meeus).
+        Precisión de 0.01° a lo largo de toda la cronología histórica.
+        """
+        n = jdn - 2451545.0
+        L0 = (280.46646 + 0.9856474 * n) % 360.0
+        M = (357.52911 + 0.98560028 * n) % 360.0
+        M_rad = math.radians(M)
+        C = 1.914602 * math.sin(M_rad) + 0.019993 * math.sin(2 * M_rad) + 0.000289 * math.sin(3 * M_rad)
+        sun_lon = (L0 + C) % 360.0
+        return sun_lon
+
+    def get_paris_zodiac(self, jdn):
+        """Determina la constelación del Códice de París donde transita el Sol en el JDN dado."""
+        sun_lon = self.calculate_solar_ecliptic_longitude(jdn)
+        seg_size = 360.0 / 13.0
+        idx = int(sun_lon / seg_size) % 13
+        z = self.PARIS_ZODIAC_DATA[idx]
+        deg_start = idx * seg_size
+        deg_end = (idx + 1) * seg_size
+        return {
+            "zodiac_idx": idx,
+            "zodiac_name": z[0],
+            "zodiac_spanish": z[1],
+            "zodiac_glyph": z[2],
+            "zodiac_western": z[3],
+            "zodiac_ecliptic_deg": round(sun_lon, 2),
+            "zodiac_range": f"{deg_start:.1f}° – {deg_end:.1f}°",
+            "zodiac_meaning": z[6]
+        }
+
+    # Dresden Codex (pp. 61-69) — Master Serpent Series & Ring Numbers Catalog
+    DRESDEN_SERPENTS_DATA = [
+        {
+            "id": "serpent_1",
+            "page": "61a",
+            "name": "Serpiente 1 (Dresde p. 61a) — Resonancia de 4 Chicchan",
+            "ring_parts": [0, 0, 1, 7, 11],
+            "ring_days": 511,  # 1.7.11 (511 días antes de la Creación)
+            "serpent_parts": [4, 5, 19, 13, 12, 8],  # 4.5.19.13.12.8 = 12,381,728 días (~33,899 años)
+            "meaning": "Conjunción helíaca de Venus y estación retrógrada de Marte en 4 Chicchan."
+        },
+        {
+            "id": "serpent_2",
+            "page": "62a",
+            "name": "Serpiente 2 (Dresde p. 62a) — Conjunción Solar-Venusina 12 Lamat",
+            "ring_parts": [0, 0, 1, 7, 11],
+            "ring_days": 511,
+            "serpent_parts": [4, 6, 0, 11, 3, 8],  # 4.6.0.11.3.8 = 12,388,028 días
+            "meaning": "Sincronización mayor de Venus con el ciclo agrario en 12 Lamat 6 Cumku."
+        },
+        {
+            "id": "serpent_3",
+            "page": "62b",
+            "name": "Serpiente 3 (Dresde p. 62b) — Fin de Tun Ceremonial 7 Ahau",
+            "ring_parts": [0, 0, 1, 7, 11],
+            "ring_days": 511,
+            "serpent_parts": [4, 6, 1, 9, 15, 0],  # 4.6.1.9.15.0 = 12,394,740 días
+            "meaning": "Anclaje ceremonial de fin de Tun 9.19.7.0.0 en 7 Ahau 18 Pop."
+        },
+        {
+            "id": "serpent_4",
+            "page": "63a",
+            "name": "Serpiente 4 (Dresde p. 63a) — Gran Retorno Solar de 4 Ahau",
+            "ring_parts": [0, 7, 2, 14, 19],
+            "ring_days": 51419,  # 7.2.14.19 (51,419 días antes de la Creación)
+            "serpent_parts": [4, 6, 14, 13, 15, 1],  # 4.6.14.13.15.1 = 12,489,781 días
+            "meaning": "Retorno armónico exacto al sello primordial de la Creación (4 Ahau) en el Posclásico."
+        },
+        {
+            "id": "serpent_5",
+            "page": "69",
+            "name": "Serpiente 5 (Dresde p. 69) — El Gran Diluvio Cósmico de Chak Chel",
+            "ring_parts": [1, 12, 5, 5, 8],
+            "ring_days": 232268,  # 1.12.5.5.8 (232,268 días antes de la Creación)
+            "serpent_parts": [4, 6, 7, 12, 4, 10],  # 4.6.7.12.4.10 = 12,438,810 días
+            "meaning": "Convergencia cósmica del cataclismo primordial que desencadena las aguas celestes (p. 74)."
+        }
+    ]
+
+    def resolve_serpent_series(self, ring_days, serpent_dist_days):
+        """
+        Calcula la Fecha Base previa a la Creación y la fecha histórica proyectada.
+        ring_days: días que se restan antes de la Creación (JDN 584283).
+        serpent_dist_days: días de distancia serpentina acumulada.
+        """
+        ring_base_jdn = self.correlation_jdn - ring_days
+        base_y, base_m, base_d = self._jdn_to_gregorian(ring_base_jdn)
+        base_data = self.get_full_date(base_y, base_m, base_d)
+
+        arrival_jdn = ring_base_jdn + serpent_dist_days
+        arr_y, arr_m, arr_d = self._jdn_to_gregorian(arrival_jdn)
+        arrival_data = self.get_full_date(arr_y, arr_m, arr_d)
+
+        return {
+            "ring_days": ring_days,
+            "ring_base_jdn": ring_base_jdn,
+            "ring_base_date": (base_y, base_m, base_d),
+            "ring_base_data": base_data,
+            "serpent_dist_days": serpent_dist_days,
+            "arrival_jdn": arrival_jdn,
+            "arrival_date": (arr_y, arr_m, arr_d),
+            "arrival_data": arrival_data
+        }
+
+    # Dresden Codex (pp. 65a-69b) — 364-Day Computing Year & 4 Cardinal Seasons Catalog
+    SEASON_364_DATA = [
+        {
+            "quarter_idx": 0,
+            "cardinal": "Este",
+            "maya_name": "Lak'in",
+            "color_name": "Rojo (Chac)",
+            "color_hex": "#E74C3C",
+            "glyph": "🌅",
+            "deity": "Chac Lak'in (Rayo Oriental)",
+            "station": "Equinoccio de Primavera",
+            "ritual": "Brote de Semillas, Purificación de Campos y Fuego Nuevo Ritual",
+            "start_day": 0,
+            "end_day": 90
+        },
+        {
+            "quarter_idx": 1,
+            "cardinal": "Norte",
+            "maya_name": "Xaman",
+            "color_name": "Blanco (Zac)",
+            "color_hex": "#FDFEFE",
+            "glyph": "☀️",
+            "deity": "Chac Xaman (Aguas Altas)",
+            "station": "Solsticio de Verano",
+            "ritual": "Paso Cenital del Sol, Lluvias Torrenciales y Vigor Vegetal de la Milpa",
+            "start_day": 91,
+            "end_day": 181
+        },
+        {
+            "quarter_idx": 2,
+            "cardinal": "Oeste",
+            "maya_name": "Chik'in",
+            "color_name": "Negro (Ek)",
+            "color_hex": "#5D6D7E",
+            "glyph": "🍂",
+            "deity": "Chac Chik'in (Aguas del Ocaso)",
+            "station": "Equinoccio de Otoño",
+            "ritual": "Maduración y Cosecha del Maíz Sagrado, Preparación para el Descenso",
+            "start_day": 182,
+            "end_day": 272
+        },
+        {
+            "quarter_idx": 3,
+            "cardinal": "Sur",
+            "maya_name": "Nohol",
+            "color_name": "Amarillo (K'an)",
+            "color_hex": "#F39C12",
+            "glyph": "❄️",
+            "deity": "Chac Nohol (Sequía y Semilla)",
+            "station": "Solsticio de Invierno",
+            "ritual": "Quema Ritual de Rastrojos, Reposo de la Tierra y Culto a los Ancestros",
+            "start_day": 273,
+            "end_day": 363
+        }
+    ]
+
+    def get_computing_year_364(self, days_since_epoch):
+        """
+        Calcula la estación del Año Computacional de 364 Días (Códice de Dresde pp. 65a-69b).
+        364 = 4 x 91 días = 28 x 13 trecenas.
+        Gran Ciclo Conmensurable: 1,820 días = 5 x 364 = 7 x 260 Tzolk'in.
+        """
+        day_in_364 = int(days_since_epoch % 364)
+        quarter_idx = day_in_364 // 91
+        day_in_quarter = (day_in_364 % 91) + 1
+        trecena_idx = ((day_in_quarter - 1) // 13) + 1
+        day_in_trecena = ((day_in_quarter - 1) % 13) + 1
+        days_to_next = 91 - (day_in_364 % 91)
+
+        q_info = self.SEASON_364_DATA[quarter_idx]
+        pos_1820 = int(days_since_epoch % 1820)
+        year_of_five = (pos_1820 // 364) + 1
+        tzolkin_round = (pos_1820 // 260) + 1
+
+        next_q_idx = (quarter_idx + 1) % 4
+        next_q_info = self.SEASON_364_DATA[next_q_idx]
+
+        return {
+            "day_in_364": day_in_364,
+            "quarter_idx": quarter_idx,
+            "cardinal": q_info["cardinal"],
+            "quarter_name": f"{q_info['maya_name']} ({q_info['cardinal']} / {q_info['color_name'].split()[0]})",
+            "maya_name": q_info["maya_name"],
+            "color": q_info["color_name"],
+            "color_hex": q_info["color_hex"],
+            "glyph": q_info["glyph"],
+            "deity": q_info["deity"],
+            "season": q_info["station"],
+            "ritual": q_info["ritual"],
+            "day_in_quarter": day_in_quarter,
+            "trecena_idx": trecena_idx,
+            "day_in_trecena": day_in_trecena,
+            "days_to_next": days_to_next,
+            "next_season": next_q_info["station"],
+            "next_cardinal": next_q_info["cardinal"],
+            "macro_1820_pos": pos_1820,
+            "year_of_five": year_of_five,
+            "tzolkin_round": tzolkin_round,
+            "ratio_tun": "91:90 (91 Tunes = 90 Años de 364d)",
+            "conmensurability_tzolkin": "1,820 días (5 x 364 = 7 x 260)",
+            "conmensurability_kawiil": "3,276 días (9 x 364 = 4 x 819)"
+        }
+
+    def get_next_season_364_station(self, days_since_epoch, target_quarter=None):
+        """
+        Encuentra el próximo hito estacional exacto (Equinoccio o Solsticio de 364d).
+        Si target_quarter es None, halla el inicio del próximo cuadrante.
+        """
+        current_day_in_364 = int(days_since_epoch % 364)
+        if target_quarter is not None:
+            target_start_day = (target_quarter % 4) * 91
+            delta_days = (target_start_day - current_day_in_364) % 364
+            if delta_days == 0:
+                delta_days = 364
+        else:
+            current_quarter = current_day_in_364 // 91
+            target_quarter = (current_quarter + 1) % 4
+            delta_days = 91 - (current_day_in_364 % 91)
+            if delta_days == 0:
+                delta_days = 91
+
+        dest_days = days_since_epoch + delta_days
+        dest_jdn = self.correlation_jdn + dest_days
+        gy, gm, gd = self._jdn_to_gregorian(dest_jdn)
+        full_dest = self.get_full_date(gy, gm, gd)
+
+        return {
+            "target_quarter": target_quarter,
+            "delta_days": delta_days,
+            "dest_days_since_epoch": dest_days,
+            "dest_jdn": dest_jdn,
+            "dest_gregorian": (gy, gm, gd),
+            "dest_data": full_dest
+        }
+
+    # ══════════════════════════════════════════════════════════════════════════════
+    # DRESDEN CODEX MARS TABLE & THE CELESTIAL BEAST (pp. 43b-45b)
+    # ══════════════════════════════════════════════════════════════════════════════
+    DRESDEN_MARS_BASE_DAYS = 1435628  # 9.19.7.15.8 3 Lamat (Anchor canónico del Códice de Dresde pp. 43b-45b)
+    
+    MARS_STATIONS_DATA = [
+        {
+            "station": 0, "day_offset": 0, "tzolkin": "3 Lamat", "glyph": "⭐",
+            "phase": "Orto Helíaco Matutino", "status": "Directo (Progrado)",
+            "act": 1, "act_name": "Acto I: Ascenso y Avance Progrado",
+            "beast_state": "En reposo en las bandas celestes",
+            "meaning": "Marte emerge al amanecer en el este tras su conjunción solar."
+        },
+        {
+            "station": 1, "day_offset": 78, "tzolkin": "3 Cimi", "glyph": "💀",
+            "phase": "Avance Progrado 1", "status": "Directo (Progrado)",
+            "act": 1, "act_name": "Acto I: Ascenso y Avance Progrado",
+            "beast_state": "Aceleración celeste",
+            "meaning": "Avance sostenido contra las estrellas fijas; primer cruce de 78 días."
+        },
+        {
+            "station": 2, "day_offset": 156, "tzolkin": "3 Kan", "glyph": "🌽",
+            "phase": "Avance Progrado 2", "status": "Directo (Progrado)",
+            "act": 1, "act_name": "Acto I: Ascenso y Avance Progrado",
+            "beast_state": "Vigilancia nocturna",
+            "meaning": "Brillo creciente a medida que disminuye la distancia a la Tierra."
+        },
+        {
+            "station": 3, "day_offset": 234, "tzolkin": "3 Ik", "glyph": "💨",
+            "phase": "Frenado Pre-Estacionario", "status": "Directo Lento",
+            "act": 1, "act_name": "Acto I: Ascenso y Avance Progrado",
+            "beast_state": "Frenado de la Bestia",
+            "meaning": "Marte desacelera al culminar el 1er Tzolk'in (260d); proximidad al lazo retrógrado."
+        },
+        {
+            "station": 4, "day_offset": 312, "tzolkin": "3 Ahau", "glyph": "☀️",
+            "phase": "1er Punto Estacionario", "status": "Estacionario (Inicio Retrogradación)",
+            "act": 2, "act_name": "Acto II: El Bucle de la Bestia Celeste",
+            "beast_state": "Descenso de la Bestia Celeste",
+            "meaning": "Marte se detiene e invierte su curso: entrada al bucle retrógrado."
+        },
+        {
+            "station": 5, "day_offset": 390, "tzolkin": "3 Etznab", "glyph": "🔪",
+            "phase": "Oposición Solar & Ápice Retrógrado", "status": "Retrogradación Máxima (Perigeo)",
+            "act": 2, "act_name": "Acto II: El Bucle de la Bestia Celeste",
+            "beast_state": "Bestia Celeste Colgante (Fauces Abiertas)",
+            "meaning": "Oposición exacta Sol-Tierra-Marte. Máximo fulgor rojo; la Bestia Celeste desciende."
+        },
+        {
+            "station": 6, "day_offset": 468, "tzolkin": "3 Cib", "glyph": "🕯️",
+            "phase": "2º Punto Estacionario", "status": "Estacionario (Fin Retrogradación)",
+            "act": 2, "act_name": "Acto II: El Bucle de la Bestia Celeste",
+            "beast_state": "Ascenso y Retorno de la Bestia",
+            "meaning": "Fin del lazo retrógrado. Marte frena su retroceso y reanuda el curso directo."
+        },
+        {
+            "station": 7, "day_offset": 546, "tzolkin": "3 Ix", "glyph": "🐆",
+            "phase": "Avance Vespertino", "status": "Directo (Progrado)",
+            "act": 3, "act_name": "Acto III: Conjunción y Renacimiento Solar",
+            "beast_state": "Reintegración a la banda celeste",
+            "meaning": "Marcha veloz hacia el oeste en el cielo vespertino tras el 2º Tzolk'in (520d)."
+        },
+        {
+            "station": 8, "day_offset": 624, "tzolkin": "3 Eb", "glyph": "🌿",
+            "phase": "Ocaso Helíaco y Aproximación Solar", "status": "Directo (Progrado)",
+            "act": 3, "act_name": "Acto III: Conjunción y Renacimiento Solar",
+            "beast_state": "Ocultación gradual",
+            "meaning": "Marte se sumerge en el resplandor vespertino del crepúsculo solar."
+        },
+        {
+            "station": 9, "day_offset": 702, "tzolkin": "3 Oc", "glyph": "🐕",
+            "phase": "Conjunción Solar (Inframundo)", "status": "Invisible (Detrás del Sol)",
+            "act": 3, "act_name": "Acto III: Conjunción y Renacimiento Solar",
+            "beast_state": "Inmersión en el Inframundo",
+            "meaning": "Marte oculto detrás del Sol durante semanas; purificación en el Inframundo."
+        }
+    ]
+
+    def get_dresden_mars_info(self, days_since_epoch):
+        """
+        Calcula el estado astronómico y epigráfico de la Tabla de Marte (Códice de Dresde pp. 43b-45b).
+        - Ciclo sinódico: 780 días exactos (3 x 260 Tzolk'in).
+        - Base canónica de Dresde: 9.19.7.15.8 3 Lamat (1,435,628 días).
+        - 10 Estaciones de 78 días (todas portan el coeficiente sagrado 3).
+        - Bucle de la Bestia Celeste (días 312 a 468, con oposición solar a los 390 días).
+        - Conmensurabilidad de 9,360 días (12 x 780d = 26 Tuns = 36 Tzolk'in).
+        - Conmensurabilidad de 56,940 días (73 x 780d = 156 Haab' = 3 Ruedas Calendáricas).
+        """
+        mars_pos = (days_since_epoch - self.DRESDEN_MARS_BASE_DAYS) % 780
+        station_idx = (mars_pos // 78) % 10
+        st_data = self.MARS_STATIONS_DATA[station_idx]
+        
+        day_in_station = mars_pos % 78
+        days_to_next = 78 - day_in_station
+        next_station_idx = (station_idx + 1) % 10
+        next_st_data = self.MARS_STATIONS_DATA[next_station_idx]
+        
+        # 3 Grandes Actos del Tzolk'in
+        act_num = (mars_pos // 260) + 1  # 1, 2, or 3
+        day_in_act = mars_pos % 260
+        
+        # Detección de retrogradación y ventana de oposición
+        is_retrograde = 312 <= mars_pos <= 468
+        is_opposition_window = 370 <= mars_pos <= 410
+        
+        # Macro-conmensurabilidades
+        pos_9360 = (days_since_epoch - self.DRESDEN_MARS_BASE_DAYS) % 9360
+        mars_cycle_of_12 = (pos_9360 // 780) + 1
+        tun_of_26 = (pos_9360 // 360) + 1
+        tzolkin_of_36 = (pos_9360 // 260) + 1
+        
+        pos_56940 = (days_since_epoch - self.DRESDEN_MARS_BASE_DAYS) % 56940
+        mars_cycle_of_73 = (pos_56940 // 780) + 1
+        haab_of_156 = (pos_56940 // 365) + 1
+        cr_of_3 = (pos_56940 // 18980) + 1
+        
+        return {
+            "mars_pos": mars_pos,
+            "station_idx": station_idx,
+            "station_name": f"Estación {station_idx}: {st_data['tzolkin']}",
+            "station_tzolkin": st_data["tzolkin"],
+            "station_glyph": st_data["glyph"],
+            "phase_name": st_data["phase"],
+            "status": st_data["status"],
+            "beast_state": st_data["beast_state"],
+            "meaning": st_data["meaning"],
+            "day_in_station": day_in_station + 1,
+            "days_to_next": days_to_next,
+            "next_station": next_st_data["tzolkin"],
+            "act_num": act_num,
+            "act_name": st_data["act_name"],
+            "day_in_act": day_in_act + 1,
+            "is_retrograde": is_retrograde,
+            "is_opposition_window": is_opposition_window,
+            "macro_9360_pos": pos_9360,
+            "mars_cycle_of_12": mars_cycle_of_12,
+            "tun_of_26": tun_of_26,
+            "tzolkin_of_36": tzolkin_of_36,
+            "macro_56940_pos": pos_56940,
+            "mars_cycle_of_73": mars_cycle_of_73,
+            "haab_of_156": haab_of_156,
+            "cr_of_3": cr_of_3
+        }
+
+    def get_next_mars_station(self, days_since_epoch, target_station=None):
+        """
+        Calcula el próximo hito de la Tabla de Marte de Dresde (estación de 78 días).
+        Si target_station es None, busca la siguiente estación consecutiva.
+        """
+        current_mars_pos = (days_since_epoch - self.DRESDEN_MARS_BASE_DAYS) % 780
+        if target_station is not None:
+            target_start_day = (target_station % 10) * 78
+            delta_days = (target_start_day - current_mars_pos) % 780
+            if delta_days == 0:
+                delta_days = 780
+        else:
+            current_st = current_mars_pos // 78
+            target_station = (current_st + 1) % 10
+            delta_days = 78 - (current_mars_pos % 78)
+            if delta_days == 0:
+                delta_days = 78
+
+        dest_days = days_since_epoch + delta_days
+        dest_jdn = self.correlation_jdn + dest_days
+        gy, gm, gd = self._jdn_to_gregorian(dest_jdn)
+        full_dest = self.get_full_date(gy, gm, gd)
+
+        return {
+            "target_station": target_station,
+            "delta_days": delta_days,
+            "dest_days_since_epoch": dest_days,
+            "dest_jdn": dest_jdn,
+            "dest_gregorian": (gy, gm, gd),
+            "dest_data": full_dest
+        }
     
     def _gregorian_to_jdn(self, year, month, day):
-        """Astronomical Julian Day Number calculation."""
-        if month <= 2:
-            year -= 1
-            month += 12
-        A = year // 100
-        B = 2 - A + (A // 4)
-        JD = int(365.25 * (year + 4716)) + int(30.6001 * (month + 1)) + day + B - 1524.5
-        # JD above is at 0h UT (ends in .5); the integer JDN (noon) is JD + 0.5.
-        # Without this, every date was shifted one day back (13.0.0.0.0 fell on 22-Dec-2012).
-        return int(JD + 0.5)
-    
+        """
+        Astronomical Julian Day Number calculation (proleptic Gregorian).
+        Mathematically consistent across all epochs from -4713 BCE to +10,000 CE.
+        """
+        a = (14 - month) // 12
+        y = year + 4800 - a
+        m = month + 12 * a - 3
+        return day + (153 * m + 2) // 5 + 365 * y + y // 4 - y // 100 + y // 400 - 32045
+
     def _jdn_to_gregorian(self, jdn):
-        """Convert JDN back to Gregorian date."""
-        jdn = jdn + 0.5
-        Z = int(jdn)
-        F = jdn - Z
-        if Z < 2299161:
-            A = Z
-        else:
-            alpha = int((Z - 1867216.25) / 36524.25)
-            A = Z + 1 + alpha - (alpha // 4)
-        B = A + 1524
-        C = int((B - 122.1) / 365.25)
-        D = int(365.25 * C)
-        E = int((B - D) / 30.6001)
-        day = B - D - int(30.6001 * E) + F
-        month = E - 1 if E < 14 else E - 13
-        year = C - 4716 if month > 2 else C - 4715
+        """
+        Convert JDN back to Gregorian date (proleptic Gregorian).
+        Exact inverse bijection of _gregorian_to_jdn.
+        """
+        a = int(jdn) + 32044
+        b = (4 * a + 3) // 146097
+        c = a - (146097 * b) // 4
+        d = (4 * c + 3) // 1461
+        e = c - (1461 * d) // 4
+        m = (5 * e + 2) // 153
+        day = e - (153 * m + 2) // 5 + 1
+        month = m + 3 - 12 * (m // 10)
+        year = 100 * b + d - 4800 + (m // 10)
         return (int(year), int(month), int(day))
 
     def get_full_date(self, year, month, day):
@@ -233,8 +664,9 @@ class MayanConverter:
         elif venus_pos < 576: venus_phase = "Evening Star"
         else: venus_phase = "Inferior Conjunction"
 
-        # Mars cycle (780 days)
-        mars_pos = days_since_epoch % 780
+        # Mars cycle (780 days) — Dresden Codex Mars Table & Celestial Beast (pp. 43b-45b)
+        mars_info = self.get_dresden_mars_info(days_since_epoch)
+        mars_pos = mars_info["mars_pos"]
 
         # Lunar Supplementary Series (Glyphs G, F, C, X, B, A)
         # Anchored to a real astronomical new moon (2000-01-06 18:14 UT, JD 2451550.26)
@@ -273,6 +705,12 @@ class MayanConverter:
         # Posición astrométrica real de Venus (período sinódico NASA 583.92136 días)
         venus_astro_pos = round((days_since_epoch - 1364360) % 583.92136, 1)
 
+        # Cálculo de Constelación Eclíptica del Códice de París (pp. 21-24)
+        zodiac = self.get_paris_zodiac(jdn)
+
+        # Cómputo de 364 Días y 4 Estaciones (Códice de Dresde pp. 65a-69b)
+        s364 = self.get_computing_year_364(days_since_epoch)
+
         return {
             "long_count": long_count_str,
             "long_count_parts": long_count_parts,
@@ -305,6 +743,56 @@ class MayanConverter:
             "glyph_c": glyph_c,
             "glyph_a": glyph_a,
             "glyph_x": glyph_x,
+            "zodiac_idx": zodiac["zodiac_idx"],
+            "zodiac_name": zodiac["zodiac_name"],
+            "zodiac_spanish": zodiac["zodiac_spanish"],
+            "zodiac_glyph": zodiac["zodiac_glyph"],
+            "zodiac_western": zodiac["zodiac_western"],
+            "zodiac_ecliptic_deg": zodiac["zodiac_ecliptic_deg"],
+            "zodiac_range": zodiac["zodiac_range"],
+            "zodiac_meaning": zodiac["zodiac_meaning"],
+            "season_364_day": s364["day_in_364"],
+            "season_364_quarter_idx": s364["quarter_idx"],
+            "season_364_quarter_name": s364["quarter_name"],
+            "season_364_maya_name": s364["maya_name"],
+            "season_364_cardinal": s364["cardinal"],
+            "season_364_color": s364["color"],
+            "season_364_color_hex": s364["color_hex"],
+            "season_364_glyph": s364["glyph"],
+            "season_364_deity": s364["deity"],
+            "season_364_station": s364["season"],
+            "season_364_ritual": s364["ritual"],
+            "season_364_day_in_quarter": s364["day_in_quarter"],
+            "season_364_trecena": s364["trecena_idx"],
+            "season_364_day_in_trecena": s364["day_in_trecena"],
+            "season_364_days_to_next": s364["days_to_next"],
+            "season_364_macro_1820": s364["macro_1820_pos"],
+            "season_364_year_of_five": s364["year_of_five"],
+            "season_364_tzolkin_round": s364["tzolkin_round"],
+            "season_364_data": s364,
+            "mars_station_idx": mars_info["station_idx"],
+            "mars_station_name": mars_info["station_name"],
+            "mars_station_tzolkin": mars_info["station_tzolkin"],
+            "mars_station_glyph": mars_info["station_glyph"],
+            "mars_phase_name": mars_info["phase_name"],
+            "mars_status": mars_info["status"],
+            "mars_beast_state": mars_info["beast_state"],
+            "mars_meaning": mars_info["meaning"],
+            "mars_day_in_station": mars_info["day_in_station"],
+            "mars_days_to_next": mars_info["days_to_next"],
+            "mars_next_station": mars_info["next_station"],
+            "mars_act_num": mars_info["act_num"],
+            "mars_act_name": mars_info["act_name"],
+            "mars_day_in_act": mars_info["day_in_act"],
+            "mars_is_retrograde": mars_info["is_retrograde"],
+            "mars_is_opposition": mars_info["is_opposition_window"],
+            "mars_macro_9360": mars_info["macro_9360_pos"],
+            "mars_cycle_of_12": mars_info["mars_cycle_of_12"],
+            "mars_tun_of_26": mars_info["tun_of_26"],
+            "mars_macro_56940": mars_info["macro_56940_pos"],
+            "mars_cycle_of_73": mars_info["mars_cycle_of_73"],
+            "mars_haab_of_156": mars_info["haab_of_156"],
+            "mars_dresden_data": mars_info,
             "jdn": jdn,
             "days_since_epoch": days_since_epoch
         }
@@ -509,10 +997,12 @@ class FractalPatternAnalyzer:
             selected_cycles = list(self.CYCLES.keys())
         
         events = []
-        if isinstance(start_date, datetime):
+        if isinstance(start_date, datetime) or hasattr(start_date, 'to_jdn'):
             start = start_date
+        elif isinstance(start_date, (tuple, list)):
+            start = ChronoDate(start_date[0], start_date[1], start_date[2])
         else:
-            start = datetime(start_date, 1, 1)
+            start = ChronoDate(int(start_date), 1, 1)
             
         checks = [
             ('Tzolkin', 260, 1.0),
@@ -579,8 +1069,10 @@ class FractalPatternAnalyzer:
             
             # Condition check BEFORE building strings
             if score > 60.0:
-                current = start + timedelta(days=day_offset)
-                data = self.converter.get_full_date(current.year, current.month, current.day)
+                current_jdn = start_jdn + day_offset
+                cy, cm, cd = self.converter._jdn_to_gregorian(current_jdn)
+                current = ChronoDate(cy, cm, cd)
+                data = self.converter.get_full_date(cy, cm, cd)
                 km = self.calculate_kuramoto_order(current_days, selected_cycles, natal_days)
                 ecl = self.get_dresden_eclipse_info(current_days)
                 al_list = self._get_alignments(current_days, natal_days)
@@ -836,19 +1328,23 @@ class FractalPatternAnalyzer:
         return None
     
     def project_pattern(self, base_date, pattern_days, count=10):
-        """Project a pattern forward in time."""
+        """Project a pattern forward in time across deep time and proleptic Gregorian."""
         projections = []
-        current = base_date
+        by = base_date.year() if callable(base_date.year) else base_date.year
+        bm = base_date.month() if callable(base_date.month) else base_date.month
+        bd = base_date.day() if callable(base_date.day) else base_date.day
+        cur_jdn = self.converter._gregorian_to_jdn(by, bm, bd)
         
         for i in range(count):
-            next_date = current + timedelta(days=pattern_days)
-            data = self.converter.get_full_date(next_date.year, next_date.month, next_date.day)
+            cur_jdn += pattern_days
+            ny, nm, nd = self.converter._jdn_to_gregorian(cur_jdn)
+            next_date = ChronoDate(ny, nm, nd)
+            data = self.converter.get_full_date(ny, nm, nd)
             projections.append({
                 'date': next_date,
                 'long_count': data['long_count'],
                 'calendar_round': data['calendar_round']
             })
-            current = next_date
         
         return projections
 
@@ -906,9 +1402,294 @@ class StoneLabel(QLabel):
         self.setAlignment(Qt.AlignCenter)
 
 
+class CallableInt(int):
+    """Integer that can be used directly as an int or invoked like a method date.year()."""
+    def __call__(self):
+        return int(self)
+
+
+class ChronoDate:
+    """Historical date supporting astronomical negative years (BCE / a.C.) and proleptic Gregorian reckoning."""
+    def __init__(self, year, month, day):
+        self._year = CallableInt(year)
+        self._month = CallableInt(month)
+        self._day = CallableInt(day)
+
+    @property
+    def year(self):
+        return self._year
+
+    @property
+    def month(self):
+        return self._month
+
+    @property
+    def day(self):
+        return self._day
+
+    def to_jdn(self):
+        a = (14 - int(self._month)) // 12
+        y = int(self._year) + 4800 - a
+        m = int(self._month) + 12 * a - 3
+        return int(self._day) + (153 * m + 2) // 5 + 365 * y + y // 4 - y // 100 + y // 400 - 32045
+
+    def addDays(self, delta):
+        jdn = self.to_jdn() + delta
+        a2 = int(jdn) + 32044
+        b2 = (4 * a2 + 3) // 146097
+        c2 = a2 - (146097 * b2) // 4
+        d2 = (4 * c2 + 3) // 1461
+        e2 = c2 - (1461 * d2) // 4
+        m2 = (5 * e2 + 2) // 153
+        day2 = e2 - (153 * m2 + 2) // 5 + 1
+        month2 = m2 + 3 - 12 * (m2 // 10)
+        year2 = 100 * b2 + d2 - 4800 + (m2 // 10)
+        return ChronoDate(year2, month2, day2)
+
+    def addYears(self, delta_years):
+        return ChronoDate(int(self._year) + delta_years, int(self._month), int(self._day))
+
+    def daysTo(self, other):
+        if hasattr(other, 'to_jdn'):
+            return other.to_jdn() - self.to_jdn()
+        elif hasattr(other, 'year'):
+            y = other.year() if callable(other.year) else other.year
+            m = other.month() if callable(other.month) else other.month
+            d = other.day() if callable(other.day) else other.day
+            other_cd = ChronoDate(y, m, d)
+            return other_cd.to_jdn() - self.to_jdn()
+        return 0
+
+    def strftime(self, fmt="%Y-%m-%d"):
+        months_en = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+        m_str = months_en[int(self._month) - 1] if 1 <= int(self._month) <= 12 else str(self._month)
+        y_int = int(self._year)
+        y_en_str = f"{y_int:04d}" if y_int > 0 else f"{abs(y_int)+1} BCE"
+        res = fmt.replace("%b", m_str).replace("%B", m_str).replace("%d", f"{int(self._day):02d}").replace("%m", f"{int(self._month):02d}").replace("%Y", y_en_str)
+        return res
+
+    def __sub__(self, other):
+        if hasattr(other, 'to_jdn'):
+            return timedelta(days=self.to_jdn() - other.to_jdn())
+        elif hasattr(other, 'year') and hasattr(other, 'month') and hasattr(other, 'day'):
+            y = other.year() if callable(other.year) else other.year
+            m = other.month() if callable(other.month) else other.month
+            d = other.day() if callable(other.day) else other.day
+            return timedelta(days=self.to_jdn() - ChronoDate(y, m, d).to_jdn())
+        elif isinstance(other, timedelta):
+            return self.addDays(-other.days)
+        return timedelta(days=0)
+
+    def __rsub__(self, other):
+        if hasattr(other, 'to_jdn'):
+            return timedelta(days=other.to_jdn() - self.to_jdn())
+        elif hasattr(other, 'year') and hasattr(other, 'month') and hasattr(other, 'day'):
+            y = other.year() if callable(other.year) else other.year
+            m = other.month() if callable(other.month) else other.month
+            d = other.day() if callable(other.day) else other.day
+            return timedelta(days=ChronoDate(y, m, d).to_jdn() - self.to_jdn())
+        return timedelta(days=0)
+
+    def __add__(self, other):
+        if isinstance(other, timedelta):
+            return self.addDays(other.days)
+        return self
+
+    def __radd__(self, other):
+        if isinstance(other, timedelta):
+            return self.addDays(other.days)
+        return self
+
+    def __lt__(self, other):
+        if hasattr(other, 'to_jdn'): return self.to_jdn() < other.to_jdn()
+        if hasattr(other, 'year') and hasattr(other, 'month') and hasattr(other, 'day'):
+            y = other.year() if callable(other.year) else other.year
+            m = other.month() if callable(other.month) else other.month
+            d = other.day() if callable(other.day) else other.day
+            return self.to_jdn() < ChronoDate(y, m, d).to_jdn()
+        return False
+
+    def __le__(self, other):
+        if hasattr(other, 'to_jdn'): return self.to_jdn() <= other.to_jdn()
+        if hasattr(other, 'year') and hasattr(other, 'month') and hasattr(other, 'day'):
+            y = other.year() if callable(other.year) else other.year
+            m = other.month() if callable(other.month) else other.month
+            d = other.day() if callable(other.day) else other.day
+            return self.to_jdn() <= ChronoDate(y, m, d).to_jdn()
+        return False
+
+    def __gt__(self, other):
+        if hasattr(other, 'to_jdn'): return self.to_jdn() > other.to_jdn()
+        if hasattr(other, 'year') and hasattr(other, 'month') and hasattr(other, 'day'):
+            y = other.year() if callable(other.year) else other.year
+            m = other.month() if callable(other.month) else other.month
+            d = other.day() if callable(other.day) else other.day
+            return self.to_jdn() > ChronoDate(y, m, d).to_jdn()
+        return False
+
+    def __ge__(self, other):
+        if hasattr(other, 'to_jdn'): return self.to_jdn() >= other.to_jdn()
+        if hasattr(other, 'year') and hasattr(other, 'month') and hasattr(other, 'day'):
+            y = other.year() if callable(other.year) else other.year
+            m = other.month() if callable(other.month) else other.month
+            d = other.day() if callable(other.day) else other.day
+            return self.to_jdn() >= ChronoDate(y, m, d).to_jdn()
+        return False
+
+    def __eq__(self, other):
+        if hasattr(other, 'to_jdn'): return self.to_jdn() == other.to_jdn()
+        if hasattr(other, 'year') and hasattr(other, 'month') and hasattr(other, 'day'):
+            y = other.year() if callable(other.year) else other.year
+            m = other.month() if callable(other.month) else other.month
+            d = other.day() if callable(other.day) else other.day
+            return self.to_jdn() == ChronoDate(y, m, d).to_jdn()
+        return False
+
+    def toString(self, fmt=""):
+        months = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"]
+        m_str = months[int(self._month) - 1] if 1 <= int(self._month) <= 12 else str(self._month)
+        if int(self._year) > 0:
+            return f"{m_str} {int(self._day)}, {int(self._year)} d.C."
+        else:
+            bc_year = abs(int(self._year)) + 1
+            return f"{m_str} {int(self._day)}, {bc_year} a.C."
+
+    def __repr__(self):
+        return f"ChronoDate({int(self._year)}, {int(self._month)}, {int(self._day)})"
+
+
+class HistoricalDateSelector(QWidget):
+    """
+    Selector de fecha arqueoastronómica universal.
+    Admite años desde -99,999 a.C. hasta +99,999 d.C. sin las restricciones de QDateEdit.
+    """
+    dateChanged = Signal(object)
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self._block_signals = False
+        
+        layout = QHBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(6)
+
+        ctrl_qss = """
+            QSpinBox, QComboBox {
+                background-color: #201C16;
+                color: #F4D03F;
+                border: 1px solid #5A4A32;
+                border-radius: 4px;
+                padding: 4px 6px;
+                font-family: 'Segoe UI', sans-serif;
+                font-size: 11px;
+                font-weight: bold;
+            }
+            QSpinBox:focus, QComboBox:focus {
+                border-color: #F1C40F;
+            }
+            QComboBox::drop-down {
+                border: none;
+                width: 14px;
+            }
+        """
+        self.setStyleSheet(ctrl_qss)
+
+        # Day
+        self.spin_day = QSpinBox()
+        self.spin_day.setRange(1, 31)
+        self.spin_day.setValue(1)
+        self.spin_day.setFixedWidth(52)
+        self.spin_day.setToolTip("Día del mes (1-31)")
+        layout.addWidget(self.spin_day)
+
+        # Month
+        self.combo_month = QComboBox()
+        self.combo_month.addItems([
+            "01 - Ene", "02 - Feb", "03 - Mar", "04 - Abr",
+            "05 - May", "06 - Jun", "07 - Jul", "08 - Ago",
+            "09 - Sep", "10 - Oct", "11 - Nov", "12 - Dic"
+        ])
+        self.combo_month.setFixedWidth(105)
+        self.combo_month.setToolTip("Mes del año")
+        layout.addWidget(self.combo_month)
+
+        # Year
+        self.spin_year = QSpinBox()
+        self.spin_year.setRange(1, 99999)
+        self.spin_year.setValue(2026)
+        self.spin_year.setFixedWidth(80)
+        self.spin_year.setToolTip("Año histórico (1 a 99,999)")
+        layout.addWidget(self.spin_year)
+
+        # Era (d.C. / a.C.)
+        self.combo_era = QComboBox()
+        self.combo_era.addItems(["d.C. (CE)", "a.C. (BCE)"])
+        self.combo_era.setFixedWidth(96)
+        self.combo_era.setToolTip("Era: Después de Cristo / Antes de Cristo")
+        layout.addWidget(self.combo_era)
+
+        # Connect signals
+        self.spin_day.valueChanged.connect(self._on_values_changed)
+        self.combo_month.currentIndexChanged.connect(self._on_values_changed)
+        self.spin_year.valueChanged.connect(self._on_values_changed)
+        self.combo_era.currentIndexChanged.connect(self._on_values_changed)
+
+    def _on_values_changed(self):
+        if not self._block_signals:
+            self.dateChanged.emit(self.date())
+
+    def blockSignals(self, b):
+        self._block_signals = b
+        return super().blockSignals(b)
+
+    def get_astro_year(self):
+        y = self.spin_year.value()
+        if self.combo_era.currentIndex() == 0:
+            return y
+        else:
+            return -(y - 1)
+
+    def date(self):
+        return ChronoDate(self.get_astro_year(), self.combo_month.currentIndex() + 1, self.spin_day.value())
+
+    def setDate(self, target):
+        self._block_signals = True
+        try:
+            if hasattr(target, 'year') and callable(target.year):
+                y = target.year()
+                m = target.month()
+                d = target.day()
+            elif hasattr(target, 'year'):
+                y = target.year
+                m = target.month
+                d = target.day
+            elif isinstance(target, (tuple, list)):
+                y, m, d = target[0], target[1], target[2]
+            else:
+                return
+
+            if y > 0:
+                self.spin_year.setValue(y)
+                self.combo_era.setCurrentIndex(0)
+            else:
+                bc_val = abs(y) + 1
+                self.spin_year.setValue(bc_val)
+                self.combo_era.setCurrentIndex(1)
+
+            self.combo_month.setCurrentIndex(max(0, min(11, m - 1)))
+            self.spin_day.setValue(max(1, min(31, d)))
+        finally:
+            self._block_signals = False
+            self.dateChanged.emit(self.date())
+
+
 class CircularCalendarWidget(QWidget):
-    """Circular visualization of Tzolkin and Haab calendars with labelled segments."""
+    """Circular visualization of Tzolkin, Haab, Lords and Paris Codex Zodiac calendars with labelled segments."""
     
+    ZODIAC_LABELS = [
+        "Tzab", "Ak", "K'ek'en", "Chuen", "Koh", "K'uk'ul",
+        "Chitam", "Zina'an", "Balam", "Sotz'", "Muan", "Pez", "Xoc"
+    ]
     HAAB_LABELS = [
         "Pop", "Uo", "Zip", "Zotz", "Tzec", "Xul", "Yaxkin", "Mol", "Chen",
         "Yax", "Zac", "Ceh", "Mac", "Kankin", "Muan", "Pax", "Kayab", "Cumku", "Wayeb"
@@ -924,6 +1705,7 @@ class CircularCalendarWidget(QWidget):
         super().__init__(parent)
         self.setMinimumSize(380, 380)
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        self._zodiac_idx = 0
         self._tzolkin_idx = 0
         self._haab_idx = 0
         self._lord_idx = 0
@@ -946,11 +1728,12 @@ class CircularCalendarWidget(QWidget):
     
     rotation = Property(float, get_rotation, set_rotation)
     
-    def update_data(self, tzolkin_idx, haab_idx, lord_idx, tzolkin_str="4 Ahau", tzolkin_glyph="☀", haab_str="8 Cumku"):
+    def update_data(self, tzolkin_idx, haab_idx, lord_idx, zodiac_idx=0, tzolkin_str="4 Ahau", tzolkin_glyph="☀", haab_str="8 Cumku"):
         old_rot = self._rotation
         self._tzolkin_idx = tzolkin_idx
         self._haab_idx = haab_idx
         self._lord_idx = lord_idx
+        self._zodiac_idx = zodiac_idx
         self._tzolkin_str = tzolkin_str
         self._tzolkin_glyph = tzolkin_glyph
         self._haab_str = haab_str
@@ -979,17 +1762,24 @@ class CircularCalendarWidget(QWidget):
         painter.setPen(Qt.NoPen)
         painter.drawEllipse(cx - max_r, cy - max_r, max_r * 2, max_r * 2)
         
-        # Proportional concentric ring dimensions
-        r_haab_out = max_r - 2
-        r_haab_in = int(max_r * 0.77)
+        # Proportional concentric ring dimensions (4 concentric rings + central sun core)
+        r_zodiac_out = max_r - 2
+        r_zodiac_in = int(max_r * 0.81)
+        
+        r_haab_out = r_zodiac_in - 2
+        r_haab_in = int(max_r * 0.63)
         
         r_tz_out = r_haab_in - 2
-        r_tz_in = int(max_r * 0.54)
+        r_tz_in = int(max_r * 0.45)
         
         r_lord_out = r_tz_in - 2
-        r_lord_in = int(max_r * 0.36)
+        r_lord_in = int(max_r * 0.30)
         
         center_r = r_lord_in - 2
+        
+        # Outermost ring - Paris Codex Zodiac (13 segments)
+        self._draw_ring(painter, cx, cy, r_zodiac_out, r_zodiac_in, 13, self._zodiac_idx,
+                       QColor(24, 34, 52), QColor(41, 128, 185), self.ZODIAC_LABELS)
         
         # Outer ring - Haab (19 segments)
         self._draw_ring(painter, cx, cy, r_haab_out, r_haab_in, 19, self._haab_idx, 
@@ -1120,7 +1910,8 @@ class LongCountDisplay(QWidget):
     
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setMinimumHeight(105)
+        self.setMinimumHeight(86)
+        self.setFixedHeight(88)
         self._parts = [13, 0, 0, 0, 0]  # baktun.katun.tun.uinal.kin
         self._labels = ["Baktun", "Katun", "Tun", "Uinal", "Kin"]
         
@@ -1143,79 +1934,82 @@ class LongCountDisplay(QWidget):
             # Shell glyph
             painter.setPen(QPen(bar_color, 1.5))
             painter.setBrush(QBrush(QColor(50, 40, 25)))
-            shell_w, shell_h = 22, 12
+            shell_w, shell_h = 20, 11
             painter.drawEllipse(int(cx - shell_w / 2), int(cy - shell_h / 2), shell_w, shell_h)
             painter.setPen(QPen(dot_color, 1))
-            painter.drawLine(int(cx - shell_w / 2 + 3), int(cy), int(cx + shell_w / 2 - 3), int(cy))
+            painter.drawLine(int(cx - shell_w / 2 + 2), int(cy), int(cx + shell_w / 2 - 2), int(cy))
             painter.drawArc(int(cx - shell_w / 4), int(cy - shell_h / 2 + 2), int(shell_w / 2), shell_h - 4, 0, 180 * 16)
         else:
             bars = val // 5
             dots = val % 5
-            bar_w = 22
-            bar_h = 4
-            dot_r = 2.2
+            bar_w = 20
+            bar_h = 3.5
+            dot_r = 2.0
             
-            total_h = (bars * 6) + (7 if dots > 0 else 0)
+            total_h = (bars * 5.5) + (6 if dots > 0 else 0)
             current_y = cy - total_h / 2
             
             if dots > 0:
-                dot_spacing = 6.5
+                dot_spacing = 6.0
                 dot_start_x = cx - ((dots - 1) * dot_spacing) / 2
                 painter.setPen(Qt.NoPen)
                 painter.setBrush(QBrush(dot_color))
                 for d in range(dots):
                     painter.drawEllipse(QPointF(dot_start_x + d * dot_spacing, current_y + dot_r), dot_r, dot_r)
-                current_y += 7
+                current_y += 6
                 
             if bars > 0:
                 painter.setPen(QPen(QColor(140, 95, 25), 0.8))
                 painter.setBrush(QBrush(bar_color))
                 for b in range(bars):
                     painter.drawRoundedRect(QRectF(cx - bar_w / 2, current_y, bar_w, bar_h), 1.5, 1.5)
-                    current_y += 6
+                    current_y += 5.5
         painter.restore()
     
     def paintEvent(self, event):
         painter = QPainter(self)
-        painter.setRenderHint(QPainter.Antialiasing)
-        
-        w, h = self.width(), self.height()
-        box_w = w // 5 - 10
-        box_h = 74
-        y_offset = (h - box_h - 18) // 2
-        
-        for i, (val, label) in enumerate(zip(self._parts, self._labels)):
-            x = 5 + i * (box_w + 10)
+        try:
+            painter.setRenderHint(QPainter.Antialiasing)
             
-            # Box background
-            grad = QLinearGradient(x, y_offset, x, y_offset + box_h)
-            grad.setColorAt(0, QColor(50, 45, 40))
-            grad.setColorAt(0.5, QColor(70, 60, 50))
-            grad.setColorAt(1, QColor(40, 35, 30))
-            painter.setBrush(QBrush(grad))
-            painter.setPen(QPen(QColor(100, 90, 70), 2))
-            painter.drawRoundedRect(x, y_offset, box_w, box_h, 6, 6)
+            w, h = self.width(), self.height()
+            box_w = w // 5 - 8
+            box_h = 60
+            y_offset = (h - box_h - 16) // 2
             
-            # 1. Arabic Number (Top)
-            painter.setPen(QColor(244, 208, 63))
-            font = QFont("Consolas", 18, QFont.Bold)
-            painter.setFont(font)
-            painter.drawText(x, y_offset + 3, box_w, 24, Qt.AlignCenter, str(val))
-            
-            # 2. Maya Dot-and-Bar Drawing (Middle)
-            self._draw_maya_number(painter, x + box_w // 2, y_offset + 48, val)
-            
-            # 3. Label (Bottom outside box)
-            painter.setPen(QColor(160, 150, 130))
-            font = QFont("Segoe UI", 9)
-            painter.setFont(font)
-            painter.drawText(x, y_offset + box_h + 2, box_w, 18, Qt.AlignCenter, label)
-            
-            # Separator dot
-            if i < 4:
-                painter.setPen(QColor(200, 180, 140))
-                painter.setFont(QFont("Consolas", 14, QFont.Bold))
-                painter.drawText(x + box_w, y_offset + 10, 10, 30, Qt.AlignCenter, ".")
+            for i, (val, label) in enumerate(zip(self._parts, self._labels)):
+                x = 4 + i * (box_w + 8)
+                
+                # Box background
+                grad = QLinearGradient(x, y_offset, x, y_offset + box_h)
+                grad.setColorAt(0, QColor(50, 45, 40))
+                grad.setColorAt(0.5, QColor(70, 60, 50))
+                grad.setColorAt(1, QColor(40, 35, 30))
+                painter.setBrush(QBrush(grad))
+                painter.setPen(QPen(QColor(100, 90, 70), 1.5))
+                painter.drawRoundedRect(x, y_offset, box_w, box_h, 5, 5)
+                
+                # 1. Arabic Number (Top)
+                painter.setPen(QColor(244, 208, 63))
+                font = QFont("Consolas", 15, QFont.Bold)
+                painter.setFont(font)
+                painter.drawText(x, y_offset + 2, box_w, 20, Qt.AlignCenter, str(val))
+                
+                # 2. Maya Dot-and-Bar Drawing (Middle)
+                self._draw_maya_number(painter, x + box_w // 2, y_offset + 38, val)
+                
+                # 3. Label (Bottom outside box)
+                painter.setPen(QColor(160, 150, 130))
+                font = QFont("Segoe UI", 8)
+                painter.setFont(font)
+                painter.drawText(x, y_offset + box_h + 1, box_w, 15, Qt.AlignCenter, label)
+                
+                # Separator dot
+                if i < 4:
+                    painter.setPen(QColor(200, 180, 140))
+                    painter.setFont(QFont("Consolas", 12, QFont.Bold))
+                    painter.drawText(x + box_w, y_offset + 6, 8, 26, Qt.AlignCenter, ".")
+        finally:
+            painter.end()
 
 
 class VenusPhaseBar(QWidget):
@@ -1228,7 +2022,7 @@ class VenusPhaseBar(QWidget):
     """
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setFixedHeight(18)
+        self.setFixedHeight(14)
         self._pos = 0
         
     def set_position(self, pos):
@@ -1237,66 +2031,214 @@ class VenusPhaseBar(QWidget):
         
     def paintEvent(self, event):
         painter = QPainter(self)
-        painter.setRenderHint(QPainter.Antialiasing)
-        w, h = self.width(), self.height()
-        if w < 10:
-            return
+        try:
+            painter.setRenderHint(QPainter.Antialiasing)
+            w, h = self.width(), self.height()
+            if w < 10:
+                return
+                
+            quadrants = [
+                (236, QColor(41, 128, 185)),  # Matutina (Azul)
+                (90,  QColor(70, 60, 50)),    # Conjunción Superior (Oscuro)
+                (250, QColor(175, 122, 197)), # Vespertina (Púrpura/Ocaso)
+                (8,   QColor(192, 57, 43))    # Conjunción Inferior (Rojo)
+            ]
             
-        quadrants = [
-            (236, QColor(41, 128, 185)),  # Matutina (Azul)
-            (90,  QColor(70, 60, 50)),    # Conjunción Superior (Oscuro)
-            (250, QColor(175, 122, 197)), # Vespertina (Púrpura/Ocaso)
-            (8,   QColor(192, 57, 43))    # Conjunción Inferior (Rojo)
-        ]
-        
-        x = 0.0
-        bar_h = 8
-        y = (h - bar_h) / 2.0
-        
-        # Base track
-        for duration, color in quadrants:
-            qw = (duration / 584.0) * w
-            painter.setBrush(QBrush(color))
-            painter.setPen(QPen(QColor(25, 20, 15), 1))
-            painter.drawRect(QRectF(x, y, qw, bar_h))
-            x += qw
+            x = 0.0
+            bar_h = 6
+            y = (h - bar_h) / 2.0
             
-        # Current position marker (glowing diamond)
-        marker_x = (self._pos / 584.0) * w
-        painter.setBrush(QBrush(QColor(255, 235, 59)))
-        painter.setPen(QPen(QColor(20, 15, 10), 1.5))
+            # Base track
+            for duration, color in quadrants:
+                qw = (duration / 584.0) * w
+                painter.setBrush(QBrush(color))
+                painter.setPen(QPen(QColor(25, 20, 15), 1))
+                painter.drawRect(QRectF(x, y, qw, bar_h))
+                x += qw
+                
+            # Current position marker (glowing diamond)
+            marker_x = (self._pos / 584.0) * w
+            painter.setBrush(QBrush(QColor(255, 235, 59)))
+            painter.setPen(QPen(QColor(20, 15, 10), 1.2))
+            
+            poly = QPolygonF([
+                QPointF(marker_x, y - 2.5),
+                QPointF(marker_x + 3.5, y + bar_h / 2.0),
+                QPointF(marker_x, y + bar_h + 2.5),
+                QPointF(marker_x - 3.5, y + bar_h / 2.0)
+            ])
+            painter.drawPolygon(poly)
+        finally:
+            painter.end()
+
+
+class Season364Bar(QWidget):
+    """
+    Barra visual de las 4 Estaciones Sagradas del Cómputo de 364 Días (Códice de Dresde pp. 65a-69b):
+    - 0..90:    Cuadrante Este (Lak'in / Rojo)   - Equinoccio de Primavera • Fuego Nuevo & Siembra
+    - 91..181:  Cuadrante Norte (Xaman / Blanco) - Solsticio de Verano • Lluvias Altas & Crecimiento
+    - 182..272: Cuadrante Oeste (Chik'in / Negro) - Equinoccio de Otoño • Cosecha & Maduración
+    - 273..363: Cuadrante Sur (Nohol / Amarillo) - Solsticio de Invierno • Reposo & Raíz Latente
+    """
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setFixedHeight(14)
+        self._pos = 0
         
-        poly = QPolygonF([
-            QPointF(marker_x, y - 3),
-            QPointF(marker_x + 4, y + bar_h / 2.0),
-            QPointF(marker_x, y + bar_h + 3),
-            QPointF(marker_x - 4, y + bar_h / 2.0)
-        ])
-        painter.drawPolygon(poly)
+    def set_position(self, pos):
+        self._pos = max(0, min(363, pos))
+        self.update()
+        
+    def paintEvent(self, event):
+        painter = QPainter(self)
+        try:
+            painter.setRenderHint(QPainter.Antialiasing)
+            w, h = self.width(), self.height()
+            if w < 20:
+                return
+                
+            quadrants = [
+                (91, QColor(192, 57, 43)),   # Este: Rojo Carmesí (#C0392B)
+                (91, QColor(230, 230, 230)), # Norte: Blanco Nieve (#E6E6E6)
+                (91, QColor(52, 73, 94)),    # Oeste: Negro Obsidiana (#34495E)
+                (91, QColor(241, 196, 15))   # Sur: Amarillo Maíz (#F1C40F)
+            ]
+            
+            x = 0.0
+            bar_h = 6
+            y = (h - bar_h) / 2.0
+            
+            # Base track
+            for duration, color in quadrants:
+                qw = (duration / 364.0) * w
+                painter.setBrush(QBrush(color))
+                painter.setPen(QPen(QColor(25, 20, 15), 1))
+                painter.drawRect(QRectF(x, y, qw, bar_h))
+                
+                # Trecena tick marks (13 days each: 7 ticks per 91d quarter)
+                painter.setPen(QPen(QColor(20, 15, 10, 140), 1))
+                for t in range(1, 7):
+                    tx = x + (t * 13 / 364.0) * w
+                    painter.drawLine(QPointF(tx, y), QPointF(tx, y + bar_h))
+                    
+                x += qw
+                
+            # Current position marker (radiant golden diamond / sun cursor)
+            marker_x = (self._pos / 364.0) * w
+            painter.setBrush(QBrush(QColor(255, 235, 59)))
+            painter.setPen(QPen(QColor(20, 15, 10), 1.2))
+            
+            poly = QPolygonF([
+                QPointF(marker_x, y - 2.5),
+                QPointF(marker_x + 3.5, y + bar_h / 2.0),
+                QPointF(marker_x, y + bar_h + 2.5),
+                QPointF(marker_x - 3.5, y + bar_h / 2.0)
+            ])
+            painter.drawPolygon(poly)
+        finally:
+            painter.end()
+
+
+class MarsPhaseBar(QWidget):
+    """
+    Barra visual de los 780 días del Ciclo Sinódico de Marte y la Bestia Celeste (Códice de Dresde pp. 43b-45b):
+    - 10 Estaciones de 78 días cada una (todas portan el numeral sagrado 3).
+    - 3 Grandes Actos del Tzolk'in (260d cada uno, delimitados por marcas áureas).
+    - Bucle Retrógrado de la Bestia Celeste (días 312 a 468) en rojo escarlata (#C0392B).
+    - Oposición Solar a los 390 días (Estación 5: 3 Etznab).
+    """
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setFixedHeight(14)
+        self._pos = 0
+        
+    def set_position(self, pos):
+        self._pos = max(0, min(779, pos))
+        self.update()
+        
+    def paintEvent(self, event):
+        painter = QPainter(self)
+        try:
+            painter.setRenderHint(QPainter.Antialiasing)
+            w, h = self.width(), self.height()
+            if w < 20:
+                return
+                
+            bar_h = 6
+            y = (h - bar_h) / 2.0
+            
+            # Base: 10 estaciones de 78 días (780d total)
+            station_colors = [
+                QColor(120, 66, 18),   # St 0: 3 Lamat (Helíaco)
+                QColor(147, 81, 22),   # St 1: 3 Cimi (Progrado 1)
+                QColor(160, 64, 0),    # St 2: 3 Kan (Progrado 2)
+                QColor(175, 96, 26),   # St 3: 3 Ik (Pre-estacionario)
+                QColor(192, 57, 43),   # St 4: 3 Ahau (1er Estacionario / Descenso Bestia)
+                QColor(231, 76, 60),   # St 5: 3 Etznab (OPOSICIÓN SOLAR & BESTIA CELESTE MÁXIMA)
+                QColor(175, 40, 30),   # St 6: 3 Cib (2º Estacionario / Ascenso Bestia)
+                QColor(135, 54, 0),    # St 7: 3 Ix (Progrado Vespertino)
+                QColor(110, 44, 0),    # St 8: 3 Eb (Ocaso Helíaco)
+                QColor(80, 30, 20)     # St 9: 3 Oc (Inframundo / Conjunción Solar)
+            ]
+            
+            x = 0.0
+            st_w = w / 10.0
+            for col in station_colors:
+                painter.setBrush(QBrush(col))
+                painter.setPen(QPen(QColor(25, 20, 15), 1))
+                painter.drawRect(QRectF(x, y, st_w, bar_h))
+                x += st_w
+                
+            # Marcas de los 3 Grandes Actos del Tzolk'in (260d y 520d)
+            painter.setPen(QPen(QColor(241, 196, 15, 220), 1.5))
+            x_260 = (260.0 / 780.0) * w
+            x_520 = (520.0 / 780.0) * w
+            painter.drawLine(QPointF(x_260, y - 2), QPointF(x_260, y + bar_h + 2))
+            painter.drawLine(QPointF(x_520, y - 2), QPointF(x_520, y + bar_h + 2))
+            
+            # Cursor actual (diamante radiante en ámbar/oro o rojo fuego si está en retrogradación)
+            marker_x = (self._pos / 780.0) * w
+            if 312 <= self._pos <= 468:
+                painter.setBrush(QBrush(QColor(255, 87, 34)))
+                painter.setPen(QPen(QColor(255, 255, 255), 1.2))
+            else:
+                painter.setBrush(QBrush(QColor(255, 215, 0)))
+                painter.setPen(QPen(QColor(20, 15, 10), 1.2))
+                
+            poly = QPolygonF([
+                QPointF(marker_x, y - 2.5),
+                QPointF(marker_x + 3.5, y + bar_h / 2.0),
+                QPointF(marker_x, y + bar_h + 2.5),
+                QPointF(marker_x - 3.5, y + bar_h / 2.0)
+            ])
+            painter.drawPolygon(poly)
+        finally:
+            painter.end()
 
 
 class StonePanel(QFrame):
     """A container widget that looks like a chiseled stone block."""
-    def __init__(self, title, main_text, sub_text=""):
+    def __init__(self, title, main_text, sub_text="", main_size=16):
         super().__init__()
         self.setFrameShape(QFrame.StyledPanel)
         
         layout = QVBoxLayout(self)
-        layout.setSpacing(5)
-        layout.setContentsMargins(10, 15, 10, 15)
+        layout.setSpacing(2)
+        layout.setContentsMargins(8, 6, 8, 6)
 
-        self.lbl_title = StoneLabel(title.upper(), size=10, color="#8a9a5b")
+        self.lbl_title = StoneLabel(title.upper(), size=9, color="#8a9a5b")
         layout.addWidget(self.lbl_title)
 
-        self.lbl_main = StoneLabel(main_text, size=22, is_bold=True, color="#f4d03f")
+        self.lbl_main = StoneLabel(main_text, size=main_size, is_bold=True, color="#f4d03f")
         shadow = QGraphicsDropShadowEffect(self)
         shadow.setBlurRadius(2)
         shadow.setColor(QColor(0, 0, 0, 180))
-        shadow.setOffset(2, 2)
+        shadow.setOffset(1, 1)
         self.lbl_main.setGraphicsEffect(shadow)
+        self.lbl_main.setWordWrap(True)
         layout.addWidget(self.lbl_main)
 
-        self.lbl_sub = StoneLabel(sub_text, size=12, color="#aaaaaa")
+        self.lbl_sub = StoneLabel(sub_text, size=10, color="#b0a89c")
         self.lbl_sub.setWordWrap(True)
         layout.addWidget(self.lbl_sub)
 
@@ -1308,7 +2250,7 @@ class StonePanel(QFrame):
                 border-left-color: #666;
                 border-right-color: #1a1a1a;
                 border-bottom-color: #1a1a1a;
-                border-radius: 8px;
+                border-radius: 6px;
             }
         """)
 
@@ -1547,9 +2489,9 @@ class FractalTimelineWidget(QWidget):
                 
         # 3. Gradilla Vertical de Tiempo (Años)
         if self._start_date and self._range_days > 0 and gw > 50:
-            start_year = self._start_date.year
+            start_year = int(self._start_date.year)
             end_date = self._start_date + timedelta(days=self._range_days)
-            end_year = end_date.year
+            end_year = int(end_date.year)
             year_span = end_year - start_year
             
             if year_span <= 3:
@@ -1571,17 +2513,18 @@ class FractalTimelineWidget(QWidget):
             else:
                 step_years = 500
 
-            first_mark = (start_year // step_years + 1) * step_years
+            first_mark = (start_year // step_years) * step_years
             
             for y in range(first_mark, end_year + 1, step_years):
-                dt_mark = datetime(y, 1, 1)
+                dt_mark = ChronoDate(y, 1, 1)
                 days_mark = (dt_mark - self._start_date).days
                 if 0 <= days_mark <= self._range_days:
                     x_mark = left + int((days_mark / self._range_days) * gw)
                     painter.setPen(QPen(QColor(38, 33, 26), 1, Qt.DotLine))
                     painter.drawLine(x_mark, top, x_mark, top + gh)
                     painter.setPen(QPen(QColor(140, 125, 100), 1))
-                    painter.drawText(x_mark - 14, h - 8, str(y))
+                    y_str = f"{abs(y)+1} a.C." if y <= 0 else str(y)
+                    painter.drawText(x_mark - 18, h - 8, y_str)
 
         # 4. Línea de Umbral de Coherencia Armónica (60%)
         y_60 = top + gh - int((60.0 / 100.0) * gh)
@@ -1741,6 +2684,7 @@ class FractalTimelineWidget(QWidget):
             else:
                 painter.setPen(QPen(QColor(130, 130, 130), 1))
                 painter.drawText(hud_x + 8, hud_y + 36, "Campo en equilibrio basal")
+        painter.end()
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -1920,7 +2864,7 @@ class MayanSteleApp(QMainWindow):
             self.setWindowIcon(QIcon(str(LOGO_ICO_PATH)))
         elif LOGO_PATH.exists():
             self.setWindowIcon(QIcon(str(LOGO_PATH)))
-        self.resize(1000, 800)
+        self.resize(1060, 870)
         self._apply_global_style()
         self._setup_ui()
         self._set_initial_date()
@@ -2012,24 +2956,31 @@ class MayanSteleApp(QMainWindow):
 
         # Date input row
         input_layout = QHBoxLayout()
-        input_layout.addWidget(StoneLabel("Gregorian Date:", size=12, color="#aaa"))
+        input_layout.setSpacing(8)
+        input_layout.addWidget(StoneLabel("Fecha Histórica / Astronómica:", size=11, color="#BDC3C7"))
         
-        self.date_edit = QDateEdit()
-        self.date_edit.setMinimumDate(QDate(100, 1, 1))
-        self.date_edit.setCalendarPopup(True)
-        self.date_edit.setDisplayFormat("MMMM d, yyyy")
+        self.date_edit = HistoricalDateSelector()
         self.date_edit.dateChanged.connect(self.convert_date)
         input_layout.addWidget(self.date_edit)
         
-        self.btn_today = QPushButton("Today")
+        self.btn_today = QPushButton("Hoy")
+        self.btn_today.setStyleSheet("QPushButton { background: #24201A; color: #E0C090; border: 1px solid #5A4A32; padding: 5px 12px; border-radius: 4px; font-weight: bold; font-size: 11px; } QPushButton:hover { background: #382F22; color: #F1C40F; border-color: #F1C40F; }")
         self.btn_today.clicked.connect(self._go_today)
         input_layout.addWidget(self.btn_today)
+
+        self.btn_creation = QPushButton("🏛️ 3114 a.C. Creación")
+        self.btn_creation.setStyleSheet("QPushButton { background: #2E251A; color: #F4D03F; border: 1px solid #B7950B; padding: 5px 12px; border-radius: 4px; font-weight: bold; font-size: 11px; } QPushButton:hover { background: #4D3C23; color: #FFF; border-color: #F4D03F; }")
+        self.btn_creation.setToolTip("Salto directo al Amanecer de la Creación Maya (13.0.0.0.0 4 Ahau 8 Cumku)")
+        self.btn_creation.clicked.connect(lambda: self.date_edit.setDate((-3113, 8, 11)))
+        input_layout.addWidget(self.btn_creation)
         
-        self.btn_prev = QPushButton("◀ Prev")
+        self.btn_prev = QPushButton("◀ Día")
+        self.btn_prev.setStyleSheet("QPushButton { background: #24201A; color: #E0C090; border: 1px solid #5A4A32; padding: 5px 10px; border-radius: 4px; font-weight: bold; font-size: 11px; } QPushButton:hover { background: #382F22; color: #F1C40F; }")
         self.btn_prev.clicked.connect(lambda: self._adjust_date(-1))
         input_layout.addWidget(self.btn_prev)
         
-        self.btn_next = QPushButton("Next ▶")
+        self.btn_next = QPushButton("Día ▶")
+        self.btn_next.setStyleSheet("QPushButton { background: #24201A; color: #E0C090; border: 1px solid #5A4A32; padding: 5px 10px; border-radius: 4px; font-weight: bold; font-size: 11px; } QPushButton:hover { background: #382F22; color: #F1C40F; }")
         self.btn_next.clicked.connect(lambda: self._adjust_date(1))
         input_layout.addWidget(self.btn_next)
         
@@ -2114,7 +3065,7 @@ class MayanSteleApp(QMainWindow):
         self.circular_calendar = CircularCalendarWidget()
         left_panel.addWidget(self.circular_calendar, stretch=1)
         
-        legend = StoneLabel("Outer: Haab │ Middle: Tzolkin │ Inner: Lords", size=11, color="#888")
+        legend = StoneLabel("Outer: Zodiac (Paris 13) │ Haab │ Tzolkin │ Inner: Lords", size=11, color="#888")
         legend.setAlignment(Qt.AlignCenter)
         left_panel.addWidget(legend)
         
@@ -2143,8 +3094,40 @@ class MayanSteleApp(QMainWindow):
         
         layout.addLayout(left_panel, 5)
         
-        # Right: Info panels
-        right_panel = QVBoxLayout()
+        # Right: Info panels inside a responsive basalt scroll area
+        right_scroll = QScrollArea()
+        right_scroll.setWidgetResizable(True)
+        right_scroll.setFrameShape(QFrame.NoFrame)
+        right_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        right_scroll.setStyleSheet("""
+            QScrollArea {
+                background: transparent;
+                border: none;
+            }
+            QScrollBar:vertical {
+                background: #181512;
+                width: 6px;
+                margin: 0px;
+                border-radius: 3px;
+            }
+            QScrollBar::handle:vertical {
+                background: #3E3426;
+                min-height: 25px;
+                border-radius: 3px;
+            }
+            QScrollBar::handle:vertical:hover {
+                background: #D4AF37;
+            }
+            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
+                height: 0px;
+            }
+        """)
+
+        right_container = QWidget()
+        right_container.setStyleSheet("background: transparent;")
+        right_panel = QVBoxLayout(right_container)
+        right_panel.setContentsMargins(0, 0, 4, 0)
+        right_panel.setSpacing(6)
         
         # Long Count Display
         self.long_count_display = LongCountDisplay()
@@ -2152,31 +3135,83 @@ class MayanSteleApp(QMainWindow):
         
         # Grid of panels
         grid = QGridLayout()
-        grid.setSpacing(10)
+        grid.setSpacing(6)
         
-        self.panel_tzolkin = StonePanel("Tzolkin", "4 Ahau", "Sacred 260-day Calendar")
-        self.panel_haab = StonePanel("Haab'", "8 Cumku", "Civil 365-day Calendar")
-        self.panel_calendar_round = StonePanel("Calendar Round", "4 Ahau 8 Cumku", "52-year Cycle")
-        self.panel_lord = StonePanel("Lord of Night", "G9", "9-day Cycle")
-        self.panel_venus = StonePanel("Venus Cycle", "Day 0", "584-day Cycle")
+        self.panel_tzolkin = StonePanel("Tzolkin", "4 Ahau", "Sacred 260-day Calendar", main_size=15)
+        self.panel_haab = StonePanel("Haab'", "8 Cumku", "Civil 365-day Calendar", main_size=15)
+        self.panel_calendar_round = StonePanel("Calendar Round", "4 Ahau 8 Cumku", "52-year Cycle", main_size=15)
+        self.panel_lord = StonePanel("Lord of Night", "G9", "9-day Cycle", main_size=15)
+        
+        # Dresden Planetary Panels: Venus & Mars
+        self.panel_venus = StonePanel("Venus Cycle (Dresden pp. 46-50)", "Day 0", "584-day Cycle", main_size=15)
         self.venus_bar = VenusPhaseBar()
         self.panel_venus.layout().addWidget(self.venus_bar)
+
+        self.panel_mars = StonePanel("Mars & Celestial Beast (Dresden pp. 43b-45b)", "Day 0", "780-day Cycle", main_size=15)
+        self.panel_mars.setStyleSheet("""
+            StonePanel {
+                background-color: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #251714, stop:1 #140A08);
+                border: 2px solid #C0392B;
+                border-top-color: #E74C3C;
+                border-left-color: #E74C3C;
+                border-right-color: #0E0705;
+                border-bottom-color: #0E0705;
+                border-radius: 6px;
+            }
+        """)
+        self.mars_bar = MarsPhaseBar()
+        self.panel_mars.layout().addWidget(self.mars_bar)
         
-        self.panel_moon = StonePanel("Moon Phase", "🌕", "Lunar Cycle")
-        self.panel_lunar_series = StonePanel("Lunar Series", "Glyph C: 1", "Glyphs C, A, X")
-        self.panel_deep_time = StonePanel("Deep Cycles", "0 Piktun", "Macro Eras")
+        # Lunar Series
+        self.panel_moon = StonePanel("Moon Phase", "🌕", "Lunar Cycle", main_size=15)
+        self.panel_lunar_series = StonePanel("Lunar Series", "Glyph C: 1", "Glyphs C, A, X", main_size=15)
+        self.panel_deep_time = StonePanel("Deep Cycles", "0 Piktun", "Macro Eras", main_size=15)
+        
+        # Paris Codex Zodiac Panel
+        self.panel_zodiac = StonePanel("Maya Zodiac (Paris Codex pp. 21-24)", "Ak 🐢 (Tortuga Cósmica)", "Constelación Eclíptica Maya", main_size=14)
+        self.panel_zodiac.setStyleSheet("""
+            StonePanel {
+                background-color: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #1A2638, stop:1 #101926);
+                border: 2px solid #2980B9;
+                border-top-color: #5DADE2;
+                border-left-color: #5DADE2;
+                border-right-color: #0E1520;
+                border-bottom-color: #0E1520;
+                border-radius: 6px;
+            }
+        """)
         
         grid.addWidget(self.panel_tzolkin, 0, 0)
         grid.addWidget(self.panel_haab, 0, 1)
         grid.addWidget(self.panel_calendar_round, 1, 0)
         grid.addWidget(self.panel_lord, 1, 1)
         grid.addWidget(self.panel_venus, 2, 0)
-        grid.addWidget(self.panel_moon, 2, 1)
-        grid.addWidget(self.panel_lunar_series, 3, 0)
-        grid.addWidget(self.panel_deep_time, 3, 1)
+        grid.addWidget(self.panel_mars, 2, 1)
+        grid.addWidget(self.panel_moon, 3, 0)
+        grid.addWidget(self.panel_lunar_series, 3, 1)
+        grid.addWidget(self.panel_deep_time, 4, 0)
+        grid.addWidget(self.panel_zodiac, 4, 1)
+
+        # 364-Day Computing Year & 4 Seasons Panel (Dresden Codex pp. 65a-69b)
+        self.panel_season_364 = StonePanel("364-Day Computing Year & 4 Seasons (Dresden pp. 65a-69b)", "Lak'in (Este) • Día 1/91", "Estación: Equinoccio de Primavera • Fuego Nuevo & Siembra", main_size=14)
+        self.panel_season_364.setStyleSheet("""
+            StonePanel {
+                background-color: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #251B18, stop:1 #140E0C);
+                border: 2px solid #B03A2E;
+                border-top-color: #E74C3C;
+                border-left-color: #E74C3C;
+                border-right-color: #0E1520;
+                border-bottom-color: #0E1520;
+                border-radius: 6px;
+            }
+        """)
+        self.season_364_bar = Season364Bar()
+        self.panel_season_364.layout().addWidget(self.season_364_bar)
+        grid.addWidget(self.panel_season_364, 5, 0, 1, 2)
         
         right_panel.addLayout(grid)
-        layout.addLayout(right_panel, 6)
+        right_scroll.setWidget(right_container)
+        layout.addWidget(right_scroll, stretch=6)
         
         self.tabs.addTab(tab, "📅 Calendar")
 
@@ -2184,62 +3219,54 @@ class MayanSteleApp(QMainWindow):
         tab = QWidget()
         layout = QVBoxLayout(tab)
         
-        # Controls
-        controls = QHBoxLayout()
+        # Controls - Organized in 2 clean, responsive rows
+        controls_vbox = QVBoxLayout()
+        controls_vbox.setSpacing(6)
         
-        controls.addWidget(StoneLabel("Start Date:", size=12, color="#aaa"))
-        self.date_fractal_start = QDateEdit()
-        self.date_fractal_start.setMinimumDate(QDate(100, 1, 1))
-        self.date_fractal_start.setCalendarPopup(True)
-        self.date_fractal_start.setDisplayFormat("yyyy-MM-dd")
-        self.date_fractal_start.setDate(QDate.currentDate())
-        controls.addWidget(self.date_fractal_start)
+        controls_row1 = QHBoxLayout()
+        controls_row1.setSpacing(8)
+        controls_row1.addWidget(StoneLabel("Start Date:", size=11, color="#aaa"))
+        self.date_fractal_start = HistoricalDateSelector()
+        cur_d = self.date_edit.date()
+        self.date_fractal_start.setDate(cur_d)
+        controls_row1.addWidget(self.date_fractal_start)
         
-        controls.addWidget(StoneLabel("End Date:", size=12, color="#aaa"))
-        
-        self.date_fractal_end = QDateEdit()
-        self.date_fractal_end.setMinimumDate(QDate(100, 1, 1))
-        self.date_fractal_end.setCalendarPopup(True)
-        self.date_fractal_end.setDisplayFormat("yyyy-MM-dd")
-        self.date_fractal_end.setDate(QDate.currentDate().addYears(1))
-        controls.addWidget(self.date_fractal_end)
+        controls_row1.addWidget(StoneLabel("End Date:", size=11, color="#aaa"))
+        self.date_fractal_end = HistoricalDateSelector()
+        self.date_fractal_end.setDate(cur_d.addYears(1))
+        controls_row1.addWidget(self.date_fractal_end)
         
         self.btn_analyze = QPushButton("🔮 Find Convergences")
         self.btn_analyze.clicked.connect(self._analyze_patterns)
-        controls.addWidget(self.btn_analyze)
+        controls_row1.addWidget(self.btn_analyze)
         
         self.btn_export = QPushButton("💾 Export CSV")
         self.btn_export.clicked.connect(self._export_fractal_results)
         self.btn_export.setEnabled(False)
-        controls.addWidget(self.btn_export)
+        controls_row1.addWidget(self.btn_export)
+        controls_row1.addStretch()
         
-        controls.addStretch()
-        
-        # Natal Resonance Mode
-        controls.addWidget(StoneLabel(" | Natal Resonance:", size=12, color="#aaa"))
-        self.cb_natal_mode = QCheckBox("Enable")
+        controls_row2 = QHBoxLayout()
+        controls_row2.setSpacing(8)
+        self.cb_natal_mode = QCheckBox("🌟 Activar Resonancia Natal / Carta Astral Maya")
         self.cb_natal_mode.setChecked(False)
-        controls.addWidget(self.cb_natal_mode)
+        self.cb_natal_mode.setStyleSheet("color: #F4D03F; font-size: 11px; font-weight: bold;")
+        controls_row2.addWidget(self.cb_natal_mode)
         
-        self.date_natal = QDateEdit()
-        self.date_natal.setMinimumDate(QDate(100, 1, 1))
-        self.date_natal.setCalendarPopup(True)
-        self.date_natal.setDisplayFormat("yyyy-MM-dd")
-        # Configure to show empty text when at minimum date
-        self.date_natal.setSpecialValueText(" (No Date) ")
-        self.date_natal.setDate(self.date_natal.minimumDate())
+        self.date_natal = HistoricalDateSelector()
+        self.date_natal.setDate(ChronoDate(1987, 8, 16))
         self.date_natal.setEnabled(False)
         
-        # When enabled via checkbox, if it's still minimum date, set it to today's date so calendar doesn't open in 1752
         def on_natal_mode_toggled(checked):
             self.date_natal.setEnabled(checked)
-            if checked and self.date_natal.date() == self.date_natal.minimumDate():
-                self.date_natal.setDate(QDate.currentDate())
                 
         self.cb_natal_mode.toggled.connect(on_natal_mode_toggled)
-        controls.addWidget(self.date_natal)
+        controls_row2.addWidget(self.date_natal)
+        controls_row2.addStretch()
         
-        layout.addLayout(controls)
+        controls_vbox.addLayout(controls_row1)
+        controls_vbox.addLayout(controls_row2)
+        layout.addLayout(controls_vbox)
         
         # Cycle checkboxes
         cycle_group = QGroupBox("Cycles to Analyze")
@@ -2254,25 +3281,28 @@ class MayanSteleApp(QMainWindow):
         
         # ── BARRA DE MODOS DE VISTA & RESUMEN DE COHERENCIA ──
         mode_toolbar = QHBoxLayout()
-        mode_toolbar.addWidget(StoneLabel("Modo de Vista:", size=11, color="#aaa"))
+        mode_toolbar.setSpacing(8)
+        mode_toolbar.addWidget(StoneLabel("Modo:", size=11, color="#aaa"))
         
-        self.btn_view_packets = QPushButton("🌊 Ventanas Holísticas (Solitones)")
-        self.btn_view_packets.setStyleSheet("background: #2E4053; color: #F1C40F; border: 1px solid #F1C40F; font-size: 11px; padding: 6px 12px;")
+        self.btn_view_packets = QPushButton("🌊 Solitones")
+        self.btn_view_packets.setStyleSheet("background: #2E4053; color: #F1C40F; border: 1px solid #F1C40F; font-size: 11px; padding: 4px 10px; font-weight: bold; border-radius: 4px;")
         self.btn_view_packets.clicked.connect(lambda: self.switch_fractal_view_mode("packets"))
         mode_toolbar.addWidget(self.btn_view_packets)
         
-        self.btn_view_chrono = QPushButton("⏱ Cronológico Continuo")
-        self.btn_view_chrono.setStyleSheet("background: #252220; color: #aaa; border: 1px solid #444; font-size: 11px; padding: 6px 12px;")
+        self.btn_view_chrono = QPushButton("⏱ Cronológico")
+        self.btn_view_chrono.setStyleSheet("background: #252220; color: #aaa; border: 1px solid #444; font-size: 11px; padding: 4px 10px; border-radius: 4px;")
         self.btn_view_chrono.clicked.connect(lambda: self.switch_fractal_view_mode("chrono"))
         mode_toolbar.addWidget(self.btn_view_chrono)
         
-        self.btn_view_score = QPushButton("⚡ Picos de Potencia")
-        self.btn_view_score.setStyleSheet("background: #252220; color: #aaa; border: 1px solid #444; font-size: 11px; padding: 6px 12px;")
+        self.btn_view_score = QPushButton("⚡ Picos Potencia")
+        self.btn_view_score.setStyleSheet("background: #252220; color: #aaa; border: 1px solid #444; font-size: 11px; padding: 4px 10px; border-radius: 4px;")
         self.btn_view_score.clicked.connect(lambda: self.switch_fractal_view_mode("score"))
         mode_toolbar.addWidget(self.btn_view_score)
         
-        mode_toolbar.addSpacing(15)
+        mode_toolbar.addSpacing(10)
         self.lbl_fractal_summary = StoneLabel("Presiona 'Find Convergences' para analizar el continuo armónico.", size=11, color="#888")
+        self.lbl_fractal_summary.setWordWrap(True)
+        self.lbl_fractal_summary.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
         mode_toolbar.addWidget(self.lbl_fractal_summary, stretch=1)
         layout.addLayout(mode_toolbar)
         
@@ -2384,11 +3414,8 @@ class MayanSteleApp(QMainWindow):
         dn_top_row.setSpacing(10)
         dn_top_row.addWidget(StoneLabel("Fecha Base:", size=11, is_bold=True, color="#E0C090"))
         
-        self.dn_base_date = QDateEdit()
-        self.dn_base_date.setCalendarPopup(True)
-        self.dn_base_date.setDisplayFormat("yyyy-MM-dd")
-        self.dn_base_date.setDate(QDate.currentDate())
-        self.dn_base_date.setStyleSheet("QDateEdit { background: #24201A; color: #F4D03F; border: 1px solid #5A4A32; padding: 5px 8px; border-radius: 4px; font-weight: bold; }")
+        self.dn_base_date = HistoricalDateSelector()
+        self.dn_base_date.setDate(self.date_edit.date())
         dn_top_row.addWidget(self.dn_base_date)
 
         btn_sync_dn = QPushButton("🔄 Usar Fecha Activa")
@@ -2748,6 +3775,394 @@ class MayanSteleApp(QMainWindow):
         proj_layout.addWidget(self.proj_table)
         content_layout.addWidget(proj_group)
 
+        # ── SECCIÓN 4: CUENTAS SERPENTINAS Y NÚMEROS DE ANILLO (CÓDICE DE DRESDE PP. 61–69) ──
+        serp_group = QGroupBox("🐍 4. Cuentas Serpentinas y Números de Anillo (Códice de Dresde pp. 61–69 — Tiempo Profundo)")
+        serp_group.setStyleSheet(box_qss)
+        serp_layout = QVBoxLayout(serp_group)
+        serp_layout.setSpacing(12)
+        serp_layout.setContentsMargins(14, 16, 14, 14)
+
+        serp_desc = (
+            "En las páginas 61 a 69 del Códice de Dresde, los astrónomos mayas codificaron cinco colosales Cuentas Serpentinas "
+            "(~12.3 a 12.5 millones de días, más de 33,000 años hacia el pasado y futuro cósmico). Utilizan Números de Anillo "
+            "(Ring Numbers, atados con un lazo rojo) que descuentan días antes de la Creación (13.0.0.0.0 4 Ahau 8 Cumku) "
+            "para anclar una Fecha Base Primordial en el Caos Cósmico, desde donde se proyecta la serpiente celeste."
+        )
+        lbl_serp_desc = StoneLabel(serp_desc, size=11, color="#BDC3C7")
+        lbl_serp_desc.setWordWrap(True)
+        serp_layout.addWidget(lbl_serp_desc)
+
+        # Selector Row
+        serp_sel_row = QHBoxLayout()
+        serp_sel_row.setSpacing(10)
+        serp_sel_row.addWidget(StoneLabel("Serpiente Canónica:", size=11, is_bold=True, color="#E67E22"))
+
+        self.serp_combo = QComboBox()
+        self.serp_combo.addItems([
+            "🐍 Serpiente 1 (Pág. 61a) — 4 Chicchan | Anillo 1.7.11 (-511d) ➔ Salto 12,381,728d",
+            "🐍 Serpiente 2 (Pág. 62a) — 12 Lamat | Anillo 1.7.11 (-511d) ➔ Salto 12,388,028d",
+            "🐍 Serpiente 3 (Pág. 62b) — 7 Ahau | Anillo 1.7.11 (-511d) ➔ Salto 12,394,740d",
+            "🐍 Serpiente 4 (Pág. 63a) — 4 Ahau | Anillo 7.2.14.19 (-51,419d) ➔ Salto 12,489,781d",
+            "🐍 Serpiente 5 (Pág. 69) — Diluvio Chak Chel | Anillo 1.12.5.5.8 (-232,268d) ➔ Salto 12,438,810d",
+            "⚙️ Entrada Personalizada (Anillo & Distancia Arbitrarios)..."
+        ])
+        self.serp_combo.setStyleSheet("QComboBox { background: #261E1A; color: #F5B041; border: 1px solid #784212; padding: 6px 10px; border-radius: 4px; font-weight: bold; font-size: 11px; }")
+        self.serp_combo.currentIndexChanged.connect(self._on_serp_combo_changed)
+        serp_sel_row.addWidget(self.serp_combo, stretch=1)
+        serp_layout.addLayout(serp_sel_row)
+
+        # Custom Input Frame (hidden by default)
+        self.serp_custom_frame = QFrame()
+        self.serp_custom_frame.setStyleSheet("background: #14110E; border: 1px solid #382F22; border-radius: 6px; padding: 6px;")
+        serp_cust_layout = QHBoxLayout(self.serp_custom_frame)
+        serp_cust_layout.setSpacing(10)
+        serp_cust_layout.setContentsMargins(8, 6, 8, 6)
+
+        serp_cust_layout.addWidget(StoneLabel("Días de Anillo (pre-Creación):", size=10, color="#E74C3C"))
+        self.serp_custom_ring = QSpinBox()
+        self.serp_custom_ring.setRange(0, 99999999)
+        self.serp_custom_ring.setValue(511)
+        self.serp_custom_ring.setStyleSheet(spin_style)
+        serp_cust_layout.addWidget(self.serp_custom_ring)
+
+        serp_cust_layout.addWidget(StoneLabel("Días de Salto Serpentino:", size=10, color="#E67E22"))
+        self.serp_custom_dist = QSpinBox()
+        self.serp_custom_dist.setRange(0, 999999999)
+        self.serp_custom_dist.setValue(12381728)
+        self.serp_custom_dist.setStyleSheet(spin_style)
+        serp_cust_layout.addWidget(self.serp_custom_dist)
+
+        btn_calc_custom_serp = QPushButton("⚡ Calcular Serpiente")
+        btn_calc_custom_serp.setStyleSheet("""
+            QPushButton {
+                background: #5B2C6F; color: #F4D03F; border: 1px solid #8E44AD;
+                padding: 5px 12px; border-radius: 4px; font-weight: bold;
+            }
+            QPushButton:hover { background: #7D3C98; color: #FFF; }
+        """)
+        btn_calc_custom_serp.clicked.connect(self._on_serp_custom_calc)
+        serp_cust_layout.addWidget(btn_calc_custom_serp)
+        self.serp_custom_frame.setVisible(False)
+        serp_layout.addWidget(self.serp_custom_frame)
+
+        # 4 Analytical Cards Grid
+        cards_grid = QGridLayout()
+        cards_grid.setSpacing(10)
+
+        card_style_tpl = """
+            QFrame {{
+                background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #221D17, stop:1 #171410);
+                border: 1px solid #4D3F2C;
+                border-left: 5px solid {accent};
+                border-radius: 6px;
+                padding: 8px 10px;
+            }}
+        """
+
+        # Card 1: Ring Number
+        self.serp_card_ring = QFrame()
+        self.serp_card_ring.setStyleSheet(card_style_tpl.format(accent="#E74C3C"))
+        c1_layout = QVBoxLayout(self.serp_card_ring)
+        c1_layout.setContentsMargins(6, 4, 6, 4)
+        c1_layout.setSpacing(4)
+        c1_layout.addWidget(StoneLabel("🔴 NÚMERO DE ANILLO (TIEMPO PREVIO)", size=9, is_bold=True, color="#E74C3C"))
+        self.lbl_serp_ring_val = StoneLabel("1.7.11 (-511 días)", size=13, is_bold=True, color="#FADBD8")
+        c1_layout.addWidget(self.lbl_serp_ring_val)
+        self.lbl_serp_ring_sub = QLabel("Restados antes de la Creación 13.0.0.0.0 (JDN 584283)")
+        self.lbl_serp_ring_sub.setStyleSheet("color: #A6ACAF; font-size: 10px; background: transparent;")
+        self.lbl_serp_ring_sub.setWordWrap(True)
+        c1_layout.addWidget(self.lbl_serp_ring_sub)
+        cards_grid.addWidget(self.serp_card_ring, 0, 0)
+
+        # Card 2: Primordial Base Date
+        self.serp_card_base = QFrame()
+        self.serp_card_base.setStyleSheet(card_style_tpl.format(accent="#3498DB"))
+        c2_layout = QVBoxLayout(self.serp_card_base)
+        c2_layout.setContentsMargins(6, 4, 6, 4)
+        c2_layout.setSpacing(4)
+        c2_layout.addWidget(StoneLabel("🌌 FECHA BASE PRIMORDIAL (ANTES DE CREACIÓN)", size=9, is_bold=True, color="#3498DB"))
+        self.lbl_serp_base_val = StoneLabel("19.19.19.18.10.9 (13 Muluc 2 Zac)", size=13, is_bold=True, color="#D4E6F1")
+        c2_layout.addWidget(self.lbl_serp_base_val)
+        self.lbl_serp_base_sub = QLabel("Fecha Astronómica: 18/03/3115 a.C. (JDN 583772)")
+        self.lbl_serp_base_sub.setStyleSheet("color: #A6ACAF; font-size: 10px; background: transparent;")
+        self.lbl_serp_base_sub.setWordWrap(True)
+        c2_layout.addWidget(self.lbl_serp_base_sub)
+        cards_grid.addWidget(self.serp_card_base, 0, 1)
+
+        # Card 3: Serpent Distance Number
+        self.serp_card_dist = QFrame()
+        self.serp_card_dist.setStyleSheet(card_style_tpl.format(accent="#E67E22"))
+        c3_layout = QVBoxLayout(self.serp_card_dist)
+        c3_layout.setContentsMargins(6, 4, 6, 4)
+        c3_layout.setSpacing(4)
+        c3_layout.addWidget(StoneLabel("🐍 SALTO SERPENTINO (TIEMPO PROFUNDO)", size=9, is_bold=True, color="#E67E22"))
+        self.lbl_serp_dist_val = StoneLabel("4.5.19.13.12.8 (+12,381,728 días)", size=13, is_bold=True, color="#FDEBD0")
+        c3_layout.addWidget(self.lbl_serp_dist_val)
+        self.lbl_serp_dist_sub = QLabel("~33,899 años solares • Resonancia sagrada")
+        self.lbl_serp_dist_sub.setStyleSheet("color: #A6ACAF; font-size: 10px; background: transparent;")
+        self.lbl_serp_dist_sub.setWordWrap(True)
+        c3_layout.addWidget(self.lbl_serp_dist_sub)
+        cards_grid.addWidget(self.serp_card_dist, 1, 0)
+
+        # Card 4: Terminal Arrival Date
+        self.serp_card_arr = QFrame()
+        self.serp_card_arr.setStyleSheet(card_style_tpl.format(accent="#2ECC71"))
+        c4_layout = QVBoxLayout(self.serp_card_arr)
+        c4_layout.setContentsMargins(6, 4, 6, 4)
+        c4_layout.setSpacing(4)
+        c4_layout.addWidget(StoneLabel("🏁 FECHA TERMINAL ARQUEO-ASTRONÓMICA", size=9, is_bold=True, color="#2ECC71"))
+        self.lbl_serp_arr_val = StoneLabel("4.5.19.12.4.17 (8 Caban 15 Uo)", size=13, is_bold=True, color="#D5F5E3")
+        c4_layout.addWidget(self.lbl_serp_arr_val)
+        self.lbl_serp_arr_sub = QLabel("Proyectada: 26/03/30786 d.C. (JDN 12965500)")
+        self.lbl_serp_arr_sub.setStyleSheet("color: #A6ACAF; font-size: 10px; background: transparent;")
+        self.lbl_serp_arr_sub.setWordWrap(True)
+        c4_layout.addWidget(self.lbl_serp_arr_sub)
+        cards_grid.addWidget(self.serp_card_arr, 1, 1)
+
+        serp_layout.addLayout(cards_grid)
+
+        # Action Buttons Row
+        serp_btn_row = QHBoxLayout()
+        serp_btn_row.setSpacing(12)
+
+        self.btn_goto_serp_base = QPushButton("🏛️ Cargar Fecha Base Primordial en Estela (BCE)")
+        self.btn_goto_serp_base.setCursor(Qt.PointingHandCursor)
+        self.btn_goto_serp_base.setStyleSheet("""
+            QPushButton {
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #1F618D, stop:1 #154360);
+                color: #FFF; border: 1px solid #3498DB; border-radius: 5px;
+                padding: 9px 18px; font-weight: bold; font-size: 11px;
+            }
+            QPushButton:hover {
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #2980B9, stop:1 #1B4F72);
+                border-color: #F1C40F; color: #F1C40F;
+            }
+        """)
+        self.btn_goto_serp_base.clicked.connect(self._jump_from_serp_base)
+        serp_btn_row.addWidget(self.btn_goto_serp_base)
+
+        self.btn_goto_serp_arr = QPushButton("🚀 Cargar Fecha Terminal en la Estela Principal")
+        self.btn_goto_serp_arr.setCursor(Qt.PointingHandCursor)
+        self.btn_goto_serp_arr.setStyleSheet("""
+            QPushButton {
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #1E8449, stop:1 #117864);
+                color: #FFF; border: 1px solid #52BE80; border-radius: 5px;
+                padding: 9px 18px; font-weight: bold; font-size: 11px;
+            }
+            QPushButton:hover {
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #27AE60, stop:1 #16A085);
+                border-color: #F1C40F; color: #F1C40F;
+            }
+        """)
+        self.btn_goto_serp_arr.clicked.connect(self._jump_from_serp_arrival)
+        serp_btn_row.addWidget(self.btn_goto_serp_arr)
+
+        serp_layout.addLayout(serp_btn_row)
+        content_layout.addWidget(serp_group)
+
+        # ── SECCIÓN 5: CÓMPUTO DE 364 DÍAS Y 4 ESTACIONES SAGRADAS (DRESDE PP. 65a-69b) ──
+        s364_group = QGroupBox("🌿 5. Cómputo de 364 Días y las 4 Estaciones Cósmicas (Códice de Dresde pp. 65a–69b)")
+        s364_group.setStyleSheet(box_qss)
+        s364_layout = QVBoxLayout(s364_group)
+        s364_layout.setSpacing(12)
+        s364_layout.setContentsMargins(14, 16, 14, 14)
+
+        s364_desc = (
+            "En las páginas 65a a 69b del Códice de Dresde, los astrónomos mayas codificaron el Año Computacional de 364 Días "
+            "dividido en 4 cuadrantes estacionales exactos de 91 días (4 x 91 = 364d). Cada estación está presidida por una deidad "
+            "del dios de la lluvia Chac (Este/Rojo, Norte/Blanco, Oeste/Negro, Sur/Amarillo), con 7 trecenas por cuadrante (7 x 13 = 91d). "
+            "El ciclo alcanza su sincronía sagrada perfecta con el Tzolk'in cada 1,820 días (5 x 364 = 7 x 260d) y con K'awiil "
+            "cada 3,276 días (9 x 364 = 4 x 819d), matriz grabada en los 4x91 = 364 peldaños del Castillo de Chichén Itzá."
+        )
+        lbl_s364_desc = StoneLabel(s364_desc, size=11, color="#BDC3C7")
+        lbl_s364_desc.setWordWrap(True)
+        s364_layout.addWidget(lbl_s364_desc)
+
+        # Selector Row
+        s364_sel_row = QHBoxLayout()
+        s364_sel_row.setSpacing(10)
+        s364_sel_row.addWidget(StoneLabel("Estación Objetivo / Retorno:", size=11, is_bold=True, color="#2ECC71"))
+
+        self.s364_combo = QComboBox()
+        self.s364_combo.addItems([
+            "🌸 Próximo Equinoccio de Primavera (Día 0 / 364d • Lak'in / Este - Rojo)",
+            "☀️ Próximo Solsticio de Verano (Día 91 / 364d • Xaman / Norte - Blanco)",
+            "🍂 Próximo Equinoccio de Otoño (Día 182 / 364d • Chik'in / Oeste - Negro)",
+            "❄️ Próximo Solsticio de Invierno (Día 273 / 364d • Nohol / Sur - Amarillo)",
+            "⚡ Próximo Retorno del Gran Ciclo de 1,820 Días (Sincronía con Tzolk'in)"
+        ])
+        self.s364_combo.setStyleSheet("QComboBox { background: #1B261D; color: #A9DFBF; border: 1px solid #1E8449; padding: 6px 10px; border-radius: 4px; font-weight: bold; font-size: 11px; }")
+        self.s364_combo.currentIndexChanged.connect(self._on_s364_combo_changed)
+        s364_sel_row.addWidget(self.s364_combo, stretch=1)
+
+        self.btn_calc_s364 = QPushButton("⚡ Calcular Salto a Estación")
+        self.btn_calc_s364.setStyleSheet("""
+            QPushButton {
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #1E8449, stop:1 #117864);
+                color: #FFF; font-weight: bold; border: 1px solid #52BE80; border-radius: 5px;
+                padding: 7px 16px; font-size: 11px;
+            }
+            QPushButton:hover {
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #27AE60, stop:1 #16A085);
+                border-color: #F1C40F; color: #F1C40F;
+            }
+        """)
+        self.btn_calc_s364.clicked.connect(self._exec_season_station_jump)
+        s364_sel_row.addWidget(self.btn_calc_s364)
+        s364_layout.addLayout(s364_sel_row)
+
+        # Integrated Result Card
+        s364_card = QFrame()
+        s364_card.setStyleSheet("""
+            QFrame {
+                background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #1F2A21, stop:1 #131A15);
+                border: 1px solid #27AE60;
+                border-left: 5px solid #2ECC71;
+                border-radius: 6px;
+            }
+        """)
+        s364_card_layout = QHBoxLayout(s364_card)
+        s364_card_layout.setContentsMargins(14, 10, 14, 10)
+        s364_card_layout.setSpacing(15)
+
+        self.s364_result_box = QLabel("Selecciona un hito estacional y pulsa 'Calcular Salto a Estación'.")
+        self.s364_result_box.setStyleSheet("color: #E0C090; font-size: 12px; background: transparent; border: none;")
+        self.s364_result_box.setWordWrap(True)
+        s364_card_layout.addWidget(self.s364_result_box, stretch=1)
+
+        self.btn_goto_s364 = QPushButton("📍 Sincronizar en Estela")
+        self.btn_goto_s364.setEnabled(False)
+        self.btn_goto_s364.setCursor(Qt.PointingHandCursor)
+        self.btn_goto_s364.setStyleSheet("""
+            QPushButton {
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #1E8449, stop:1 #117864);
+                color: #FFF; border: 1px solid #52BE80; border-radius: 5px;
+                padding: 9px 18px; font-weight: bold; font-size: 11px; min-width: 150px;
+            }
+            QPushButton:hover {
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #27AE60, stop:1 #16A085);
+                border-color: #FFF; color: #F1C40F;
+            }
+            QPushButton:disabled {
+                background: #1B231D; color: #4D6453; border: 1px solid #28372C;
+            }
+        """)
+        self.btn_goto_s364.clicked.connect(self._jump_from_season_result)
+        s364_card_layout.addWidget(self.btn_goto_s364)
+        s364_layout.addWidget(s364_card)
+
+        content_layout.addWidget(s364_group)
+
+        # -------------------------------------------------------------
+        # 6. Dresden Codex Mars Table & Celestial Beast (pp. 43b-45b)
+        # -------------------------------------------------------------
+        mars_group = QGroupBox("☄️ 6. La Tabla de Marte y la Bestia Celeste (Códice de Dresde pp. 43b–45b — Ciclo de 780 Días)")
+        mars_group.setStyleSheet(box_qss)
+        mars_layout = QVBoxLayout(mars_group)
+        mars_layout.setSpacing(10)
+
+        mars_desc = (
+            "En las páginas 43b a 45b del Códice de Dresde, los astrónomos mayas codificaron la Tabla Sinódica de Marte de 780 días "
+            "(3 x 260d Tzolk'in exactos), dividida en 10 estaciones de 78 días (6 x 13 trecenas). Debido a que 78 ≡ 0 (mod 13), todas "
+            "las estaciones portan invariablemente el coeficiente sagrado 3 (3 Lamat, 3 Cimi, 3 Kan, 3 Ik, 3 Ahau, 3 Etznab, 3 Cib, 3 Ix, 3 Eb, 3 Oc). "
+            "Durante las estaciones 4 a 6 (días 312 a 468, con oposición solar en el día 390 en 3 Etznab), Marte entra en retrogradación "
+            "y los escribas plasmaron a la 'Bestia Celeste' (Mars Beast) colgando de las bandas del cielo con fauces abiertas. "
+            "El ciclo se armoniza en el Super-Tun de 9,360 días (12 x 780d = 26 Tuns = 36 Tzolk'in) y en el Gran Retorno de 56,940 días "
+            "(73 x 780d = 156 Haab' = 3 Ruedas Calendáricas)."
+        )
+        lbl_mars_desc = StoneLabel(mars_desc, size=11, color="#BDC3C7")
+        lbl_mars_desc.setWordWrap(True)
+        mars_layout.addWidget(lbl_mars_desc)
+
+        # Selector Row
+        mars_sel_row = QHBoxLayout()
+        mars_sel_row.setSpacing(10)
+        mars_sel_row.addWidget(StoneLabel("Estación Objetivo / Retorno de Marte:", size=11, is_bold=True, color="#E74C3C"))
+
+        self.mars_combo = QComboBox()
+        self.mars_combo.addItems([
+            "⭐ Estación 0: 3 Lamat (Día 0 / 780d • Orto Helíaco Matutino — Acto I)",
+            "💀 Estación 1: 3 Cimi (Día 78 / 780d • Avance Progrado 1 — Acto I)",
+            "🌽 Estación 2: 3 Kan (Día 156 / 780d • Avance Progrado 2 — Acto I)",
+            "💨 Estación 3: 3 Ik (Día 234 / 780d • Frenado Pre-Estacionario — Acto I)",
+            "☀️ Estación 4: 3 Ahau (Día 312 / 780d • 1er Punto Estacionario — Acto II: Bestia Celeste)",
+            "🔪 Estación 5: 3 Etznab (Día 390 / 780d • Oposición Solar & Ápice Retrógrado — Acto II)",
+            "🕯️ Estación 6: 3 Cib (Día 468 / 780d • 2º Punto Estacionario — Acto II)",
+            "🐆 Estación 7: 3 Ix (Día 546 / 780d • Avance Vespertino — Acto III: Renacimiento)",
+            "🌿 Estación 8: 3 Eb (Día 624 / 780d • Ocaso Helíaco y Crepúsculo — Acto III)",
+            "🐕 Estación 9: 3 Oc (Día 702 / 780d • Conjunción Solar en Inframundo — Acto III)",
+            "⚡ Próximo Super-Tun de 9,360 Días (12 Ciclos de Marte = 26 Tuns = 36 Tzolk'in)",
+            "🌌 Próximo Gran Retorno de 56,940 Días (73 Ciclos de Marte = 156 Haab' = 3 Ruedas Calendáricas)"
+        ])
+        self.mars_combo.setStyleSheet("QComboBox { background: #251714; color: #F5B7B1; border: 1px solid #C0392B; padding: 6px 10px; border-radius: 4px; font-weight: bold; font-size: 11px; }")
+        self.mars_combo.currentIndexChanged.connect(self._on_mars_combo_changed)
+        mars_sel_row.addWidget(self.mars_combo, stretch=1)
+
+        self.btn_calc_mars = QPushButton("⚡ Calcular Salto de Marte")
+        self.btn_calc_mars.setStyleSheet("""
+            QPushButton {
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #922B21, stop:1 #641E16);
+                color: #FFF; font-weight: bold; border: 1px solid #E74C3C; border-radius: 5px;
+                padding: 7px 16px; font-size: 11px;
+            }
+            QPushButton:hover {
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #C0392B, stop:1 #7B241C);
+                border-color: #F1C40F; color: #F1C40F;
+            }
+        """)
+        self.btn_calc_mars.clicked.connect(self._exec_mars_station_jump)
+        mars_sel_row.addWidget(self.btn_calc_mars)
+        mars_layout.addLayout(mars_sel_row)
+
+        # Integrated Result Card
+        mars_card = QFrame()
+        mars_card.setStyleSheet("""
+            QFrame {
+                background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #251714, stop:1 #140A08);
+                border: 1px solid #C0392B;
+                border-left: 5px solid #E74C3C;
+                border-radius: 6px;
+            }
+        """)
+        mars_card_layout = QHBoxLayout(mars_card)
+        mars_card_layout.setContentsMargins(14, 10, 14, 10)
+        mars_card_layout.setSpacing(15)
+
+        self.mars_result_box = QLabel("Selecciona una estación de Marte y pulsa 'Calcular Salto de Marte'.")
+        self.mars_result_box.setStyleSheet("color: #E0C090; font-size: 12px; background: transparent; border: none;")
+        self.mars_result_box.setWordWrap(True)
+        mars_card_layout.addWidget(self.mars_result_box, stretch=1)
+
+        self.btn_goto_mars = QPushButton("📍 Sincronizar en Estela")
+        self.btn_goto_mars.setEnabled(False)
+        self.btn_goto_mars.setCursor(Qt.PointingHandCursor)
+        self.btn_goto_mars.setStyleSheet("""
+            QPushButton {
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #922B21, stop:1 #641E16);
+                color: #FFF; border: 1px solid #E74C3C; border-radius: 5px;
+                padding: 9px 18px; font-weight: bold; font-size: 11px; min-width: 150px;
+            }
+            QPushButton:hover {
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #C0392B, stop:1 #7B241C);
+                border-color: #FFF; color: #F1C40F;
+            }
+            QPushButton:disabled {
+                background: #1F1412; color: #5D3734; border: 1px solid #351C1A;
+            }
+        """)
+        self.btn_goto_mars.clicked.connect(self._jump_from_mars_result)
+        mars_card_layout.addWidget(self.btn_goto_mars)
+        mars_layout.addWidget(mars_card)
+
+        content_layout.addWidget(mars_group)
+
+        # Initialize Serpent 1 preview
+        self._on_serp_combo_changed(0)
+        # Initialize Season 364 preview
+        self._exec_season_station_jump()
+        # Initialize Mars preview
+        self._exec_mars_station_jump()
+
         scroll.setWidget(content)
         layout.addWidget(scroll)
         self.tabs.addTab(tab, "⏳ Operaciones & Retornos")
@@ -2812,7 +4227,7 @@ class MayanSteleApp(QMainWindow):
 
     def _exec_distance_number(self):
         b_date = self.dn_base_date.date()
-        base_jdn = self.converter._gregorian_to_jdn(b_date.year(), b_date.month(), b_date.day())
+        base_jdn = self.converter._gregorian_to_jdn(b_date.year, b_date.month, b_date.day)
         
         days_val = self.dn_spin_days.value()
         is_forward = self.dn_dir_forward.isChecked()
@@ -2821,12 +4236,13 @@ class MayanSteleApp(QMainWindow):
         dest_y, dest_m, dest_d = self.converter.add_distance_number(base_jdn, signed_days)
         dest_data = self.converter.get_full_date(dest_y, dest_m, dest_d)
         
-        self._last_dn_dest_date = QDate(dest_y, dest_m, dest_d)
+        self._last_dn_dest_date = ChronoDate(dest_y, dest_m, dest_d)
         self.btn_goto_dn.setEnabled(True)
         
         dir_sign = "+" if is_forward else "-"
+        dest_era = f"{abs(dest_y)+1} a.C." if dest_y <= 0 else f"{dest_y:04d} d.C."
         res_text = (
-            f"<b>📍 FECHA DESTINO: <span style='color:#F4D03F; font-size:13px;'>{dest_d:02d}/{dest_m:02d}/{dest_y:04d}</span> "
+            f"<b>📍 FECHA DESTINO: <span style='color:#F4D03F; font-size:13px;'>{dest_d:02d}/{dest_m:02d}/{dest_era}</span> "
             f"({dir_sign}{days_val:,} días)</b><br>"
             f"• <b>Cuenta Larga:</b> <span style='color:#F1C40F'>{dest_data['long_count']}</span> • "
             f"<b>Tzolk'in:</b> {dest_data['tzolkin_glyph']} {dest_data['tzolkin']} ({dest_data['tzolkin_meaning']})<br>"
@@ -2842,7 +4258,7 @@ class MayanSteleApp(QMainWindow):
 
     def _exec_cycle_overlap(self):
         cur_d = self.date_edit.date()
-        base_jdn = self.converter._gregorian_to_jdn(cur_d.year(), cur_d.month(), cur_d.day())
+        base_jdn = self.converter._gregorian_to_jdn(cur_d.year, cur_d.month, cur_d.day)
         start_days = base_jdn - self.converter.correlation_jdn
         
         c1 = self.ret_c1_combo.currentText()
@@ -2855,12 +4271,13 @@ class MayanSteleApp(QMainWindow):
             dest_jdn = self.converter.correlation_jdn + match_days
             ry, rm, rd = self.converter._jdn_to_gregorian(dest_jdn)
             r_data = self.converter.get_full_date(ry, rm, rd)
-            self._last_ret_date = QDate(ry, rm, rd)
+            self._last_ret_date = ChronoDate(ry, rm, rd)
             self.btn_goto_ret.setEnabled(True)
             
             delta = match_days - start_days
+            ry_era = f"{abs(ry)+1} a.C." if ry <= 0 else f"{ry:04d} d.C."
             self.ret_result_box.setText(
-                f"<b>⭐ CONJUNCIÓN ENCONTRADA: <span style='color:#F4D03F; font-size:13px;'>{rd:02d}/{rm:02d}/{ry:04d}</span> "
+                f"<b>⭐ CONJUNCIÓN ENCONTRADA: <span style='color:#F4D03F; font-size:13px;'>{rd:02d}/{rm:02d}/{ry_era}</span> "
                 f"(+{delta:,} días desde hoy)</b><br>"
                 f"• <b>Cuenta Larga:</b> <span style='color:#F1C40F'>{r_data['long_count']}</span> • "
                 f"<b>Rueda Calendárica:</b> {r_data['calendar_round']} • <b>Señor:</b> {r_data['lord']}<br>"
@@ -2877,7 +4294,7 @@ class MayanSteleApp(QMainWindow):
 
     def _exec_pattern_projection(self):
         cur_d = self.date_edit.date()
-        base_dt = datetime(cur_d.year(), cur_d.month(), cur_d.day())
+        base_dt = cur_d
         
         idx = self.proj_interval_combo.currentIndex()
         preset_days = [7200, 360, 18980, 584, 260, 819, 52]
@@ -2895,7 +4312,7 @@ class MayanSteleApp(QMainWindow):
         self._proj_dates = []
         for row, p in enumerate(projections):
             dt = p["date"]
-            self._proj_dates.append(QDate(dt.year, dt.month, dt.day))
+            self._proj_dates.append(ChronoDate(dt.year, dt.month, dt.day))
             d_data = self.converter.get_full_date(dt.year, dt.month, dt.day)
             
             self.proj_table.setItem(row, 0, QTableWidgetItem(f"+{row + 1}"))
@@ -2914,6 +4331,192 @@ class MayanSteleApp(QMainWindow):
         if hasattr(self, '_proj_dates') and row < len(self._proj_dates):
             target_date = self._proj_dates[row]
             self.date_edit.setDate(target_date)
+            self.tabs.setCurrentIndex(0)
+
+    def _on_serp_combo_changed(self, idx):
+        if idx == 5:
+            self.serp_custom_frame.setVisible(True)
+            return
+        self.serp_custom_frame.setVisible(False)
+        if 0 <= idx < len(self.converter.DRESDEN_SERPENTS_DATA):
+            s = self.converter.DRESDEN_SERPENTS_DATA[idx]
+            multipliers_6 = [2880000, 144000, 7200, 360, 20, 1]
+            dist_days = sum(p * m for p, m in zip(s['serpent_parts'], multipliers_6))
+            self._render_serpent_result(s['ring_days'], dist_days, s.get('meaning', ''))
+
+    def _on_serp_custom_calc(self):
+        r_days = self.serp_custom_ring.value()
+        d_days = self.serp_custom_dist.value()
+        self._render_serpent_result(r_days, d_days, "Serpiente personalizada de entrada libre.")
+
+    def _render_serpent_result(self, ring_days, dist_days, meaning_note=""):
+        res = self.converter.resolve_serpent_series(ring_days, dist_days)
+        base_y, base_m, base_d = res['ring_base_date']
+        arr_y, arr_m, arr_d = res['arrival_date']
+        
+        self._serp_base_date = ChronoDate(base_y, base_m, base_d)
+        self._serp_arrival_date = ChronoDate(arr_y, arr_m, arr_d)
+        
+        ring_parts = []
+        rem = ring_days
+        for m in [144000, 7200, 360, 20, 1]:
+            ring_parts.append(rem // m)
+            rem %= m
+        while len(ring_parts) > 3 and ring_parts[0] == 0:
+            ring_parts.pop(0)
+        ring_str = ".".join(str(p) for p in ring_parts)
+        self.lbl_serp_ring_val.setText(f"{ring_str} (-{ring_days:,} días)")
+        self.lbl_serp_ring_sub.setText("Restados antes de la Creación 13.0.0.0.0 (JDN 584283)")
+
+        b_era = f"{abs(base_y)+1} a.C." if base_y <= 0 else f"{base_y} d.C."
+        base_cr = res['ring_base_data']['calendar_round']
+        base_lc = res['ring_base_data']['long_count']
+        self.lbl_serp_base_val.setText(f"{base_lc} ({base_cr})")
+        self.lbl_serp_base_sub.setText(f"Fecha Astronómica: {base_d:02d}/{base_m:02d}/{b_era} (JDN {res['ring_base_jdn']:,})")
+
+        yrs = round(dist_days / 365.2422, 1)
+        self.lbl_serp_dist_val.setText(f"+{dist_days:,} días (~{yrs:,.0f} años)")
+        self.lbl_serp_dist_sub.setText(meaning_note if meaning_note else "Intervalo colosal de Tiempo Profundo")
+
+        a_era = f"{abs(arr_y)+1} a.C." if arr_y <= 0 else f"{arr_y} d.C."
+        arr_cr = res['arrival_data']['calendar_round']
+        arr_lc = res['arrival_data']['long_count']
+        self.lbl_serp_arr_val.setText(f"{arr_lc} ({arr_cr})")
+        self.lbl_serp_arr_sub.setText(f"Fecha Terminal: {arr_d:02d}/{arr_m:02d}/{a_era} (JDN {res['arrival_jdn']:,})")
+
+    def _jump_from_serp_arrival(self):
+        if hasattr(self, '_serp_arrival_date'):
+            self.date_edit.setDate(self._serp_arrival_date)
+            self.tabs.setCurrentIndex(0)
+
+    def _jump_from_serp_base(self):
+        if hasattr(self, '_serp_base_date'):
+            self.date_edit.setDate(self._serp_base_date)
+            self.tabs.setCurrentIndex(0)
+
+    def _on_s364_combo_changed(self, idx):
+        self._exec_season_station_jump()
+
+    def _exec_season_station_jump(self):
+        cur_d = self.date_edit.date()
+        base_jdn = self.converter._gregorian_to_jdn(cur_d.year, cur_d.month, cur_d.day)
+        start_days = base_jdn - self.converter.correlation_jdn
+        
+        idx = self.s364_combo.currentIndex()
+        if idx < 4:
+            res = self.converter.get_next_season_364_station(start_days, target_quarter=idx)
+            gy, gm, gd = res["dest_gregorian"]
+            d_data = res["dest_data"]
+            delta = res["delta_days"]
+            s_data = d_data["season_364_data"]
+            self._last_season_dest_date = ChronoDate(gy, gm, gd)
+            self.btn_goto_s364.setEnabled(True)
+            
+            g_era = f"{abs(gy)+1} a.C." if gy <= 0 else f"{gy:04d} d.C."
+            self.s364_result_box.setText(
+                f"<b>🌿 PRÓXIMA ESTACIÓN: <span style='color:#2ECC71; font-size:13px;'>{s_data['glyph']} {s_data['season']} ({s_data['quarter_name']})</span></b> "
+                f"— <b><span style='color:#F4D03F;'>{gd:02d}/{gm:02d}/{g_era}</span></b> (+{delta:,} días)<br>"
+                f"• <b>Deidad Regente:</b> {s_data['deity']} • <b>Ritual:</b> {s_data['ritual']}<br>"
+                f"• <b>Cuenta Larga:</b> <span style='color:#F1C40F'>{d_data['long_count']}</span> • "
+                f"<b>Rueda Calendárica:</b> {d_data['calendar_round']} • <b>Señor:</b> {d_data['lord']}<br>"
+                f"• <b>Gran Ciclo 1,820d:</b> Año {s_data['year_of_five']}/5 • Paso Tzolk'in {s_data['tzolkin_round']}/7"
+            )
+        else:
+            rem = start_days % 1820
+            delta = 1820 - rem if rem != 0 else 1820
+            dest_days = start_days + delta
+            dest_jdn = self.converter.correlation_jdn + dest_days
+            gy, gm, gd = self.converter._jdn_to_gregorian(dest_jdn)
+            d_data = self.converter.get_full_date(gy, gm, gd)
+            s_data = d_data["season_364_data"]
+            self._last_season_dest_date = ChronoDate(gy, gm, gd)
+            self.btn_goto_s364.setEnabled(True)
+            
+            g_era = f"{abs(gy)+1} a.C." if gy <= 0 else f"{gy:04d} d.C."
+            self.s364_result_box.setText(
+                f"<b>⚡ GRAN RETORNO DE 1,820 DÍAS: <span style='color:#F1C40F; font-size:13px;'>{gd:02d}/{gm:02d}/{g_era}</span></b> (+{delta:,} días)<br>"
+                f"• <b>Conmensurabilidad:</b> 5 Años de 364d = 7 Giros Sagrados de 260d (Tzolk'in exactos)<br>"
+                f"• <b>Cuenta Larga:</b> <span style='color:#F1C40F'>{d_data['long_count']}</span> • "
+                f"<b>Tzolk'in:</b> {d_data['tzolkin']} • <b>Haab':</b> {d_data['haab']} • <b>Señor:</b> {d_data['lord']}"
+            )
+
+    def _jump_from_season_result(self):
+        if hasattr(self, '_last_season_dest_date'):
+            self.date_edit.setDate(self._last_season_dest_date)
+            self.tabs.setCurrentIndex(0)
+
+    def _on_mars_combo_changed(self, idx):
+        self._exec_mars_station_jump()
+
+    def _exec_mars_station_jump(self):
+        cur_d = self.date_edit.date()
+        base_jdn = self.converter._gregorian_to_jdn(cur_d.year, cur_d.month, cur_d.day)
+        start_days = base_jdn - self.converter.correlation_jdn
+        
+        idx = self.mars_combo.currentIndex()
+        if idx < 10:
+            res = self.converter.get_next_mars_station(start_days, target_station=idx)
+            gy, gm, gd = res["dest_gregorian"]
+            d_data = res["dest_data"]
+            delta = res["delta_days"]
+            m_data = d_data["mars_dresden_data"]
+            self._last_mars_dest_date = ChronoDate(gy, gm, gd)
+            self.btn_goto_mars.setEnabled(True)
+            
+            g_era = f"{abs(gy)+1} a.C." if gy <= 0 else f"{gy:04d} d.C."
+            retro_badge = "<span style='color:#E74C3C; font-weight:bold;'>[Bucle Retrógrado - Bestia Celeste]</span> " if m_data.get("is_retrograde") else ""
+            self.mars_result_box.setText(
+                f"<b>☄️ PRÓXIMA ESTACIÓN DE MARTE: <span style='color:#E74C3C; font-size:13px;'>{m_data['station_glyph']} {m_data['station_tzolkin']} — {m_data['phase_name']}</span></b> "
+                f"— <b><span style='color:#F4D03F;'>{gd:02d}/{gm:02d}/{g_era}</span></b> (+{delta:,} días)<br>"
+                f"• {retro_badge}<b>Estado de la Bestia:</b> {m_data['beast_state']} │ <b>Dinámica:</b> {m_data['status']}<br>"
+                f"• <b>Cuenta Larga:</b> <span style='color:#F1C40F'>{d_data['long_count']}</span> • "
+                f"<b>Rueda Calendárica:</b> {d_data['calendar_round']} • <b>Señor:</b> {d_data['lord']}<br>"
+                f"• <b>Acto:</b> {m_data['act_name']} • <b>Macro-Tun:</b> Ciclo {m_data['mars_cycle_of_12']}/12 (Tun {m_data['tun_of_26']}/26)"
+            )
+        elif idx == 10:
+            # 9,360-Day Super-Tun Commensurability (12 Mars = 26 Tuns = 36 Tzolk'in)
+            rem = (start_days - self.converter.DRESDEN_MARS_BASE_DAYS) % 9360
+            delta = 9360 - rem if rem != 0 else 9360
+            dest_days = start_days + delta
+            dest_jdn = self.converter.correlation_jdn + dest_days
+            gy, gm, gd = self.converter._jdn_to_gregorian(dest_jdn)
+            d_data = self.converter.get_full_date(gy, gm, gd)
+            m_data = d_data["mars_dresden_data"]
+            self._last_mars_dest_date = ChronoDate(gy, gm, gd)
+            self.btn_goto_mars.setEnabled(True)
+            
+            g_era = f"{abs(gy)+1} a.C." if gy <= 0 else f"{gy:04d} d.C."
+            self.mars_result_box.setText(
+                f"<b>⚡ SUPER-TUN DE MARTE DE 9,360 DÍAS: <span style='color:#F1C40F; font-size:13px;'>{gd:02d}/{gm:02d}/{g_era}</span></b> (+{delta:,} días)<br>"
+                f"• <b>Conmensurabilidad Dresde:</b> 12 Ciclos de Marte (780d) = 26 Tuns (360d) = 36 Tzolk'in (260d)<br>"
+                f"• <b>Cuenta Larga:</b> <span style='color:#F1C40F'>{d_data['long_count']}</span> • "
+                f"<b>Tzolk'in:</b> {d_data['tzolkin']} • <b>Haab':</b> {d_data['haab']} • <b>Señor:</b> {d_data['lord']}<br>"
+                f"• <b>Estación Marte:</b> {m_data['station_glyph']} {m_data['station_tzolkin']} ({m_data['phase_name']})"
+            )
+        else:
+            # 56,940-Day Grand Return (73 Mars = 156 Haab' = 3 Calendar Rounds)
+            rem = (start_days - self.converter.DRESDEN_MARS_BASE_DAYS) % 56940
+            delta = 56940 - rem if rem != 0 else 56940
+            dest_days = start_days + delta
+            dest_jdn = self.converter.correlation_jdn + dest_days
+            gy, gm, gd = self.converter._jdn_to_gregorian(dest_jdn)
+            d_data = self.converter.get_full_date(gy, gm, gd)
+            m_data = d_data["mars_dresden_data"]
+            self._last_mars_dest_date = ChronoDate(gy, gm, gd)
+            self.btn_goto_mars.setEnabled(True)
+            
+            g_era = f"{abs(gy)+1} a.C." if gy <= 0 else f"{gy:04d} d.C."
+            self.mars_result_box.setText(
+                f"<b>🌌 GRAN RETORNO DE MARTE DE 56,940 DÍAS: <span style='color:#E74C3C; font-size:13px;'>{gd:02d}/{gm:02d}/{g_era}</span></b> (+{delta:,} días)<br>"
+                f"• <b>Conmensurabilidad Cósmica:</b> 73 Ciclos de Marte (780d) = 156 Años Haab' (365d) = 3 Ruedas Calendáricas (18,980d)<br>"
+                f"• <b>Cuenta Larga:</b> <span style='color:#F1C40F'>{d_data['long_count']}</span> • "
+                f"<b>Tzolk'in:</b> {d_data['tzolkin']} • <b>Haab':</b> {d_data['haab']} • <b>Señor:</b> {d_data['lord']}<br>"
+                f"• <b>Estación Marte:</b> {m_data['station_glyph']} {m_data['station_tzolkin']} ({m_data['phase_name']})"
+            )
+
+    def _jump_from_mars_result(self):
+        if hasattr(self, '_last_mars_dest_date'):
+            self.date_edit.setDate(self._last_mars_dest_date)
             self.tabs.setCurrentIndex(0)
 
     def _setup_biological_tab(self):
@@ -3315,6 +4918,7 @@ class MayanSteleApp(QMainWindow):
             data["tzolkin_idx"],
             data["haab_idx"],
             (data["days_since_epoch"] + 8) % 9,
+            data.get("zodiac_idx", 0),
             data["tzolkin"],
             data["tzolkin_glyph"],
             data["haab"]
@@ -3342,14 +4946,35 @@ class MayanSteleApp(QMainWindow):
         self.panel_lord.update_data(data["lord"], data["lord_name"])
         self.panel_venus.update_data(
             f"Day {data['venus_pos']} / 584",
-            f"Canon 584d • NASA: {data['venus_astro_pos']}d\n{data['venus_phase']}"
+            f"Canon 584d • NASA: {data['venus_astro_pos']}d • {data['venus_phase']}"
         )
         if hasattr(self, 'venus_bar'):
             self.venus_bar.set_position(data["venus_pos"])
             
+        # Dresden Mars Table & Celestial Beast Panel
+        if hasattr(self, 'panel_mars'):
+            m_data = data.get("mars_dresden_data", {})
+            m_glyph = m_data.get("station_glyph", "☄️")
+            m_tz = m_data.get("station_tzolkin", "3 Lamat")
+            m_d_st = m_data.get("day_in_station", 1)
+            m_pos = m_data.get("mars_pos", 0)
+            m_phase = m_data.get("phase_name", "")
+            m_beast = m_data.get("beast_state", "")
+            m_act = m_data.get("act_num", 1)
+            m_act_name = m_data.get("act_name", "")
+            m_next_st = m_data.get("next_station", "")
+            m_to_next = m_data.get("days_to_next", 78)
+            m_cyc12 = m_data.get("mars_cycle_of_12", 1)
+            self.panel_mars.update_data(
+                f"{m_glyph} {m_tz} • Día {m_d_st}/78 ({m_pos}/780d)",
+                f"{m_phase} │ {m_beast}\nActo {m_act}/3 ({m_act_name}) • Próx: {m_next_st} en {m_to_next}d │ Macro: 12 Marte = 26 Tuns (M{m_cyc12}/12)"
+            )
+            if hasattr(self, 'mars_bar'):
+                self.mars_bar.set_position(m_pos)
+            
         self.panel_moon.update_data(
             data["moon_phase"],
-            f"Moon Age: {data['moon_age']:.1f}d • {data['moon_illumination']} Iluminada"
+            f"Moon Age: {data['moon_age']:.1f}d • {data['moon_illumination']} Ilum."
         )
         self.panel_lunar_series.update_data(
             f"C: {data['glyph_c']} | A: {data['glyph_a']}",
@@ -3361,6 +4986,39 @@ class MayanSteleApp(QMainWindow):
             f"{dc[3]} Piktun",
             f"Kalabtun: {dc[2]} | Kinchiltun: {dc[1]}"
         )
+        # Paris Codex Zodiac Panel
+        if hasattr(self, 'panel_zodiac'):
+            z_name = data.get("zodiac_name", "")
+            z_glyph = data.get("zodiac_glyph", "")
+            z_spanish = data.get("zodiac_spanish", "")
+            z_western = data.get("zodiac_western", "")
+            z_deg = data.get("zodiac_ecliptic_deg", 0.0)
+            z_range = data.get("zodiac_range", "")
+            z_meaning = data.get("zodiac_meaning", "")
+            self.panel_zodiac.update_data(
+                f"{z_glyph} {z_name} — {z_spanish}",
+                f"Constelación Eclíptica: {z_western} • Longitud Solar: {z_deg:.1f}° ({z_range})\n✦ Cosmovisión: {z_meaning}"
+            )
+        # 364-Day Computing Year & 4 Seasons Panel
+        if hasattr(self, 'panel_season_364'):
+            s364 = data.get("season_364_data", {})
+            q_name = s364.get("quarter_name", "")
+            q_glyph = s364.get("glyph", "🌿")
+            d_in_q = s364.get("day_in_quarter", 1)
+            d_364 = s364.get("day_in_364", 0)
+            season = s364.get("season", "")
+            deity = s364.get("deity", "")
+            trec = s364.get("trecena_idx", 1)
+            d_to_next = s364.get("days_to_next", 91)
+            next_st = s364.get("next_season", "")
+            y5 = s364.get("year_of_five", 1)
+            t7 = s364.get("tzolkin_round", 1)
+            self.panel_season_364.update_data(
+                f"{q_glyph} {q_name} • Día {d_in_q}/91 ({d_364}/364d)",
+                f"Estación: {season} • {deity} │ Trecena {trec}/7 • Próx: {next_st} en {d_to_next}d │ Ciclo 1,820d: Año {y5}/5"
+            )
+            if hasattr(self, 'season_364_bar'):
+                self.season_364_bar.set_position(d_364)
         self._current_mayan_data = data
         if hasattr(self, '_update_biological_tab'):
             self._update_biological_tab(data)
@@ -3377,8 +5035,8 @@ class MayanSteleApp(QMainWindow):
         """Alterna entre el modo Ventanas Holísticas (Solitones), Cronológico y Picos de Potencia."""
         self.fractal_view_mode = mode
         
-        style_active = "background: #2E4053; color: #F1C40F; border: 1px solid #F1C40F; font-size: 11px; padding: 6px 12px; font-weight: bold;"
-        style_inactive = "background: #252220; color: #aaa; border: 1px solid #444; font-size: 11px; padding: 6px 12px;"
+        style_active = "background: #2E4053; color: #F1C40F; border: 1px solid #F1C40F; font-size: 11px; padding: 4px 10px; font-weight: bold; border-radius: 4px;"
+        style_inactive = "background: #252220; color: #aaa; border: 1px solid #444; font-size: 11px; padding: 4px 10px; border-radius: 4px;"
         
         self.btn_view_packets.setStyleSheet(style_active if mode == "packets" else style_inactive)
         self.btn_view_chrono.setStyleSheet(style_active if mode == "chrono" else style_inactive)
@@ -3397,15 +5055,14 @@ class MayanSteleApp(QMainWindow):
         if total_days < 1:
             total_days = 1
             
-        start_datetime = datetime(start_date.year(), start_date.month(), start_date.day())
+        start_datetime = start_date
         selected = [name for name, cb in self.cycle_checks.items() if cb.isChecked()]
         
         natal_days = None
         if hasattr(self, 'cb_natal_mode') and self.cb_natal_mode.isChecked():
             n_date = self.date_natal.date()
-            if n_date != self.date_natal.minimumDate():
-                natal_data = self.converter.get_full_date(n_date.year(), n_date.month(), n_date.day())
-                natal_days = natal_data['days_since_epoch']
+            natal_data = self.converter.get_full_date(n_date.year, n_date.month, n_date.day)
+            natal_days = natal_data['days_since_epoch']
 
         # Actualizar estado visual de la UI (bloqueo suave del botón y feedback inmediato)
         self.btn_analyze.setEnabled(False)
@@ -3677,7 +5334,7 @@ class MayanSteleApp(QMainWindow):
 
     def _on_timeline_date_clicked(self, date):
         """Navega el calendario principal a la fecha clickeada en el osciloscopio."""
-        self.date_edit.setDate(QDate(date.year, date.month, date.day))
+        self.date_edit.setDate((date.year, date.month, date.day))
         self.convert_date()
         self.tabs.setCurrentIndex(0)  # Llevar al usuario a la vista de calendario
 
@@ -3722,7 +5379,7 @@ class MayanSteleApp(QMainWindow):
         year, month, day = self.converter.long_count_to_gregorian(*parts)
         # Block signals to avoid circular update loop
         self.date_edit.blockSignals(True)
-        self.date_edit.setDate(QDate(year, month, day))
+        self.date_edit.setDate((year, month, day))
         self.date_edit.blockSignals(False)
         self.convert_date()
 

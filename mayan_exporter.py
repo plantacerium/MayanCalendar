@@ -112,6 +112,18 @@ class MayanProfileExporter:
                 "mars": {
                     "canonical_pos_780": full_data.get("mars_pos")
                 },
+                "paris_codex_zodiac": {
+                    "constellation_idx": full_data.get("zodiac_idx"),
+                    "name": full_data.get("zodiac_name"),
+                    "spanish_name": full_data.get("zodiac_spanish"),
+                    "glyph": full_data.get("zodiac_glyph"),
+                    "western_equivalent": full_data.get("zodiac_western"),
+                    "solar_ecliptic_deg": full_data.get("zodiac_ecliptic_deg"),
+                    "sector_range": full_data.get("zodiac_range"),
+                    "cosmovision": full_data.get("zodiac_meaning")
+                },
+                "computing_year_364": full_data.get("season_364_data", {}),
+                "dresden_mars_table": full_data.get("mars_dresden_data", {}),
                 "kawiil_819": {
                     "position_819": full_data.get("kawiil_pos"),
                     "quadrant_direction": full_data.get("kawiil_color")
@@ -196,8 +208,16 @@ class MayanProfileExporter:
         md.append("## 🌌 Observatorio Planetario & Serie Lunar")
         md.append("| Ciclo Celeste | Posición | Fase / Arquetipo |")
         md.append("| :--- | :--- | :--- |")
+        if full_data.get("zodiac_name"):
+            md.append(f"| **Zodíaco Maya (Códice de París)** | {full_data.get('zodiac_glyph','')} **{full_data.get('zodiac_name','')}** ({full_data.get('zodiac_spanish','')}) | Región: `{full_data.get('zodiac_western','')}` • Solar: `{full_data.get('zodiac_ecliptic_deg', 0)}°` ({full_data.get('zodiac_range','')}) |")
+        if full_data.get("season_364_station"):
+            md.append(f"| **Año Estacional 364d (Dresde)** | {full_data.get('season_364_glyph','')} **{full_data.get('season_364_station','')}** ({full_data.get('season_364_quarter_name','')}) | Día `{full_data.get('season_364_day_in_quarter', 1)}`/91 (Año: `{full_data.get('season_364_day', 0)}`/364d) • {full_data.get('season_364_deity','')} |")
         md.append(f"| **Venus (Códice Dresde)** | Día `{v_pos}` / 584d | **{v_phase}** (Astrométrico NASA: `{v_nasa}`d) |")
-        md.append(f"| **Marte (Sinódico)** | Día `{full_data.get('mars_pos',0)}` / 780d | Ciclo bélico y agrícola de 780 días |")
+        if full_data.get("mars_station_tzolkin"):
+            m_retro = " [⚠️ Bucle Retrógrado - Bestia Celeste]" if full_data.get("mars_is_retrograde") else ""
+            md.append(f"| **Marte (Códice Dresde pp. 43b-45b)** | Día `{full_data.get('mars_pos',0)}` / 780d | {full_data.get('mars_station_glyph','')} **{full_data.get('mars_station_tzolkin','')}** • Día `{full_data.get('mars_day_in_station',1)}`/78 • {full_data.get('mars_phase_name','')}{m_retro} |")
+        else:
+            md.append(f"| **Marte (Sinódico)** | Día `{full_data.get('mars_pos',0)}` / 780d | Ciclo bélico y agrícola de 780 días |")
         md.append(f"| **Luna (Fase & Disco)** | Edad `{m_age:.1f}` días | {m_phase} • Iluminación: `{m_illum}` |")
         md.append(f"| **Serie Suplementaria** | Lunación `{full_data.get('glyph_c', 1)}` de 6 | Glifo C: {full_data.get('glyph_c', 1)} • Glifo A: {full_data.get('glyph_a', 30)}d • Glifo X: {full_data.get('glyph_x', '')} |")
         md.append("")
@@ -271,7 +291,10 @@ class MayanProfileExporter:
             f"║  Señor de la Noche:  {lord:<51} ║",
             f"║  Ciclo 819 (K'awiil):{kaw:<51} ║",
             "╟──────────────────────────────────────────────────────────────────────────╢",
+            f"║  Zodíaco París:      {full_data.get('zodiac_glyph','')} {full_data.get('zodiac_name','')} ({full_data.get('zodiac_spanish','')}) • Solar: {full_data.get('zodiac_ecliptic_deg', 0)}°{' ' * 20} ║",
+            f"║  Año 364d (Dresde):  {full_data.get('season_364_glyph','')} {full_data.get('season_364_station','')} ({full_data.get('season_364_cardinal','')}) • Día {full_data.get('season_364_day_in_quarter', 1)}/91{' ' * 10} ║",
             f"║  Ciclo de Venus:     Día {v_pos}/584 • {v_phase:<39} ║",
+            f"║  Marte (Dresde 780d): Día {full_data.get('mars_pos',0):<3}/780 • {full_data.get('mars_station_glyph','')} {full_data.get('mars_station_tzolkin','')} ({full_data.get('mars_day_in_station',1)}/78d){' [RETRÓGRADO]' if full_data.get('mars_is_retrograde') else ''}{' ' * 15} ║",
             f"║  Ciclo Lunar:        {m_phase} • Ilum: {m_illum:<36} ║",
             f"║  Serie Lunar:        Glifo C: {full_data.get('glyph_c', 1)} • Glifo A: {full_data.get('glyph_a', 30)}d • {full_data.get('glyph_x', ''):<24} ║",
         ]

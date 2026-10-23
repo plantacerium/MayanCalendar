@@ -235,6 +235,80 @@ TOOLS = [
             },
             "required": ["year", "month", "day"]
         }
+    },
+    {
+        "name": "mayan_get_paris_zodiac",
+        "description": "Determina la constelación de la eclíptica maya del Códice de París (pp. 21-24) donde transita el Sol en la fecha dada (algoritmo Jean Meeus para longitud solar eclíptica y las 13 constelaciones: Tzab, Ak, K'ek'en, Chuen, Koh, K'uk'ul, Chitam, Zina'an, Balam, Sotz', Muan, Pez, Xoc). Si se omiten los argumentos de fecha, devuelve el catálogo completo de las 13 constelaciones.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "year": {"type": "integer", "description": "Año gregoriano (opcional)"},
+                "month": {"type": "integer", "description": "Mes gregoriano 1-12 (opcional)"},
+                "day": {"type": "integer", "description": "Día del mes 1-31 (opcional)"}
+            }
+        }
+    },
+    {
+        "name": "mayan_resolve_serpent_series",
+        "description": "Calcula y resuelve las Cuentas Serpentinas y Números de Anillo (Ring Numbers) del Códice de Dresde (pp. 61–69). Permite seleccionar una de las 5 serpientes canónicas (0 a 4) o proporcionar días de Número de Anillo y Número de Distancia personalizados para explorar la cronología mítica del Tiempo Profundo (~33,000 años antes y después de la Creación 13.0.0.0.0 4 Ahau 8 Cumku).",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "serpent_index": {
+                    "type": "integer",
+                    "description": "Índice de serpiente canónica de Dresde (0: p. 61a 4 Chicchan, 1: p. 62a 12 Lamat, 2: p. 62b 7 Ahau, 3: p. 63a 4 Ahau, 4: p. 69 Diluvio Chak Chel). Si se especifica, usa sus parámetros arqueológicos exactos.",
+                    "minimum": 0,
+                    "maximum": 4
+                },
+                "ring_days": {
+                    "type": "integer",
+                    "description": "Días del Número de Anillo (restados antes de la Creación 13.0.0.0.0 JDN 584283). Requerido si serpent_index no se especifica."
+                },
+                "serpent_distance_days": {
+                    "type": "integer",
+                    "description": "Días de distancia serpentina acumulados a sumar desde la Fecha Base Primordial. Requerido si serpent_index no se especifica."
+                },
+                "correlation": {
+                    "type": "string",
+                    "enum": ["GMT", "GMT+2", "Spinden"],
+                    "description": "Correlación arqueológica. Por defecto GMT (584283)."
+                }
+            }
+        }
+    },
+    {
+        "name": "mayan_get_364_day_season",
+        "description": "Calcula el Cómputo de 364 Días y las 4 Estaciones Sagradas del Códice de Dresde (pp. 65a-69b). Devuelve el cuadrante cardinal (Este/Lak'in, Norte/Xaman, Oeste/Chik'in, Sur/Nohol), la manifestación del dios de la lluvia Chac, la trecena activa (1 a 7 dentro de los 91 días), la distancia en días al próximo equinoccio/solsticio computacional y la posición en el Gran Ciclo conmensurable de 1,820 días (5 x 364 = 7 x 260 Tzolk'in).",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "year": {"type": "integer", "description": "Año gregoriano o astronómico (opcional, por defecto hoy)"},
+                "month": {"type": "integer", "description": "Mes gregoriano 1-12 (opcional)"},
+                "day": {"type": "integer", "description": "Día del mes 1-31 (opcional)"},
+                "correlation": {
+                    "type": "string",
+                    "enum": ["GMT", "GMT+2", "Spinden"],
+                    "description": "Correlación arqueológica. Por defecto GMT (584283)."
+                }
+            }
+        }
+    },
+    {
+        "name": "mayan_get_mars_table",
+        "description": "Calcula el estado astronómico y epígrafe de la Tabla de Marte y la Bestia Celeste del Códice de Dresde (pp. 43b-45b — ciclo sinódico de 780 días, 3 x 260d Tzolk'in). Determina la estación activa de las 10 estaciones de 78 días (todas con coeficiente sagrado 3), la fase de retrogradación y estado de la Bestia Celeste (días 312 a 468 con oposición solar a los 390 días en 3 Etznab), la distancia en días al próximo hito y las conmensurabilidades cósmicas del Super-Tun de 9,360 días (12 Marte = 26 Tuns = 36 Tzolk'in) y del Gran Retorno de 56,940 días (73 Marte = 156 Haab' = 3 Ruedas Calendáricas).",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "year": {"type": "integer", "description": "Año gregoriano o astronómico (opcional, por defecto hoy)"},
+                "month": {"type": "integer", "description": "Mes gregoriano 1-12 (opcional)"},
+                "day": {"type": "integer", "description": "Día del mes 1-31 (opcional)"},
+                "correlation": {
+                    "type": "string",
+                    "enum": ["GMT", "GMT+2", "Spinden"],
+                    "description": "Correlación arqueológica. Por defecto GMT (584283)."
+                }
+            }
+        }
     }
 ]
 
@@ -292,6 +366,16 @@ def execute_tool(name, args):
             "lord": full_data["lord"],
             "venus_phase": full_data["venus_phase"],
             "moon_phase": full_data["moon_phase"],
+            "paris_codex_zodiac": {
+                "idx": full_data["zodiac_idx"],
+                "name": full_data["zodiac_name"],
+                "spanish": full_data["zodiac_spanish"],
+                "glyph": full_data["zodiac_glyph"],
+                "western": full_data["zodiac_western"],
+                "solar_ecliptic_deg": full_data["zodiac_ecliptic_deg"],
+                "range": full_data["zodiac_range"],
+                "cosmovision": full_data["zodiac_meaning"]
+            },
             "jdn": full_data["jdn"]
         }
         return json.dumps(result, ensure_ascii=False, indent=2)
@@ -326,7 +410,13 @@ def execute_tool(name, args):
             "destination_tzolkin": dest_data["tzolkin"],
             "destination_haab": dest_data["haab"],
             "destination_calendar_round": dest_data["calendar_round"],
-            "destination_lord": dest_data["lord"]
+            "destination_lord": dest_data["lord"],
+            "destination_paris_zodiac": {
+                "name": dest_data["zodiac_name"],
+                "spanish": dest_data["zodiac_spanish"],
+                "glyph": dest_data["zodiac_glyph"],
+                "western": dest_data["zodiac_western"]
+            }
         }, ensure_ascii=False, indent=2)
 
     elif name == "mayan_calculate_resonance":
@@ -573,6 +663,216 @@ def execute_tool(name, args):
             return MayanProfileExporter.export_svg(full_data, gregorian_date_str=date_str)
         else:
             return MayanProfileExporter.export_markdown(full_data, gregorian_date_str=date_str, correlation_name=corr_label)
+
+    elif name == "mayan_get_paris_zodiac":
+        year = args.get("year")
+        month = args.get("month")
+        day = args.get("day")
+        if year is not None and month is not None and day is not None:
+            jdn = converter._gregorian_to_jdn(year, month, day)
+            z = converter.get_paris_zodiac(jdn)
+            return json.dumps({
+                "date": f"{year:04d}-{month:02d}-{day:02d}",
+                "solar_ecliptic_longitude_deg": z["zodiac_ecliptic_deg"],
+                "constellation_index": z["zodiac_idx"],
+                "maya_name": z["zodiac_name"],
+                "spanish_name": z["zodiac_spanish"],
+                "glyph": z["zodiac_glyph"],
+                "western_equivalent": z["zodiac_western"],
+                "ecliptic_sector": z["zodiac_range"],
+                "cosmovision": z["zodiac_meaning"]
+            }, ensure_ascii=False, indent=2)
+        else:
+            all_zodiac = []
+            seg_size = 360.0 / 13.0
+            for i, item in enumerate(converter.PARIS_ZODIAC_DATA):
+                all_zodiac.append({
+                    "index": i,
+                    "maya_name": item[0],
+                    "spanish_name": item[1],
+                    "glyph": item[2],
+                    "western_equivalent": item[3],
+                    "ecliptic_range": f"{i*seg_size:.1f}° – {(i+1)*seg_size:.1f}°",
+                    "cosmovision": item[6]
+                })
+            return json.dumps({
+                "system": "Maya Ecliptic Zodiac (Paris Codex pp. 21-24)",
+                "total_constellations": 13,
+                "constellations": all_zodiac
+            }, ensure_ascii=False, indent=2)
+
+    elif name == "mayan_resolve_serpent_series":
+        multipliers_6 = [2880000, 144000, 7200, 360, 20, 1]
+        s_idx = args.get("serpent_index")
+        if s_idx is not None and 0 <= s_idx < len(converter.DRESDEN_SERPENTS_DATA):
+            canon = converter.DRESDEN_SERPENTS_DATA[s_idx]
+            ring_days = canon["ring_days"]
+            dist_days = sum(p * m for p, m in zip(canon["serpent_parts"], multipliers_6))
+            metadata = {
+                "id": canon["id"],
+                "page": canon["page"],
+                "name": canon["name"],
+                "meaning": canon["meaning"],
+                "ring_parts": canon["ring_parts"],
+                "serpent_parts": canon["serpent_parts"]
+            }
+        else:
+            ring_days = args.get("ring_days", 511)
+            dist_days = args.get("serpent_distance_days", 12381728)
+            metadata = {"custom": True}
+
+        res = converter.resolve_serpent_series(ring_days, dist_days)
+        base_y, base_m, base_d = res["ring_base_date"]
+        arr_y, arr_m, arr_d = res["arrival_date"]
+
+        output = {
+            "metadata": metadata,
+            "ring_number": {
+                "days_before_creation": ring_days,
+                "creation_epoch_jdn": converter.correlation_jdn
+            },
+            "primordial_base_date": {
+                "jdn": res["ring_base_jdn"],
+                "astronomical_year": base_y,
+                "historical_date": f"{abs(base_y)+1} a.C." if base_y <= 0 else f"{base_y} d.C.",
+                "gregorian_formatted": f"{base_d:02d}/{base_m:02d}/{abs(base_y)+1 if base_y <= 0 else base_y:04d} ({'a.C.' if base_y <= 0 else 'd.C.'})",
+                "long_count": res["ring_base_data"]["long_count"],
+                "tzolkin": res["ring_base_data"]["tzolkin"],
+                "haab": res["ring_base_data"]["haab"],
+                "calendar_round": res["ring_base_data"]["calendar_round"],
+                "lord_of_night": res["ring_base_data"]["lord"]
+            },
+            "serpent_distance": {
+                "days": dist_days,
+                "approx_solar_years": round(dist_days / 365.2422, 2)
+            },
+            "terminal_arrival_date": {
+                "jdn": res["arrival_jdn"],
+                "astronomical_year": arr_y,
+                "historical_date": f"{abs(arr_y)+1} a.C." if arr_y <= 0 else f"{arr_y} d.C.",
+                "gregorian_formatted": f"{arr_d:02d}/{arr_m:02d}/{abs(arr_y)+1 if arr_y <= 0 else arr_y:04d} ({'a.C.' if arr_y <= 0 else 'd.C.'})",
+                "long_count": res["arrival_data"]["long_count"],
+                "tzolkin": res["arrival_data"]["tzolkin"],
+                "haab": res["arrival_data"]["haab"],
+                "calendar_round": res["arrival_data"]["calendar_round"],
+                "lord_of_night": res["arrival_data"]["lord"],
+                "venus_phase": res["arrival_data"]["venus_phase"],
+                "moon_phase": res["arrival_data"]["moon_phase"],
+                "paris_zodiac": res["arrival_data"].get("zodiac_constellation")
+            }
+        }
+        return json.dumps(output, ensure_ascii=False, indent=2)
+
+    elif name == "mayan_get_364_day_season":
+        year = args.get("year")
+        month = args.get("month")
+        day = args.get("day")
+        if year is not None and month is not None and day is not None:
+            jdn = converter._gregorian_to_jdn(year, month, day)
+        else:
+            now = datetime.now()
+            year, month, day = now.year, now.month, now.day
+            jdn = converter._gregorian_to_jdn(year, month, day)
+
+        days_since_epoch = jdn - converter.correlation_jdn
+        s = converter.get_computing_year_364(days_since_epoch)
+        next_station = converter.get_next_season_364_station(days_since_epoch)
+
+        ny, nm, nd = next_station["dest_gregorian"]
+        n_era = f"{abs(ny)+1} a.C." if ny <= 0 else f"{ny:04d} d.C."
+
+        res = {
+            "date": f"{year:04d}-{month:02d}-{day:02d}",
+            "days_since_epoch": days_since_epoch,
+            "computing_year_364": {
+                "day_in_year_364": s["day_in_364"],
+                "quarter_index": s["quarter_idx"],
+                "cardinal_direction": s["cardinal"],
+                "maya_direction_name": s["maya_name"],
+                "sacred_color": s["color"],
+                "solar_station": s["season"],
+                "chac_deity": s["deity"],
+                "ritual_meaning": s["ritual"],
+                "day_in_quarter_91": s["day_in_quarter"],
+                "trecena_index_of_7": s["trecena_idx"],
+                "day_in_trecena_of_13": s["day_in_trecena"],
+                "days_to_next_station": s["days_to_next"],
+                "next_station_name": s["next_season"],
+                "next_station_direction": s["next_cardinal"],
+                "next_station_date": f"{nd:02d}/{nm:02d}/{n_era}"
+            },
+            "macro_cycles": {
+                "great_cycle_1820_day": s["macro_1820_pos"],
+                "year_of_five_in_1820": s["year_of_five"],
+                "tzolkin_pass_in_1820": s["tzolkin_round"],
+                "tzolkin_conmensurability": s["conmensurability_tzolkin"],
+                "kawiil_819_conmensurability": s["conmensurability_kawiil"],
+                "tun_ratio": s["ratio_tun"]
+            }
+        }
+        return json.dumps(res, ensure_ascii=False, indent=2)
+
+    elif name == "mayan_get_mars_table":
+        year = args.get("year")
+        month = args.get("month")
+        day = args.get("day")
+        if year is not None and month is not None and day is not None:
+            jdn = converter._gregorian_to_jdn(year, month, day)
+        else:
+            now = datetime.now()
+            year, month, day = now.year, now.month, now.day
+            jdn = converter._gregorian_to_jdn(year, month, day)
+
+        days_since_epoch = jdn - converter.correlation_jdn
+        m = converter.get_dresden_mars_info(days_since_epoch)
+        next_station = converter.get_next_mars_station(days_since_epoch)
+
+        ny, nm, nd = next_station["dest_gregorian"]
+        n_era = f"{abs(ny)+1} a.C." if ny <= 0 else f"{ny:04d} d.C."
+
+        res = {
+            "date": f"{year:04d}-{month:02d}-{day:02d}",
+            "days_since_epoch": days_since_epoch,
+            "dresden_mars_table": {
+                "canonical_base": "9.19.7.15.8 3 Lamat (Day 1,435,628)",
+                "synodic_day_in_780": m["mars_pos"],
+                "station_index": m["station_idx"],
+                "station_tzolkin": m["station_tzolkin"],
+                "station_glyph": m["station_glyph"],
+                "phase_name": m["phase_name"],
+                "status": m["status"],
+                "beast_state": m["beast_state"],
+                "is_retrograde": m["is_retrograde"],
+                "is_opposition_window": m["is_opposition_window"],
+                "day_in_station_78": m["day_in_station"],
+                "days_to_next_station": m["days_to_next"],
+                "next_station_tzolkin": m["next_station"],
+                "next_station_date": f"{nd:02d}/{nm:02d}/{n_era}",
+                "tzolkin_act_of_3": {
+                    "act_number": m["act_num"],
+                    "act_name": m["act_name"],
+                    "day_in_act_260": m["day_in_act"]
+                },
+                "commensurabilities": {
+                    "super_tun_9360": {
+                        "position_in_9360": m["macro_9360_pos"],
+                        "mars_cycle_of_12": m["mars_cycle_of_12"],
+                        "tun_of_26": m["tun_of_26"],
+                        "tzolkin_of_36": m["tzolkin_of_36"],
+                        "formula": "12 Mars (780d) = 26 Tuns (360d) = 36 Tzolk'in (260d)"
+                    },
+                    "grand_return_56940": {
+                        "position_in_56940": m["macro_56940_pos"],
+                        "mars_cycle_of_73": m["mars_cycle_of_73"],
+                        "haab_of_156": m["haab_of_156"],
+                        "calendar_rounds_of_3": m["cr_of_3"],
+                        "formula": "73 Mars (780d) = 156 Haab' (365d) = 3 Calendar Rounds (18,980d)"
+                    }
+                },
+                "esoteric_meaning": m["meaning"]
+            }
+        }
+        return json.dumps(res, ensure_ascii=False, indent=2)
 
     else:
         raise ValueError(f"Tool desconocido: {name}")
