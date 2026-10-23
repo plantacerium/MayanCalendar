@@ -2699,7 +2699,9 @@ class MayanProfileExportDialog(QDialog):
         self.gregorian_str = gregorian_str
         self.correlation_name = correlation_name
         self.setWindowTitle(f"📜 Exportador de Perfil Arqueo-Astronómico Maya — {gregorian_str}")
-        if LOGO_PATH.exists():
+        if LOGO_ICO_PATH.exists():
+            self.setWindowIcon(QIcon(str(LOGO_ICO_PATH)))
+        elif LOGO_PATH.exists():
             self.setWindowIcon(QIcon(str(LOGO_PATH)))
         self.resize(780, 640)
         self.setStyleSheet("""
