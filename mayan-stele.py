@@ -569,6 +569,246 @@ class MayanConverter:
             "dest_gregorian": (gy, gm, gd),
             "dest_data": full_dest
         }
+
+    # ══════════════════════════════════════════════════════════════════════════
+    # Códice Tro-Cortesiano (Códice de Madrid) — Almanaques de Producción y Clima
+    # ══════════════════════════════════════════════════════════════════════════
+    MADRID_YEAR_BEARERS = {
+        "Kan": {
+            "sign": "Kan", "glyph": "🌽", "cardinal": "Este (Lak'in)", "color": "Rojo (Chac)",
+            "color_hex": "#E74C3C", "uayeb_patron": "K'an-u-Uayeb",
+            "climate_omen": "Lluvias benignas, rocío oportuno y clima templado.",
+            "crop_omen": "Año fértil: gran abundancia de maíz, frijol y calabaza; mínimas plagas.",
+            "ritual": "Ofrendas de tamales de maíz tierno y figurillas de masa de cacao en el camino del oriente."
+        },
+        "Muluc": {
+            "sign": "Muluc", "glyph": "💧", "cardinal": "Norte (Xaman)", "color": "Blanco (Sac)",
+            "color_hex": "#ECF0F1", "uayeb_patron": "Chac-u-Uayeb",
+            "climate_omen": "Vientos fríos del norte y lluvias irregulares de temporal.",
+            "crop_omen": "Año de caza propicia y raíces fuertes; el maíz requiere siembra escalonada.",
+            "ritual": "Danzas guerreras y sacrificios rituales de aves en la encrucijada del norte."
+        },
+        "Ix": {
+            "sign": "Ix", "glyph": "🐆", "cardinal": "Oeste (Chik'in)", "color": "Negro (Ek)",
+            "color_hex": "#34495E", "uayeb_patron": "Sac-u-Uayeb",
+            "climate_omen": "Sequía prolongada, sol calcinante y escasez de agua en aguadas.",
+            "crop_omen": "Riesgo de plagas de langostas devoradoras; necesidad de reservar grano seco.",
+            "ritual": "Quema de abundante copal aromático y sangrado ritual para invocar a los Chacob."
+        },
+        "Cauac": {
+            "sign": "Cauac", "glyph": "⛈", "cardinal": "Sur (Nohol)", "color": "Amarillo (Kan)",
+            "color_hex": "#F1C40F", "uayeb_patron": "Ek-u-Uayeb",
+            "climate_omen": "Lluvias torrenciales destructivas, tempestades eléctricas y granizo.",
+            "crop_omen": "Exceso de agua: peligro de pudrición de raíces en tierras bajas.",
+            "ritual": "Ofrendas a los señores del rayo en colinas altas y templos del sur."
+        }
+    }
+
+    # Fisiología de la Lluvia y las 4 Vasijas Celestiales de Chac (Madrid pp. 12-18, 24-33)
+    MADRID_CHAC_VESSELS = [
+        {
+            "name": "Yax-Ha' (Rocío Nutricio)", "glyph": "🌧️",
+            "cardinal": "Este", "manifestation": "Lluvia benéfica fertilizante",
+            "action": "Chac abre las nubes con rocío fino que humedece la semilla sin inundar.",
+            "pedernal_state": "Hacha de pedernal en reposo; rocío fresco de la mañana."
+        },
+        {
+            "name": "Chac-Ik-Ha' (Tempestad de Viento)", "glyph": "🌪️",
+            "cardinal": "Norte", "manifestation": "Viento pluvial y huracán",
+            "action": "Chac desata vendavales que inclinan las milpas y arrastran las lluvias del mar.",
+            "pedernal_state": "Hacha silbante hendiendo los vientos del norte."
+        },
+        {
+            "name": "Bat-Ha' (Pedrisco y Granizo)", "glyph": "🌨️",
+            "cardinal": "Oeste", "manifestation": "Tormenta de granizo y relámpago",
+            "action": "Chac golpea el cielo con hacha de obsidiana soltando hielo que deshoja el maíz.",
+            "pedernal_state": "Chispas de pedernal negro estallando en rayos."
+        },
+        {
+            "name": "K'in-Tun (Cántaro Vacío / Sequía)", "glyph": "☀️",
+            "cardinal": "Sur", "manifestation": "Sol calcinante y sequía",
+            "action": "El cántaro está invertido y vacío; la tierra se resquebraja esperando el fuego nuevo.",
+            "pedernal_state": "Hacha ardiente reflejando el sol del mediodía."
+        }
+    ]
+
+    # Fenología del Maíz (Ixim) — Códice de Madrid
+    MADRID_MAIZE_STAGES = [
+        {
+            "stage_idx": 0, "name": "Roza y Quema (Ah Toc)", "glyph": "🔥",
+            "action": "Preparación del terreno y quema ceremonial de rastrojo bajo los Quemadores.",
+            "advice": "Controlar las chispas con ramas verdes para no quemar la selva virgen."
+        },
+        {
+            "stage_idx": 1, "name": "Siembra Sagrada (Pak'al)", "glyph": "🌱",
+            "action": "Entierro de los granos de maíz (Kan) con coa de madera en tierra húmeda.",
+            "advice": "Sembrar en ayuno y colocar 4 granos por hoyo invocando a los 4 rumbos."
+        },
+        {
+            "stage_idx": 2, "name": "Protección de la Espiga (Balam & Muan)", "glyph": "🛡️",
+            "action": "Vigilancia contra aves devoradoras (búho Muan, quetzal) y roedores de campo.",
+            "advice": "Colocar efigies protectoras de Ah Muzencab y ahuyentar al búho nocturno."
+        },
+        {
+            "stage_idx": 3, "name": "Cosecha (Joch') y Chultunes", "glyph": "🌽",
+            "action": "Doblado de la caña para secar la mazorca y almacenamiento en silos subterráneos.",
+            "advice": "Guardar en trojes de piedra caliza (chultunes) sellados con cal para evitar humedad."
+        }
+    ]
+
+    def get_madrid_year_bearer_and_almanac(self, days_since_epoch):
+        """
+        Calcula el Portador del Año (Cuch Hab), el período del Uayeb, la Fisiología de la Lluvia (Chac),
+        la fenología del Maíz y la Meliponicultura sagrada (Códice Tro-Cortesiano / Madrid pp. 34-37, 12-33, 103-112).
+        """
+        # Posición exacta en el año solar Haab' (0 a 364)
+        haab_day_of_year = (days_since_epoch + 348) % 365
+        days_since_0pop = haab_day_of_year
+        days_to_next_year = 365 - haab_day_of_year
+        
+        # Inicio del año corriente (0 Pop)
+        year_start_days = days_since_epoch - haab_day_of_year
+        next_year_start_days = year_start_days + 365
+        
+        # Uayeb: días 360 a 364 del año Haab'
+        is_uayeb = haab_day_of_year >= 360
+        uayeb_day = (haab_day_of_year - 360 + 1) if is_uayeb else 0
+        days_to_uayeb = 0 if is_uayeb else (360 - haab_day_of_year)
+        
+        # 1. Portador Clásico (en 0 Pop): Ik, Manik, Eb, Caban
+        t_num_classic = (year_start_days + 3) % 13 + 1
+        t_idx_classic = year_start_days % 20
+        classic_name = self.TZOLKIN_DATA[t_idx_classic][0]
+        classic_bearer = f"{t_num_classic} {classic_name}"
+        
+        # 2. Portador Posclásico de Madrid / Yucatán (Kan, Muluc, Ix, Cauac)
+        madrid_map = {
+            "Ik": "Kan",
+            "Manik": "Muluc",
+            "Eb": "Ix",
+            "Caban": "Cauac"
+        }
+        madrid_sign = madrid_map.get(classic_name, "Kan")
+        madrid_tone = t_num_classic
+        madrid_bearer_name = f"{madrid_tone} {madrid_sign}"
+        madrid_info = self.MADRID_YEAR_BEARERS.get(madrid_sign, self.MADRID_YEAR_BEARERS["Kan"])
+        
+        # Próximo portador del año entrante
+        next_t_num_classic = (next_year_start_days + 3) % 13 + 1
+        next_t_idx_classic = next_year_start_days % 20
+        next_classic_name = self.TZOLKIN_DATA[next_t_idx_classic][0]
+        next_madrid_sign = madrid_map.get(next_classic_name, "Kan")
+        next_madrid_bearer = f"{next_t_num_classic} {next_madrid_sign}"
+        
+        # Fechas gregorianas clave
+        g_cur_0pop = self._jdn_to_gregorian(self.correlation_jdn + year_start_days)
+        g_next_0pop = self._jdn_to_gregorian(self.correlation_jdn + next_year_start_days)
+        g_uayeb_start = self._jdn_to_gregorian(self.correlation_jdn + year_start_days + 360)
+        
+        # 3. Fisiología de la Lluvia y las 4 Vasijas de Chac (pp. 12-18, 24-33)
+        vessel_idx = min(haab_day_of_year // 91, 3)
+        chac_vessel = self.MADRID_CHAC_VESSELS[vessel_idx]
+        
+        # 4. Fenología del Maíz (Ixim)
+        maize_idx = min(haab_day_of_year // 91, 3)
+        maize_stage = self.MADRID_MAIZE_STAGES[maize_idx]
+        
+        # 5. Tratado de Meliponicultura Sagrada (pp. 103-112)
+        melipona_day = days_since_epoch % 52
+        is_honey_harvest = melipona_day >= 26
+        melipona_phase = "Apertura de Jobones & Cosecha de Miel" if is_honey_harvest else "Floración Selvática & Vuelo de Xunán Kab"
+        melipona_ritual = "Consagración del Balché con miel virgen para ofrendas cósmicas." if is_honey_harvest else "Protección del jobón con discos de piedra y bendición de Ah Muzencab."
+        
+        return {
+            "haab_day_of_year": haab_day_of_year + 1,
+            "days_since_0pop": days_since_0pop,
+            "days_to_next_year": days_to_next_year,
+            "days_to_uayeb": days_to_uayeb,
+            "is_uayeb": is_uayeb,
+            "uayeb_day": uayeb_day,
+            "current_year_0pop_gregorian": g_cur_0pop,
+            "next_year_0pop_gregorian": g_next_0pop,
+            "uayeb_start_gregorian": g_uayeb_start,
+            # Portadores
+            "madrid_bearer": madrid_bearer_name,
+            "madrid_tone": madrid_tone,
+            "madrid_sign": madrid_sign,
+            "madrid_cardinal": madrid_info["cardinal"],
+            "madrid_color": madrid_info["color"],
+            "madrid_color_hex": madrid_info["color_hex"],
+            "madrid_glyph": madrid_info["glyph"],
+            "madrid_uayeb_patron": madrid_info["uayeb_patron"],
+            "madrid_climate_omen": madrid_info["climate_omen"],
+            "madrid_crop_omen": madrid_info["crop_omen"],
+            "madrid_ritual": madrid_info["ritual"],
+            "classic_bearer": classic_bearer,
+            "next_madrid_bearer": next_madrid_bearer,
+            # Lluvia y Chac
+            "chac_vessel_name": chac_vessel["name"],
+            "chac_vessel_glyph": chac_vessel["glyph"],
+            "chac_manifestation": chac_vessel["manifestation"],
+            "chac_action": chac_vessel["action"],
+            "chac_pedernal": chac_vessel["pedernal_state"],
+            # Maíz (Ixim)
+            "maize_stage_name": maize_stage["name"],
+            "maize_glyph": maize_stage["glyph"],
+            "maize_action": maize_stage["action"],
+            "maize_advice": maize_stage["advice"],
+            # Meliponicultura
+            "melipona_day_in_52": melipona_day + 1,
+            "melipona_is_harvest": is_honey_harvest,
+            "melipona_phase": melipona_phase,
+            "melipona_ritual": melipona_ritual,
+            "melipona_deity": "Ah Muzencab (Dios Descendente de las Abejas)"
+        }
+
+    def get_next_madrid_agricultural_event(self, days_since_epoch, target_event=0):
+        """
+        Calcula el próximo hito agrícola o litúrgico del Códice de Madrid:
+        - 0: Próximo Año Nuevo Maya (0 Pop — Entrada del nuevo Portador)
+        - 1: Próximo inicio del Uayeb (Días 360-364 • Los 5 Días Nefastos)
+        - 2: Próxima Siembra Sagrada del Maíz (Día del signo Kan)
+        - 3: Próxima Apertura de Jobones de Miel Melipona (Día 26 del ciclo de 52d)
+        """
+        haab_day_of_year = (days_since_epoch + 348) % 365
+        
+        if target_event == 0:
+            # Próximo Año Nuevo (0 Pop)
+            delta_days = 365 - haab_day_of_year
+            if delta_days == 0:
+                delta_days = 365
+        elif target_event == 1:
+            # Próximo Uayeb
+            if haab_day_of_year < 360:
+                delta_days = 360 - haab_day_of_year
+            else:
+                delta_days = 365 - haab_day_of_year + 360
+        elif target_event == 2:
+            # Próxima siembra en signo Kan (Kan = índice 4 en TZOLKIN_DATA)
+            cur_tz = days_since_epoch % 20
+            delta_days = (4 - cur_tz) % 20
+            if delta_days == 0:
+                delta_days = 20
+        else:
+            # Próxima apertura de jobones de miel (día 26 de 52)
+            cur_mel = days_since_epoch % 52
+            delta_days = (26 - cur_mel) % 52
+            if delta_days == 0:
+                delta_days = 52
+                
+        dest_days = days_since_epoch + delta_days
+        dest_jdn = self.correlation_jdn + dest_days
+        gy, gm, gd = self._jdn_to_gregorian(dest_jdn)
+        full_dest = self.get_full_date(gy, gm, gd)
+        
+        return {
+            "target_event": target_event,
+            "delta_days": delta_days,
+            "dest_days_since_epoch": dest_days,
+            "dest_jdn": dest_jdn,
+            "dest_gregorian": (gy, gm, gd),
+            "dest_data": full_dest
+        }
     
     def _gregorian_to_jdn(self, year, month, day):
         """
@@ -711,6 +951,9 @@ class MayanConverter:
         # Cómputo de 364 Días y 4 Estaciones (Códice de Dresde pp. 65a-69b)
         s364 = self.get_computing_year_364(days_since_epoch)
 
+        # Almanaques de Madrid: Portadores del Año, Maíz, Chac y Melipona (Códice Tro-Cortesiano)
+        madrid = self.get_madrid_year_bearer_and_almanac(days_since_epoch)
+
         return {
             "long_count": long_count_str,
             "long_count_parts": long_count_parts,
@@ -793,6 +1036,38 @@ class MayanConverter:
             "mars_cycle_of_73": mars_info["mars_cycle_of_73"],
             "mars_haab_of_156": mars_info["haab_of_156"],
             "mars_dresden_data": mars_info,
+            "madrid_year_bearer": madrid["madrid_bearer"],
+            "madrid_tone": madrid["madrid_tone"],
+            "madrid_sign": madrid["madrid_sign"],
+            "madrid_cardinal": madrid["madrid_cardinal"],
+            "madrid_color": madrid["madrid_color"],
+            "madrid_color_hex": madrid["madrid_color_hex"],
+            "madrid_glyph": madrid["madrid_glyph"],
+            "madrid_climate_omen": madrid["madrid_climate_omen"],
+            "madrid_crop_omen": madrid["madrid_crop_omen"],
+            "madrid_uayeb_patron": madrid["madrid_uayeb_patron"],
+            "madrid_ritual": madrid["madrid_ritual"],
+            "classic_bearer": madrid["classic_bearer"],
+            "next_madrid_bearer": madrid["next_madrid_bearer"],
+            "is_uayeb": madrid["is_uayeb"],
+            "uayeb_day": madrid["uayeb_day"],
+            "days_to_uayeb": madrid["days_to_uayeb"],
+            "days_to_next_year": madrid["days_to_next_year"],
+            "chac_vessel_name": madrid["chac_vessel_name"],
+            "chac_vessel_glyph": madrid["chac_vessel_glyph"],
+            "chac_manifestation": madrid["chac_manifestation"],
+            "chac_action": madrid["chac_action"],
+            "chac_pedernal": madrid["chac_pedernal"],
+            "maize_stage_name": madrid["maize_stage_name"],
+            "maize_glyph": madrid["maize_glyph"],
+            "maize_action": madrid["maize_action"],
+            "maize_advice": madrid["maize_advice"],
+            "melipona_day": madrid["melipona_day_in_52"],
+            "melipona_is_harvest": madrid["melipona_is_harvest"],
+            "melipona_phase": madrid["melipona_phase"],
+            "melipona_ritual": madrid["melipona_ritual"],
+            "melipona_deity": madrid["melipona_deity"],
+            "madrid_almanac_data": madrid,
             "jdn": jdn,
             "days_since_epoch": days_since_epoch
         }
@@ -2216,6 +2491,508 @@ class MarsPhaseBar(QWidget):
             painter.end()
 
 
+class MadridCosmogramWidget(QWidget):
+    """
+    Widget de renderizado vectorial interactivo del Cosmograma de las Páginas 75–76
+    del Códice Tro-Cortesiano (Códice de Madrid):
+    - La Flor Sagrada de 4 Pétalos (Cruz de Malta mesoamericana).
+    - El Ombligo Cósmico (Axis Mundi / Wacah Chan) con Itzamná e Ixchel.
+    - Los 260 días del Tzolk'in dispuestos en un lazo continuo de 65 días por cuadrante.
+    - Huellas de pies divinos (Xocan Be) que marcan la peregrinación del tiempo.
+    - Los 4 Bacabes y aves celestiales en los vértices intercardinales.
+    - Resaltado interactivo del Kin activo, hover hud, selección de día con sincronización,
+      alternancia de orientación (Mesoamericana vs Cartesiana) y animación de peregrinación.
+    """
+    kin_selected = Signal(int)   # Emite Kin 1-260 al hacer clic
+    kin_hovered = Signal(int)    # Emite Kin 1-260 al pasar el ratón
+
+    TZOLKIN_SIGNS = [
+        "Imix", "Ik", "Akbal", "Kan", "Chicchan", "Cimi", "Manik", "Lamat",
+        "Muluc", "Oc", "Chuen", "Eb", "Ben", "Ix", "Men", "Cib",
+        "Caban", "Etznab", "Cauac", "Ahau"
+    ]
+    TZOLKIN_GLYPHS = [
+        "🐊", "💨", "🏠", "🌾", "🐍", "💀", "🦌", "⭐",
+        "💧", "🐕", "🐒", "🌿", "🎋", "🐆", "🦅", "🕯️",
+        "🌍", "🔪", "⚡", "☀️"
+    ]
+    TZOLKIN_MEANINGS = [
+        "Caimán / Origen Primordial", "Viento / Aliento Vital", "Noche / Casa de la Mente", "Semilla / Maíz Sagrado",
+        "Serpiente / Kundalini Cósmico", "Muerte / Renacimiento", "Venado / Sanación", "Estrella / Venus Radiante",
+        "Agua / Purificación", "Perro / Guía de Xibalbá", "Mono / Tejedor del Tiempo", "Camino / Sabiduría",
+        "Caña / Pilar Cósmico", "Jaguar / Chamán de la Tierra", "Águila / Conciencia Solar", "Búho / Guerrero de la Luz",
+        "Tierra / Sincronía Fractal", "Espejo / Cuchillo de Obsidiana", "Tormenta / Purificación", "Sol / Iluminación y Maestría"
+    ]
+
+    QUAD_DATA = [
+        {
+            "id": 0, "name": "ESTE (LAK'IN)", "maya_name": "Lak'in",
+            "color_name": "Rojo (Chac)", "color": QColor(231, 76, 60), "dark_color": QColor(192, 57, 43),
+            "bearer": "Kan 🌾", "bearer_sign": "Kan",
+            "ceiba": "Chac Imixche (Ceiba Roja de la Aurora)",
+            "regent": "K'inich Ahau (Señor Solar)",
+            "chac_vessel": "Yax-Ha' (Rocío Verde Nutricio)",
+            "bacab": "Bacab Cantzicnal", "bird": "Quetzal Celeste 🦜",
+            "omen": "Fertilidad y emergencia de la vida",
+            "base_deg_meso": -90, "base_deg_cart": 0
+        },
+        {
+            "id": 1, "name": "NORTE (XAMAN)", "maya_name": "Xaman",
+            "color_name": "Blanco (Sac)", "color": QColor(240, 243, 244), "dark_color": QColor(189, 195, 199),
+            "bearer": "Muluc 💧", "bearer_sign": "Muluc",
+            "ceiba": "Sac Imixche (Ceiba Blanca de los Vientos)",
+            "regent": "Ah Puch / Cimi (Reino Ancestral)",
+            "chac_vessel": "Chac-Ik-Ha' (Tempestad y Huracán)",
+            "bacab": "Bacab Zac Cimi", "bird": "Búho Muan Nocturno 🦉",
+            "omen": "Vientos fríos, memoria de los antepasados y caza",
+            "base_deg_meso": 180, "base_deg_cart": -90
+        },
+        {
+            "id": 2, "name": "OESTE (CHIK'IN)", "maya_name": "Chik'in",
+            "color_name": "Negro (Ek)", "color": QColor(149, 165, 166), "dark_color": QColor(52, 73, 94),
+            "bearer": "Ix 🐆", "bearer_sign": "Ix",
+            "ceiba": "Ek Imixche (Ceiba Negra del Ocaso)",
+            "regent": "Balam / Señores de Xibalbá",
+            "chac_vessel": "Bat-Ha' (Granizo / Choque Térmico)",
+            "bacab": "Bacab Hosanek", "bird": "Halcón / Guacamaya 🦅",
+            "omen": "Introspección, magia chamánica y prueba de la semilla",
+            "base_deg_meso": 90, "base_deg_cart": 180
+        },
+        {
+            "id": 3, "name": "SUR (NOHOL)", "maya_name": "Nohol",
+            "color_name": "Amarillo (K'an)", "color": QColor(244, 208, 63), "dark_color": QColor(212, 172, 13),
+            "bearer": "Cauac ⚡", "bearer_sign": "Cauac",
+            "ceiba": "K'an Imixche (Ceiba Amarilla de la Maduración)",
+            "regent": "Chac (Señor del Rayo y de la Lluvia)",
+            "chac_vessel": "K'in-Tun (Sequía / Cántaro Seco)",
+            "bacab": "Bacab Hobnil", "bird": "Colibrí / Abeja Xunán Kab 🐝",
+            "omen": "Calor cenital, tormentas eléctricas y madurez",
+            "base_deg_meso": 0, "base_deg_cart": 90
+        }
+    ]
+
+    def __init__(self, converter=None, parent=None):
+        super().__init__(parent)
+        self.converter = converter
+        self.setMinimumSize(480, 480)
+        self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        self.setMouseTracking(True)
+
+        self._active_kin = 1        # Kin 1 a 260
+        self._hover_kin = None      # Kin bajo cursor
+        self._hover_pos = None      # (x, y) de ratón
+        self._focus_petal = -1      # -1 = Todos, 0..3 = Cuadrante específico
+        self._east_is_top = True    # True: Mesoamericano (Este=Arriba), False: Cartesiano (Norte=Arriba)
+        self._show_footprints = True
+        self._show_numbers = False
+        self._highlight_bearers = True
+
+        # Timer de animación de peregrinación
+        self._anim_timer = QTimer(self)
+        self._anim_timer.timeout.connect(self._step_pilgrimage)
+        self._is_playing = False
+        self._sync_global_on_anim = False
+        self.on_anim_step_callback = None
+
+        # Nodos precalculados (x, y, p, p_idx)
+        self._cached_nodes = []
+
+    def set_active_kin(self, kin):
+        kin = max(1, min(260, kin))
+        if self._active_kin != kin:
+            self._active_kin = kin
+            self.update()
+
+    def set_orientation(self, east_is_top: bool):
+        self._east_is_top = east_is_top
+        self.update()
+
+    def set_focus_petal(self, petal_idx: int):
+        self._focus_petal = petal_idx
+        self.update()
+
+    def set_show_footprints(self, val: bool):
+        self._show_footprints = val
+        self.update()
+
+    def set_show_numbers(self, val: bool):
+        self._show_numbers = val
+        self.update()
+
+    def set_highlight_bearers(self, val: bool):
+        self._highlight_bearers = val
+        self.update()
+
+    def toggle_animation(self):
+        if self._is_playing:
+            self._anim_timer.stop()
+            self._is_playing = False
+        else:
+            self._anim_timer.start(120)
+            self._is_playing = True
+        return self._is_playing
+
+    def set_animation_speed(self, ms: int):
+        if self._anim_timer.isActive():
+            self._anim_timer.setInterval(max(20, ms))
+
+    def _step_pilgrimage(self):
+        self._active_kin = (self._active_kin % 260) + 1
+        self.update()
+        if self.on_anim_step_callback:
+            self.on_anim_step_callback(self._active_kin)
+
+    def _get_kin_info(self, kin):
+        k0 = kin - 1
+        tone = (k0 % 13) + 1
+        s_idx = k0 % 20
+        sign = self.TZOLKIN_SIGNS[s_idx]
+        glyph = self.TZOLKIN_GLYPHS[s_idx]
+        meaning = self.TZOLKIN_MEANINGS[s_idx]
+        petal = k0 // 65
+        d_in_p = (k0 % 65) + 1
+        trec_in_p = ((k0 % 65) // 13) + 1
+        q_data = self.QUAD_DATA[petal]
+        return {
+            "kin": kin, "tone": tone, "sign": sign, "glyph": glyph,
+            "tzolkin_str": f"{tone} {sign}", "meaning": meaning,
+            "petal": petal, "day_in_petal": d_in_p, "trecena_in_petal": trec_in_p,
+            "quad_data": q_data
+        }
+
+    def mouseMoveEvent(self, event):
+        pos = event.position() if hasattr(event, "position") else event.pos()
+        mx, my = pos.x(), pos.y()
+        self._hover_pos = (mx, my)
+
+        found_kin = None
+        for idx, (nx, ny, _, _) in enumerate(self._cached_nodes):
+            dist = math.hypot(mx - nx, my - ny)
+            if dist <= 14:
+                found_kin = idx + 1
+                break
+
+        if found_kin != self._hover_kin:
+            self._hover_kin = found_kin
+            if found_kin:
+                self.setCursor(Qt.PointingHandCursor)
+                self.kin_hovered.emit(found_kin)
+            else:
+                self.setCursor(Qt.ArrowCursor)
+            self.update()
+
+    def mousePressEvent(self, event):
+        if event.button() == Qt.LeftButton and self._hover_kin:
+            self.kin_selected.emit(self._hover_kin)
+
+    def paintEvent(self, event):
+        painter = QPainter(self)
+        try:
+            painter.setRenderHint(QPainter.Antialiasing)
+            painter.setRenderHint(QPainter.TextAntialiasing)
+
+            w, h = self.width(), self.height()
+            cx, cy = w / 2.0, h / 2.0
+            scale = min(w, h) / 950.0
+
+            r_in = max(65, 120 * scale)
+            r_out = max(210, 420 * scale)
+            lobe_w_deg = 32.0
+
+            # Base angles for petals
+            # Mesoamerican: East=-90 (Top), North=180 (Left), West=90 (Bottom), South=0 (Right)
+            # Cartesian: East=0 (Right), North=-90 (Top), West=180 (Left), South=90 (Bottom)
+            base_angles = [-90, 180, 90, 0] if self._east_is_top else [0, -90, 180, 90]
+
+            # 1. Subtle Celestial Rings & Rays
+            painter.setPen(QPen(QColor(45, 36, 26, 110), 1, Qt.DotLine))
+            for r_circ in [r_in * 1.5, (r_in + r_out) / 2.0, r_out * 0.95, r_out * 1.2]:
+                painter.drawEllipse(QPointF(cx, cy), r_circ, r_circ)
+            for deg in range(0, 360, 18):
+                rad = math.radians(deg)
+                painter.drawLine(
+                    QPointF(cx + r_in * math.cos(rad), cy + r_in * math.sin(rad)),
+                    QPointF(cx + (r_out * 1.25) * math.cos(rad), cy + (r_out * 1.25) * math.sin(rad))
+                )
+
+            # 2. Corner Bacabs (Intercardinals)
+            corner_offsets = [-45, -135, 135, 45] if self._east_is_top else [45, -45, -135, 135]
+            corner_bacabs = [
+                ("Bacab Cantzicnal", "Quetzal 🦜", corner_offsets[0], QColor('#27AE60')),
+                ("Bacab Zac Cimi", "Búho Muan 🦉", corner_offsets[1], QColor('#BDC3C7')),
+                ("Bacab Hosanek", "Halcón 🦅", corner_offsets[2], QColor('#7F8C8D')),
+                ("Bacab Hobnil", "Melipona 🐝", corner_offsets[3], QColor('#F39C12'))
+            ]
+            for name, bird, deg, col in corner_bacabs:
+                rad = math.radians(deg)
+                c_dist = r_out * 0.88
+                bx = cx + c_dist * math.cos(rad)
+                by = cy + c_dist * math.sin(rad)
+                b_size = max(24, 38 * scale)
+
+                painter.setBrush(QBrush(QColor('#1A1410')))
+                painter.setPen(QPen(col, 1.8))
+                painter.drawEllipse(QPointF(bx, by), b_size, b_size)
+
+                painter.setPen(QPen(QColor('#FFF'), 1))
+                font_b = QFont('Arial', max(9, int(13 * scale)))
+                painter.setFont(font_b)
+                b_parts = bird.split()
+                bird_glyph = b_parts[1] if len(b_parts) > 1 else "🦅"
+                bird_name = b_parts[0] if len(b_parts) > 1 else bird
+                painter.drawText(QRectF(bx - b_size, by - b_size * 0.65, b_size * 2, b_size * 0.75), Qt.AlignCenter, bird_glyph)
+
+                font_lbl = QFont('Arial', max(6, int(7.5 * scale)), QFont.Bold)
+                painter.setFont(font_lbl)
+                painter.setPen(QPen(col, 1))
+                painter.drawText(QRectF(bx - 70, by + b_size * 0.2, 140, 14), Qt.AlignCenter, name)
+                painter.setPen(QPen(QColor('#AAA'), 1))
+                painter.setFont(QFont('Arial', max(5, int(6.5 * scale))))
+                painter.drawText(QRectF(bx - 70, by + b_size * 0.55, 140, 12), Qt.AlignCenter, bird_name)
+
+            # 3. Compute the 260 nodes along the 4 petals
+            nodes = []
+            for p in range(4):
+                mid_ang = math.radians(base_angles[p])
+                half_w = math.radians(lobe_w_deg / 2.0)
+                ang_out = mid_ang - half_w
+                ang_in = mid_ang + half_w
+
+                # 22 outward
+                for i in range(22):
+                    t = i / 22.0
+                    r = r_in + t * (r_out - r_in)
+                    neck_factor = 1.0 - 0.15 * math.sin(t * math.pi)
+                    ang = mid_ang - half_w * neck_factor
+                    nodes.append((cx + r * math.cos(ang), cy + r * math.sin(ang), p, i))
+
+                # 21 apex cap
+                for i in range(21):
+                    t = (i + 1) / 22.0
+                    ang = ang_out + t * (ang_in - ang_out)
+                    bulge = 1.0 + 0.10 * math.sin(t * math.pi)
+                    r = r_out * bulge
+                    nodes.append((cx + r * math.cos(ang), cy + r * math.sin(ang), p, 22 + i))
+
+                # 22 inward return
+                for i in range(22):
+                    t = (i + 1) / 23.0
+                    r = r_out - t * (r_out - r_in)
+                    neck_factor = 1.0 - 0.15 * math.sin((1.0 - t) * math.pi)
+                    ang = mid_ang + half_w * neck_factor
+                    nodes.append((cx + r * math.cos(ang), cy + r * math.sin(ang), p, 43 + i))
+
+            self._cached_nodes = nodes
+
+            # 4. Draw Petal Shading & Sacred Ceibas
+            for p in range(4):
+                p_nodes = nodes[p * 65 : (p + 1) * 65]
+                p_path = QPainterPath()
+                p_path.moveTo(cx + r_in * math.cos(math.radians(base_angles[p])), cy + r_in * math.sin(math.radians(base_angles[p])))
+                for nx, ny, _, _ in p_nodes:
+                    p_path.lineTo(nx, ny)
+                p_path.closeSubpath()
+
+                c_info = self.QUAD_DATA[p]
+                c_dark = c_info['dark_color']
+                c_bright = c_info['color']
+
+                # Dim if another petal is selected
+                is_focused = (self._focus_petal == -1 or self._focus_petal == p)
+                alpha_mult = 1.0 if is_focused else 0.22
+
+                grad = QRadialGradient(cx, cy, r_out * 1.1)
+                grad.setColorAt(0.15, QColor(c_dark.red(), c_dark.green(), c_dark.blue(), int(95 * alpha_mult)))
+                grad.setColorAt(0.65, QColor(c_dark.red(), c_dark.green(), c_dark.blue(), int(35 * alpha_mult)))
+                grad.setColorAt(0.95, QColor(0, 0, 0, 0))
+                painter.setBrush(QBrush(grad))
+                border_pen = QPen(c_bright if is_focused else QColor(50, 40, 30), 2.2)
+                painter.setPen(border_pen)
+                painter.drawPath(p_path)
+
+                if is_focused:
+                    rad = math.radians(base_angles[p])
+                    label_r = r_out * 0.64
+                    lx = cx + label_r * math.cos(rad)
+                    ly = cy + label_r * math.sin(rad)
+
+                    painter.setPen(QPen(c_bright, 1))
+                    f_size = max(8, int(11 * scale))
+                    painter.setFont(QFont('Trebuchet MS', f_size, QFont.Bold))
+                    painter.drawText(QRectF(lx - 120, ly - 32 * scale, 240, 20 * scale), Qt.AlignCenter, c_info['name'])
+
+                    painter.setFont(QFont('Arial', max(6, int(8.5 * scale))))
+                    painter.setPen(QPen(QColor('#E0C090'), 1))
+                    painter.drawText(QRectF(lx - 120, ly - 10 * scale, 240, 16 * scale), Qt.AlignCenter, c_info['ceiba'])
+
+                    painter.setFont(QFont('Arial', max(7, int(9 * scale)), QFont.Bold))
+                    painter.setPen(QPen(QColor('#F4D03F'), 1))
+                    painter.drawText(QRectF(lx - 120, ly + 10 * scale, 240, 16 * scale), Qt.AlignCenter, f"Portador: {c_info['bearer']}")
+
+                    painter.setFont(QFont('Arial', max(6, int(8 * scale))))
+                    painter.setPen(QPen(QColor('#BDC3C7'), 1))
+                    painter.drawText(QRectF(lx - 120, ly + 28 * scale, 240, 14 * scale), Qt.AlignCenter, f"Regente: {c_info['regent']}")
+
+            # 5. Draw Ribbon Backbone
+            ribbon_path = QPainterPath()
+            ribbon_path.moveTo(nodes[0][0], nodes[0][1])
+            for i in range(1, len(nodes)):
+                ribbon_path.lineTo(nodes[i][0], nodes[i][1])
+            ribbon_path.closeSubpath()
+            painter.setPen(QPen(QColor(55, 42, 28, 170), max(3, int(5 * scale))))
+            painter.drawPath(ribbon_path)
+
+            # 6. Draw Footprints (Xocan Be)
+            if self._show_footprints:
+                fp_w = max(2.5, 4.4 * scale)
+                fp_h = max(4.0, 7.8 * scale)
+                for i in range(0, len(nodes), 2):
+                    curr = nodes[i]
+                    nxt = nodes[(i + 1) % len(nodes)]
+                    dx = nxt[0] - curr[0]
+                    dy = nxt[1] - curr[1]
+                    ang = math.atan2(dy, dx)
+
+                    painter.save()
+                    painter.translate(curr[0], curr[1])
+                    painter.rotate(math.degrees(ang) + 90)
+                    painter.setBrush(QBrush(QColor(244, 208, 63, 175)))
+                    painter.setPen(Qt.NoPen)
+                    painter.drawEllipse(QRectF(-fp_w / 2.0, -fp_h / 2.0, fp_w, fp_h))
+                    toe_w = fp_w * 0.22
+                    toe_h = fp_h * 0.20
+                    for toe_i in range(4):
+                        tx = -fp_w * 0.40 + toe_i * (fp_w * 0.28)
+                        painter.drawEllipse(QRectF(tx, -fp_h * 0.78, toe_w, toe_h))
+                    painter.restore()
+
+            # 7. Draw the 260 Day Nodes
+            node_r = max(2.2, 3.2 * scale)
+            for idx, (nx, ny, p, p_idx) in enumerate(nodes):
+                kin = idx + 1
+                col = self.QUAD_DATA[p]['color']
+
+                is_trecena = (kin % 13 == 1)
+                is_bearer = (p_idx == 0 or p_idx == 21)
+                is_active = (kin == self._active_kin)
+                is_hovered = (kin == self._hover_kin)
+
+                if is_active:
+                    continue # drawn in step 8
+
+                if is_hovered:
+                    painter.setBrush(QBrush(QColor('#FFF')))
+                    painter.setPen(QPen(QColor('#F4D03F'), 2))
+                    painter.drawEllipse(QPointF(nx, ny), node_r * 2.2, node_r * 2.2)
+                elif self._highlight_bearers and is_bearer:
+                    painter.setBrush(QBrush(QColor('#F4D03F')))
+                    painter.setPen(QPen(QColor('#120F0D'), 1.4))
+                    painter.drawEllipse(QPointF(nx, ny), node_r * 1.6, node_r * 1.6)
+                elif is_trecena:
+                    painter.setBrush(QBrush(col))
+                    painter.setPen(QPen(QColor('#F4D03F'), 1.2))
+                    painter.drawEllipse(QPointF(nx, ny), node_r * 1.35, node_r * 1.35)
+                else:
+                    painter.setBrush(QBrush(QColor('#1A1410')))
+                    painter.setPen(QPen(col, 1.1))
+                    painter.drawEllipse(QPointF(nx, ny), node_r, node_r)
+
+                if self._show_numbers and (is_trecena or is_bearer or is_hovered):
+                    painter.setFont(QFont('Arial', max(5, int(6.5 * scale)), QFont.Bold))
+                    painter.setPen(QPen(QColor('#F4D03F') if is_bearer else col, 1))
+                    painter.drawText(QRectF(nx - 10, ny - 14, 20, 10), Qt.AlignCenter, str(kin))
+
+            # 8. Active Kin Beacon (Radiant Sun disc)
+            if 1 <= self._active_kin <= len(nodes):
+                ax, ay, ap, _ = nodes[self._active_kin - 1]
+                active_info = self._get_kin_info(self._active_kin)
+
+                halo_r = max(18, 28 * scale)
+                halo_grad = QRadialGradient(ax, ay, halo_r)
+                halo_grad.setColorAt(0.0, QColor(244, 208, 63, 235))
+                halo_grad.setColorAt(0.4, QColor(230, 126, 34, 160))
+                halo_grad.setColorAt(1.0, QColor(0, 0, 0, 0))
+                painter.setBrush(QBrush(halo_grad))
+                painter.setPen(Qt.NoPen)
+                painter.drawEllipse(QPointF(ax, ay), halo_r, halo_r)
+
+                core_r = max(4.5, 6.5 * scale)
+                painter.setBrush(QBrush(QColor('#FFF')))
+                painter.setPen(QPen(QColor('#F4D03F'), 2))
+                painter.drawEllipse(QPointF(ax, ay), core_r, core_r)
+
+                tag_w = max(90, 120 * scale)
+                tag_h = max(22, 28 * scale)
+                tag_x = ax + 12
+                tag_y = ay - tag_h / 2.0
+                if tag_x + tag_w > w - 10:
+                    tag_x = ax - tag_w - 12
+
+                painter.setBrush(QBrush(QColor('#1A1410EE')))
+                painter.setPen(QPen(QColor('#F4D03F'), 1.5))
+                painter.drawRoundedRect(QRectF(tag_x, tag_y, tag_w, tag_h), 5, 5)
+
+                painter.setFont(QFont('Arial', max(7, int(9 * scale)), QFont.Bold))
+                painter.setPen(QPen(QColor('#F4D03F'), 1))
+                painter.drawText(QRectF(tag_x, tag_y, tag_w, tag_h), Qt.AlignCenter, f"Kin {self._active_kin}: {active_info['tzolkin_str']} {active_info['glyph']}")
+
+            # 9. Center Cartouche (Axis Mundi / Itzamná & Ixchel)
+            painter.setBrush(QBrush(QColor('#181410')))
+            painter.setPen(QPen(QColor('#D4AC0D'), max(2, int(3.5 * scale))))
+            painter.drawEllipse(QPointF(cx, cy), r_in - 5, r_in - 5)
+
+            painter.setBrush(QBrush(QColor('#110E0C')))
+            painter.setPen(QPen(QColor('#27AE60'), max(1.5, int(2.0 * scale))))
+            painter.drawEllipse(QPointF(cx, cy), r_in - max(12, int(18 * scale)), r_in - max(12, int(18 * scale)))
+
+            painter.setPen(QPen(QColor('#F4D03F'), 1))
+            f_cen_t = QFont('Trebuchet MS', max(8, int(11 * scale)), QFont.Bold)
+            painter.setFont(f_cen_t)
+            painter.drawText(QRectF(cx - 100, cy - 42 * scale, 200, 20 * scale), Qt.AlignCenter, "ITZAMNÁ & IXCHEL")
+
+            painter.setFont(QFont('Arial', max(6, int(7.5 * scale)), QFont.Bold))
+            painter.setPen(QPen(QColor('#52BE80'), 1))
+            painter.drawText(QRectF(cx - 100, cy - 20 * scale, 200, 16 * scale), Qt.AlignCenter, "🌳 AXIS MUNDI • WACAH CHAN 🌳")
+
+            painter.setPen(QPen(QColor('#E0C090'), 1))
+            painter.setFont(QFont('Arial', max(6, int(7.5 * scale))))
+            painter.drawText(QRectF(cx - 100, cy - 2 * scale, 200, 14 * scale), Qt.AlignCenter, "El Ombligo del Mundo")
+            painter.drawText(QRectF(cx - 100, cy + 14 * scale, 200, 14 * scale), Qt.AlignCenter, "Sabiduría, Medicina & Tejido")
+
+            painter.setFont(QFont('Arial', max(12, int(16 * scale))))
+            painter.drawText(QRectF(cx - 30, cy + 30 * scale, 60, 24 * scale), Qt.AlignCenter, "☀️🌀")
+
+            # 10. HUD Box (Top-Left): Hovered or Active Kin Details
+            target_kin = self._hover_kin if self._hover_kin else self._active_kin
+            if target_kin:
+                t_info = self._get_kin_info(target_kin)
+                q = t_info['quad_data']
+
+                hud_w = 265
+                hud_h = 80
+                hud_x = 14
+                hud_y = 14
+
+                painter.setBrush(QBrush(QColor('#15120FEE')))
+                painter.setPen(QPen(QColor('#D4AC0D'), 1.2))
+                painter.drawRoundedRect(QRectF(hud_x, hud_y, hud_w, hud_h), 6, 6)
+
+                painter.setPen(QPen(QColor('#F4D03F'), 1))
+                painter.setFont(QFont('Trebuchet MS', 10, QFont.Bold))
+                status_lbl = "EXPLORANDO:" if self._hover_kin else "KIN ACTIVO:"
+                painter.drawText(QRectF(hud_x + 10, hud_y + 8, hud_w - 20, 18), Qt.AlignLeft, f"{status_lbl} Kin {t_info['kin']} • {t_info['tzolkin_str']} {t_info['glyph']}")
+
+                painter.setFont(QFont('Arial', 8))
+                painter.setPen(QPen(QColor('#ECF0F1'), 1))
+                painter.drawText(QRectF(hud_x + 10, hud_y + 28, hud_w - 20, 16), Qt.AlignLeft, f"✦ {q['name']} • {q['color_name']}")
+                painter.setPen(QPen(QColor('#BDC3C7'), 1))
+                painter.drawText(QRectF(hud_x + 10, hud_y + 44, hud_w - 20, 16), Qt.AlignLeft, f"✦ Día {t_info['day_in_petal']}/65 (Trecena {t_info['trecena_in_petal']}/5)")
+                painter.setPen(QPen(QColor('#F4D03F'), 1))
+                painter.drawText(QRectF(hud_x + 10, hud_y + 59, hud_w - 20, 16), Qt.AlignLeft, f"✦ {t_info['meaning']}")
+        finally:
+            painter.end()
+
+
 class StonePanel(QFrame):
     """A container widget that looks like a chiseled stone block."""
     def __init__(self, title, main_text, sub_text="", main_size=16):
@@ -3047,10 +3824,13 @@ class MayanSteleApp(QMainWindow):
         # Tab 3: Operaciones Sagradas & Retornos
         self._setup_operations_tab()
 
-        # Tab 4: Resonancia Biológica y Cimática
+        # Tab 4: Cosmograma del Códice de Madrid (pp. 75-76)
+        self._setup_cosmogram_tab()
+
+        # Tab 5: Resonancia Biológica y Cimática
         self._setup_biological_tab()
         
-        # Tab 5: Reference
+        # Tab 6: Reference
         self._setup_reference_tab()
 
         # Footer
@@ -3210,6 +3990,21 @@ class MayanSteleApp(QMainWindow):
         self.season_364_bar = Season364Bar()
         self.panel_season_364.layout().addWidget(self.season_364_bar)
         grid.addWidget(self.panel_season_364, 5, 0, 1, 2)
+
+        # Madrid Codex: Year Bearers, Chac Rain & Maize Cycle (pp. 34-37, 12-33, 103-112)
+        self.panel_madrid = StonePanel("Madrid Codex: Portadores del Año (Cuch Hab) & Ciclos Agrícolas (pp. 34–37, 12–33, 103–112)", "Cuch Hab: Kan (Este)", "Vasija Chac • Maíz Ixim • Melipona Xunán Kab", main_size=14)
+        self.panel_madrid.setStyleSheet("""
+            StonePanel {
+                background-color: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #162417, stop:1 #0D160E);
+                border: 2px solid #27AE60;
+                border-top-color: #52BE80;
+                border-left-color: #52BE80;
+                border-right-color: #0B1A0E;
+                border-bottom-color: #0B1A0E;
+                border-radius: 6px;
+            }
+        """)
+        grid.addWidget(self.panel_madrid, 6, 0, 1, 2)
         
         right_panel.addLayout(grid)
         right_scroll.setWidget(right_container)
@@ -4158,12 +4953,108 @@ class MayanSteleApp(QMainWindow):
 
         content_layout.addWidget(mars_group)
 
+        # -------------------------------------------------------------
+        # 7. Madrid Codex (Tro-Cortesiano) Agricultural Almanacs & Year Bearers
+        # -------------------------------------------------------------
+        madrid_group = QGroupBox("🌽 7. Almanaques de Madrid: Portadores del Año (Cuch Hab), Ciclo del Maíz & Apicultura Melipona (Códice Tro-Cortesiano)")
+        madrid_group.setStyleSheet(box_qss)
+        madrid_layout = QVBoxLayout(madrid_group)
+        madrid_layout.setSpacing(10)
+
+        madrid_desc = (
+            "En el Códice Tro-Cortesiano (Códice de Madrid pp. 34–37, 12–33 y 103–112), los astrónomos y sabios mayas plasmaron los "
+            "grandes manuales de supervivencia y producción: los 4 Portadores del Año (Kan, Muluc, Ix, Cauac) que cargan la influencia "
+            "climática de los 365 días solares y la transición peligrosa de los 5 días del Uayeb; la Fisiología de la Lluvia y las 4 Vasijas "
+            "de Chac (rocío fértil Yax-Ha', tempestad Chac-Ik-Ha', granizo Bat-Ha' o sequía K'in-Tun); la fenología del Maíz sagrado (Ixim) "
+            "desde la roza y quema hasta la troje en chultunes; y el tratado único de meliponicultura sagrada (Xunán Kab) bajo la bendición "
+            "del dios alado Ah Muzencab para la cosecha de miel y balché."
+        )
+        lbl_madrid_desc = StoneLabel(madrid_desc, size=11, color="#BDC3C7")
+        lbl_madrid_desc.setWordWrap(True)
+        madrid_layout.addWidget(lbl_madrid_desc)
+
+        # Selector Row
+        madrid_sel_row = QHBoxLayout()
+        madrid_sel_row.setSpacing(10)
+        madrid_sel_row.addWidget(StoneLabel("Hito Agrícola / Litúrgico de Madrid:", size=11, is_bold=True, color="#F4D03F"))
+
+        self.madrid_combo = QComboBox()
+        self.madrid_combo.addItems([
+            "🌸 Próximo Año Nuevo Maya (0 Pop — Inauguración del Nuevo Portador del Año)",
+            "⚠️ Próxima Entrada al Uayeb (Días 360-364 • Los 5 Días Nefastos / Transición Cósmica)",
+            "🌱 Próxima Siembra Sagrada del Maíz (Pak'al en día solar del grano Kan)",
+            "🐝 Próxima Apertura de Jobones de Miel Melipona (Ah Muzencab — Ciclo de 52 Días)"
+        ])
+        self.madrid_combo.setStyleSheet("QComboBox { background: #1C241B; color: #F9E79F; border: 1px solid #D4AC0D; padding: 6px 10px; border-radius: 4px; font-weight: bold; font-size: 11px; }")
+        self.madrid_combo.currentIndexChanged.connect(self._on_madrid_combo_changed)
+        madrid_sel_row.addWidget(self.madrid_combo, stretch=1)
+
+        self.btn_calc_madrid = QPushButton("⚡ Calcular Hito Agrícola")
+        self.btn_calc_madrid.setStyleSheet("""
+            QPushButton {
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #B7950B, stop:1 #7D6608);
+                color: #FFF; font-weight: bold; border: 1px solid #F4D03F; border-radius: 5px;
+                padding: 7px 16px; font-size: 11px;
+            }
+            QPushButton:hover {
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #D4AC0D, stop:1 #9A7D0A);
+                border-color: #FFF; color: #FFF;
+            }
+        """)
+        self.btn_calc_madrid.clicked.connect(self._exec_madrid_almanac_jump)
+        madrid_sel_row.addWidget(self.btn_calc_madrid)
+        madrid_layout.addLayout(madrid_sel_row)
+
+        # Integrated Result Card
+        madrid_card = QFrame()
+        madrid_card.setStyleSheet("""
+            QFrame {
+                background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #1E271E, stop:1 #111811);
+                border: 1px solid #27AE60;
+                border-left: 5px solid #F4D03F;
+                border-radius: 6px;
+            }
+        """)
+        madrid_card_layout = QHBoxLayout(madrid_card)
+        madrid_card_layout.setContentsMargins(14, 10, 14, 10)
+        madrid_card_layout.setSpacing(15)
+
+        self.madrid_result_box = QLabel("Selecciona un hito de Madrid y pulsa 'Calcular Hito Agrícola'.")
+        self.madrid_result_box.setStyleSheet("color: #E0C090; font-size: 12px; background: transparent; border: none;")
+        self.madrid_result_box.setWordWrap(True)
+        madrid_card_layout.addWidget(self.madrid_result_box, stretch=1)
+
+        self.btn_goto_madrid = QPushButton("📍 Sincronizar en Estela")
+        self.btn_goto_madrid.setEnabled(False)
+        self.btn_goto_madrid.setCursor(Qt.PointingHandCursor)
+        self.btn_goto_madrid.setStyleSheet("""
+            QPushButton {
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #1E8449, stop:1 #145A32);
+                color: #FFF; border: 1px solid #52BE80; border-radius: 5px;
+                padding: 9px 18px; font-weight: bold; font-size: 11px; min-width: 150px;
+            }
+            QPushButton:hover {
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #27AE60, stop:1 #196F3D);
+                border-color: #FFF; color: #F1C40F;
+            }
+            QPushButton:disabled {
+                background: #19221A; color: #415A44; border: 1px solid #233425;
+            }
+        """)
+        self.btn_goto_madrid.clicked.connect(self._jump_from_madrid_result)
+        madrid_card_layout.addWidget(self.btn_goto_madrid)
+        madrid_layout.addWidget(madrid_card)
+
+        content_layout.addWidget(madrid_group)
+
         # Initialize Serpent 1 preview
         self._on_serp_combo_changed(0)
         # Initialize Season 364 preview
         self._exec_season_station_jump()
         # Initialize Mars preview
         self._exec_mars_station_jump()
+        # Initialize Madrid preview
+        self._exec_madrid_almanac_jump()
 
         scroll.setWidget(content)
         layout.addWidget(scroll)
@@ -4520,6 +5411,374 @@ class MayanSteleApp(QMainWindow):
         if hasattr(self, '_last_mars_dest_date'):
             self.date_edit.setDate(self._last_mars_dest_date)
             self.tabs.setCurrentIndex(0)
+
+    def _on_madrid_combo_changed(self, idx):
+        self._exec_madrid_almanac_jump()
+
+    def _exec_madrid_almanac_jump(self):
+        cur_d = self.date_edit.date()
+        base_jdn = self.converter._gregorian_to_jdn(cur_d.year, cur_d.month, cur_d.day)
+        start_days = base_jdn - self.converter.correlation_jdn
+        
+        idx = self.madrid_combo.currentIndex()
+        res = self.converter.get_next_madrid_agricultural_event(start_days, target_event=idx)
+        gy, gm, gd = res["dest_gregorian"]
+        d_data = res["dest_data"]
+        delta = res["delta_days"]
+        madrid = d_data["madrid_almanac_data"]
+        self._last_madrid_dest_date = ChronoDate(gy, gm, gd)
+        self.btn_goto_madrid.setEnabled(True)
+        
+        g_era = f"{abs(gy)+1} a.C." if gy <= 0 else f"{gy:04d} d.C."
+        
+        if idx == 0:
+            # 0 Pop Año Nuevo
+            self.madrid_result_box.setText(
+                f"<b>🌸 AÑO NUEVO MAYA (0 POP): <span style='color:#F4D03F; font-size:13px;'>{gd:02d}/{gm:02d}/{g_era}</span></b> (+{delta:,} días)<br>"
+                f"• <b>Portador del Año (Cuch Hab):</b> <span style='color:{madrid['madrid_color_hex']}; font-weight:bold;'>{madrid['madrid_glyph']} {madrid['madrid_bearer']} ({madrid['madrid_cardinal']} / {madrid['madrid_color']})</span> • <b>Presagio:</b> {madrid['madrid_climate_omen']}<br>"
+                f"• <b>Cuenta Larga:</b> <span style='color:#F1C40F'>{d_data['long_count']}</span> • <b>Haab':</b> {d_data['haab']} • <b>Señor:</b> {d_data['lord']}<br>"
+                f"• <b>Deidad y Vasija de Chac:</b> {madrid['chac_vessel_glyph']} {madrid['chac_vessel_name']} ({madrid['chac_manifestation']}) • <i>{madrid['madrid_ritual']}</i>"
+            )
+        elif idx == 1:
+            # Uayeb días 360-364
+            self.madrid_result_box.setText(
+                f"<b>⚠️ ENTRADA AL UAYEB (DÍAS 360-364): <span style='color:#E67E22; font-size:13px;'>{gd:02d}/{gm:02d}/{g_era}</span></b> (+{delta:,} días)<br>"
+                f"• <b>Transición Cósmica:</b> 5 días sin nombre (Uayeb) de purificación y ayuno previo al cambio de Cuch Hab.<br>"
+                f"• <b>Cuenta Larga:</b> <span style='color:#F1C40F'>{d_data['long_count']}</span> • <b>Haab':</b> {d_data['haab']} • <b>Tzolk'in:</b> {d_data['tzolkin']}<br>"
+                f"• <b>Patrono del Uayeb:</b> {madrid['madrid_uayeb_patron']} • <b>Ritual:</b> {madrid['madrid_ritual']}"
+            )
+        elif idx == 2:
+            # Siembra de Maíz Kan
+            self.madrid_result_box.setText(
+                f"<b>🌱 SIEMBRA SAGRADA DEL MAÍZ (PAK'AL): <span style='color:#2ECC71; font-size:13px;'>{gd:02d}/{gm:02d}/{g_era}</span></b> (+{delta:,} días)<br>"
+                f"• <b>Fase Fenológica:</b> {madrid['maize_glyph']} {madrid['maize_stage_name']} ({madrid['maize_action']})<br>"
+                f"• <b>Signo Sagrado:</b> <span style='color:#F4D03F;'>Kan (Grano de Maíz)</span> • <b>Consejo Litúrgico:</b> {madrid['maize_advice']}<br>"
+                f"• <b>Cuenta Larga:</b> <span style='color:#F1C40F'>{d_data['long_count']}</span> • <b>Haab':</b> {d_data['haab']} • <b>Señor:</b> {d_data['lord']}"
+            )
+        else:
+            # Apertura de Melipona
+            self.madrid_result_box.setText(
+                f"<b>🐝 APERTURA DE JOBONES MELIPONA (AH MUZENCAB): <span style='color:#F39C12; font-size:13px;'>{gd:02d}/{gm:02d}/{g_era}</span></b> (+{delta:,} días)<br>"
+                f"• <b>Ciclo Sagrado de 52 Días:</b> Día {madrid['melipona_day_in_52']}/52 ({madrid['melipona_phase']})<br>"
+                f"• <b>Deidad Protectora:</b> {madrid['melipona_deity']} • <b>Uso Litúrgico:</b> {madrid['melipona_ritual']}<br>"
+                f"• <b>Cuenta Larga:</b> <span style='color:#F1C40F'>{d_data['long_count']}</span> • <b>Tzolk'in:</b> {d_data['tzolkin']} • <b>Haab':</b> {d_data['haab']}"
+            )
+
+    def _jump_from_madrid_result(self):
+        if hasattr(self, '_last_madrid_dest_date'):
+            self.date_edit.setDate(self._last_madrid_dest_date)
+            self.tabs.setCurrentIndex(0)
+
+    def _setup_cosmogram_tab(self):
+        tab = QWidget()
+        tab.setStyleSheet("background-color: #14110E; color: #E0C090;")
+        layout = QHBoxLayout(tab)
+        layout.setContentsMargins(10, 10, 10, 10)
+        layout.setSpacing(12)
+
+        # Left / Center: Interactive Vector Cosmogram Widget
+        cosmo_frame = QFrame()
+        cosmo_frame.setStyleSheet("""
+            QFrame {
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #16120F, stop:1 #0F0C0A);
+                border: 2px solid #382F22;
+                border-radius: 8px;
+            }
+        """)
+        cosmo_frame_layout = QVBoxLayout(cosmo_frame)
+        cosmo_frame_layout.setContentsMargins(6, 6, 6, 6)
+
+        self.cosmogram_widget = MadridCosmogramWidget(converter=self.converter)
+        self.cosmogram_widget.kin_selected.connect(self._on_cosmogram_kin_clicked)
+        self.cosmogram_widget.kin_hovered.connect(self._on_cosmogram_kin_hovered)
+        self.cosmogram_widget.on_anim_step_callback = self._on_cosmogram_anim_step
+        cosmo_frame_layout.addWidget(self.cosmogram_widget)
+
+        layout.addWidget(cosmo_frame, stretch=7)
+
+        # Right Panel: Controls & Scholarly Information inside QScrollArea
+        right_scroll = QScrollArea()
+        right_scroll.setWidgetResizable(True)
+        right_scroll.setStyleSheet("QScrollArea { background-color: #14110E; border: none; }")
+        if right_scroll.viewport():
+            right_scroll.viewport().setStyleSheet("background-color: #14110E;")
+
+        right_content = QWidget()
+        right_layout = QVBoxLayout(right_content)
+        right_layout.setContentsMargins(8, 4, 8, 4)
+        right_layout.setSpacing(12)
+
+        # 1. Header Box
+        header_group = QGroupBox("🌸 Cosmograma Sagrado de 260 Días (Códice de Madrid pp. 75–76)")
+        header_group.setStyleSheet("QGroupBox { font-weight: bold; color: #F4D03F; border: 1px solid #5D4037; border-radius: 6px; margin-top: 6px; padding-top: 10px; }")
+        header_layout = QVBoxLayout(header_group)
+        header_layout.setSpacing(6)
+
+        desc_text = (
+            "El Cosmograma de las páginas 75 y 76 del Códice Tro-Cortesiano (Madrid) es la mayor obra maestra de cartografía sagrada maya. "
+            "Representa el universo cuadripartito en forma de flor de 4 pétalos (Cruz de Malta), donde los 260 días del Tzolk'in forman "
+            "un lazo continuo de 65 días por cuadrante recorrido por huellas de pies divinos (Xocan Be). En el ombligo del mundo (Axis Mundi) "
+            "reinan los abuelos primordiales Itzamná e Ixchel junto a la Ceiba sagrada Wacah Chan."
+        )
+        lbl_desc = StoneLabel(desc_text, size=11, color="#BDC3C7")
+        lbl_desc.setWordWrap(True)
+        header_layout.addWidget(lbl_desc)
+        right_layout.addWidget(header_group)
+
+        # 2. Card de Kin Activo
+        self.cosmo_kin_card = StonePanel("DÍA SAGRADO ACTIVO EN EL COSMOGRAMA", "Kin 1 • 1 Imix", "Iniciación de la Rueda Sagrada", main_size=15)
+        self.cosmo_kin_card.setStyleSheet("""
+            StonePanel {
+                background-color: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #251B18, stop:1 #140E0C);
+                border: 2px solid #D4AC0D;
+                border-radius: 6px;
+            }
+        """)
+        right_layout.addWidget(self.cosmo_kin_card)
+
+        # 3. Card de Cuadrante & Ceiba
+        self.cosmo_quad_card = StonePanel("CUADRANTE CARDINAL & DEIDAD", "🌸 ESTE (LAK'IN) — Rojo (Chac)", "Ceiba: Chac Imixche • Regente: K'inich Ahau", main_size=13)
+        self.cosmo_quad_card.setStyleSheet("""
+            StonePanel {
+                background-color: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #1C241B, stop:1 #111A11);
+                border: 2px solid #27AE60;
+                border-radius: 6px;
+            }
+        """)
+        right_layout.addWidget(self.cosmo_quad_card)
+
+        # 4. Card de Almanaques de Producción
+        self.cosmo_almanac_card = StonePanel("ALMANAQUES DE PRODUCCIÓN (MADRID)", "Portador: Kan 🌾 (Este)", "Vasija Chac • Maíz • Melipona", main_size=13)
+        self.cosmo_almanac_card.setStyleSheet("""
+            StonePanel {
+                background-color: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #2A241C, stop:1 #1A1510);
+                border: 2px solid #E67E22;
+                border-radius: 6px;
+            }
+        """)
+        right_layout.addWidget(self.cosmo_almanac_card)
+
+        # Botón Sincronizar en Estela
+        self.btn_goto_calendar_from_cosmo = QPushButton("📍 Ver en Calendario Principal (Pestaña 1)")
+        self.btn_goto_calendar_from_cosmo.setCursor(Qt.PointingHandCursor)
+        self.btn_goto_calendar_from_cosmo.setStyleSheet("""
+            QPushButton {
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #1E8449, stop:1 #145A32);
+                color: #FFF; border: 1px solid #52BE80; border-radius: 5px;
+                padding: 9px 18px; font-weight: bold; font-size: 11px;
+            }
+            QPushButton:hover {
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #27AE60, stop:1 #196F3D);
+                border-color: #FFF; color: #F1C40F;
+            }
+        """)
+        self.btn_goto_calendar_from_cosmo.clicked.connect(self._jump_from_cosmogram_to_calendar)
+        right_layout.addWidget(self.btn_goto_calendar_from_cosmo)
+
+        # 5. Panel de Controles Cósmicos
+        ctrl_group = QGroupBox("⚙️ Controles de Exploración y Animación")
+        ctrl_group.setStyleSheet("QGroupBox { font-weight: bold; color: #F4D03F; border: 1px solid #5D4037; border-radius: 6px; margin-top: 6px; padding-top: 10px; }")
+        ctrl_layout = QVBoxLayout(ctrl_group)
+        ctrl_layout.setSpacing(8)
+
+        # Orientación Toggle
+        row_orient = QHBoxLayout()
+        self.btn_toggle_orient = QPushButton("🔄 Orientación: Maya Sagrada (Este Arriba)")
+        self.btn_toggle_orient.setCursor(Qt.PointingHandCursor)
+        self.btn_toggle_orient.setStyleSheet("""
+            QPushButton {
+                background: #201C16; color: #F9E79F; border: 1px solid #B7950B;
+                border-radius: 4px; padding: 6px 12px; font-weight: bold; font-size: 11px;
+            }
+            QPushButton:hover { background: #2E2519; color: #FFF; border-color: #F4D03F; }
+        """)
+        self.btn_toggle_orient.clicked.connect(self._on_cosmogram_orientation_toggled)
+        row_orient.addWidget(self.btn_toggle_orient)
+        ctrl_layout.addLayout(row_orient)
+
+        # Animación de Peregrinación
+        anim_row = QHBoxLayout()
+        self.btn_cosmo_play = QPushButton("▶ Iniciar Peregrinación Cósmica")
+        self.btn_cosmo_play.setCursor(Qt.PointingHandCursor)
+        self.btn_cosmo_play.setStyleSheet("""
+            QPushButton {
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #8E44AD, stop:1 #5B2C6F);
+                color: #FFF; font-weight: bold; border: 1px solid #AF7AC5;
+                border-radius: 4px; padding: 7px 14px; font-size: 11px;
+            }
+            QPushButton:hover {
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #9B59B6, stop:1 #6C3483);
+                border-color: #FFF; color: #F4D03F;
+            }
+        """)
+        self.btn_cosmo_play.clicked.connect(self._on_cosmogram_play_toggled)
+        anim_row.addWidget(self.btn_cosmo_play, stretch=1)
+
+        self.slider_speed = QSlider(Qt.Horizontal)
+        self.slider_speed.setRange(20, 350)
+        self.slider_speed.setValue(120)
+        self.slider_speed.setToolTip("Velocidad de paso (ms)")
+        self.slider_speed.valueChanged.connect(lambda v: self.cosmogram_widget.set_animation_speed(v))
+        anim_row.addWidget(StoneLabel("Velocidad:", size=10, color="#aaa"))
+        anim_row.addWidget(self.slider_speed, stretch=1)
+        ctrl_layout.addLayout(anim_row)
+
+        self.chk_sync_calendar_anim = QCheckBox("Sincronizar fecha del calendario durante la animación")
+        self.chk_sync_calendar_anim.setStyleSheet("QCheckBox { color: #BDC3C7; font-size: 11px; }")
+        self.chk_sync_calendar_anim.toggled.connect(lambda val: setattr(self.cosmogram_widget, '_sync_global_on_anim', val))
+        ctrl_layout.addWidget(self.chk_sync_calendar_anim)
+
+        # Filtro de Cuadrantes
+        ctrl_layout.addWidget(StoneLabel("Enfocar Cuadrante Cardinal:", size=10, is_bold=True, color="#F4D03F"))
+        quad_btns_row = QHBoxLayout()
+        quad_btns_row.setSpacing(4)
+        
+        self.cosmo_filter_group = QButtonGroup(self)
+        self.cosmo_filter_group.setExclusive(True)
+
+        filters = [
+            ("Todos", -1), ("🌸 Este", 0), ("💧 Norte", 1), ("🐆 Oeste", 2), ("⚡ Sur", 3)
+        ]
+        for label, idx in filters:
+            btn = QPushButton(label)
+            btn.setCheckable(True)
+            if idx == -1:
+                btn.setChecked(True)
+            btn.setStyleSheet("""
+                QPushButton {
+                    background: #1C1814; color: #CCC; border: 1px solid #443728;
+                    border-radius: 4px; padding: 4px 6px; font-size: 10px; font-weight: bold;
+                }
+                QPushButton:checked {
+                    background: #3E301D; color: #F4D03F; border: 1px solid #F4D03F;
+                }
+                QPushButton:hover { border-color: #F4D03F; }
+            """)
+            self.cosmo_filter_group.addButton(btn, idx)
+            quad_btns_row.addWidget(btn)
+
+        self.cosmo_filter_group.idClicked.connect(self._on_cosmogram_petal_filter_changed)
+        ctrl_layout.addLayout(quad_btns_row)
+
+        # Checkboxes visuales
+        vis_row = QHBoxLayout()
+        self.chk_cosmo_footprints = QCheckBox("Huellas (Xocan Be)")
+        self.chk_cosmo_footprints.setChecked(True)
+        self.chk_cosmo_footprints.setStyleSheet("QCheckBox { color: #BDC3C7; font-size: 10px; }")
+        self.chk_cosmo_footprints.toggled.connect(self.cosmogram_widget.set_show_footprints)
+        vis_row.addWidget(self.chk_cosmo_footprints)
+
+        self.chk_cosmo_numbers = QCheckBox("Números de Kin")
+        self.chk_cosmo_numbers.setChecked(False)
+        self.chk_cosmo_numbers.setStyleSheet("QCheckBox { color: #BDC3C7; font-size: 10px; }")
+        self.chk_cosmo_numbers.toggled.connect(self.cosmogram_widget.set_show_numbers)
+        vis_row.addWidget(self.chk_cosmo_numbers)
+
+        self.chk_cosmo_bearers = QCheckBox("Resaltar 4 Portadores")
+        self.chk_cosmo_bearers.setChecked(True)
+        self.chk_cosmo_bearers.setStyleSheet("QCheckBox { color: #BDC3C7; font-size: 10px; }")
+        self.chk_cosmo_bearers.toggled.connect(self.cosmogram_widget.set_highlight_bearers)
+        vis_row.addWidget(self.chk_cosmo_bearers)
+
+        ctrl_layout.addLayout(vis_row)
+        right_layout.addWidget(ctrl_group)
+
+        right_layout.addStretch()
+        right_scroll.setWidget(right_content)
+        layout.addWidget(right_scroll, stretch=5)
+
+        self.tabs.addTab(tab, "🌸 Cosmograma Madrid (pp. 75–76)")
+
+    def _on_cosmogram_kin_clicked(self, kin):
+        """Al hacer clic en un Kin del cosmograma, ajusta la fecha del calendario hacia ese Kin."""
+        cur_d = self.date_edit.date()
+        base_jdn = self.converter._gregorian_to_jdn(cur_d.year, cur_d.month, cur_d.day)
+        start_days = base_jdn - self.converter.correlation_jdn
+        cur_kin = ((start_days + 159) % 260) + 1
+
+        delta = (kin - cur_kin) % 260
+        if delta > 130:
+            delta -= 260
+
+        new_date = cur_d.addDays(delta)
+        self.date_edit.setDate(new_date)
+
+    def _on_cosmogram_kin_hovered(self, kin):
+        """Muestra información interactiva al pasar el ratón."""
+        pass
+
+    def _on_cosmogram_orientation_toggled(self):
+        new_val = not self.cosmogram_widget._east_is_top
+        self.cosmogram_widget.set_orientation(new_val)
+        if new_val:
+            self.btn_toggle_orient.setText("🔄 Orientación: Maya Sagrada (Este Arriba)")
+        else:
+            self.btn_toggle_orient.setText("🧭 Orientación: Cartesiana (Norte Arriba)")
+
+    def _on_cosmogram_play_toggled(self):
+        is_playing = self.cosmogram_widget.toggle_animation()
+        if is_playing:
+            self.btn_cosmo_play.setText("⏸ Pausar Peregrinación")
+            self.btn_cosmo_play.setStyleSheet("""
+                QPushButton {
+                    background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #C0392B, stop:1 #922B21);
+                    color: #FFF; font-weight: bold; border: 1px solid #E74C3C;
+                    border-radius: 4px; padding: 7px 14px; font-size: 11px;
+                }
+            """)
+        else:
+            self.btn_cosmo_play.setText("▶ Iniciar Peregrinación Cósmica")
+            self.btn_cosmo_play.setStyleSheet("""
+                QPushButton {
+                    background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #8E44AD, stop:1 #5B2C6F);
+                    color: #FFF; font-weight: bold; border: 1px solid #AF7AC5;
+                    border-radius: 4px; padding: 7px 14px; font-size: 11px;
+                }
+            """)
+
+    def _on_cosmogram_anim_step(self, kin):
+        if getattr(self.cosmogram_widget, '_sync_global_on_anim', False):
+            self.date_edit.setDate(self.date_edit.date().addDays(1))
+
+    def _on_cosmogram_petal_filter_changed(self, idx):
+        self.cosmogram_widget.set_focus_petal(idx)
+
+    def _jump_from_cosmogram_to_calendar(self):
+        self.tabs.setCurrentIndex(0)
+
+    def _update_cosmogram_tab(self, data):
+        if not hasattr(self, 'cosmo_kin_card'):
+            return
+
+        kin = ((data["days_since_epoch"] + 159) % 260) + 1
+        info = self.cosmogram_widget._get_kin_info(kin)
+        q = info['quad_data']
+        madrid = data.get("madrid_almanac_data", {})
+
+        # Update Kin Card
+        self.cosmo_kin_card.update_data(
+            f"Kin {kin} • {info['tzolkin_str']} {info['glyph']}",
+            f"Significado: {info['meaning']} │ Posición: Día {info['day_in_petal']}/65 (Trecena {info['trecena_in_petal']}/5)"
+        )
+
+        # Update Quadrant Card
+        self.cosmo_quad_card.update_data(
+            f"{q['name']} — {q['color_name']}",
+            f"Ceiba Sagrada: {q['ceiba']}\nRegente: {q['regent']} │ Vasija de Chac: {q['chac_vessel']}\nPatrono Bacab: {q['bacab']} ({q['bird']})"
+        )
+
+        # Update Almanac Card
+        yb = madrid.get("madrid_bearer", "Kan")
+        card = madrid.get("madrid_cardinal", "Este")
+        chac_v = madrid.get("chac_vessel_name", "Yax-Ha'")
+        mz = madrid.get("maize_stage_name", "Siembra")
+        meli_d = madrid.get("melipona_day_in_52", 1)
+        uayeb_txt = "⚠️ EN UAYEB (Días 360-364)" if madrid.get("is_uayeb") else f"Uayeb en {madrid.get('days_to_uayeb', 0)}d"
+
+        self.cosmo_almanac_card.update_data(
+            f"Portador del Año: {yb} ({card}) • {uayeb_txt}",
+            f"Vasija Chac: {chac_v} │ Fenología Maíz: {mz}\nApicultura: Melipona beecheii día {meli_d}/52 (Ah Muzencab) │ Presagio: {madrid.get('madrid_climate_omen', '')}"
+        )
 
     def _setup_biological_tab(self):
         tab = QWidget()
@@ -4940,7 +6199,11 @@ class MayanSteleApp(QMainWindow):
             f"{data['tzolkin_glyph']} {data['tzolkin']}",
             data["tzolkin_meaning"]
         )
-        self.panel_haab.update_data(data["haab"], data["haab_meaning"])
+        uayeb_note = " ⚠️ [EN UAYEB]" if data.get("is_uayeb") else ""
+        self.panel_haab.update_data(
+            f"{data['haab']}{uayeb_note}",
+            f"{data['haab_meaning']} • Regente: {data.get('madrid_year_bearer', '')} ({data.get('madrid_cardinal', '')})"
+        )
         self.panel_calendar_round.update_data(
             data["calendar_round"],
             f"Position: {data['calendar_round_pos']:,} / 18,980 days"
@@ -5021,6 +6284,25 @@ class MayanSteleApp(QMainWindow):
             )
             if hasattr(self, 'season_364_bar'):
                 self.season_364_bar.set_position(d_364)
+
+        # Madrid Codex Panel (Portadores del Año, Chac, Maíz, Melipona)
+        if hasattr(self, 'panel_madrid'):
+            madrid = data.get("madrid_almanac_data", {})
+            uayeb_alert = "⚠️ ¡PERÍODO CRÍTICO DE UAYEB! (Días 360-364)" if madrid.get("is_uayeb") else f"Uayeb en {madrid.get('days_to_uayeb', 0)}d (Año Nuevo en {madrid.get('days_to_next_year', 0)}d)"
+            main_txt = f"{madrid.get('madrid_glyph', '🌾')} Portador: {madrid.get('madrid_bearer', 'Kan')} ({madrid.get('madrid_cardinal', 'Este')} / {madrid.get('madrid_color', 'Rojo')}) • {uayeb_alert}"
+            sub_txt = (
+                f"✦ Chac: {madrid.get('chac_vessel_glyph', '🏺')} {madrid.get('chac_vessel_name', '')} ({madrid.get('chac_manifestation', '')}) │ ✦ Maíz: {madrid.get('maize_glyph', '🌱')} {madrid.get('maize_stage_name', '')} ({madrid.get('maize_action', '')})\n"
+                f"✦ Xunán Kab: 🐝 Día {madrid.get('melipona_day_in_52', 1)}/52 ({madrid.get('melipona_phase', '')}) │ Presagio: {madrid.get('madrid_climate_omen', '')}"
+            )
+            self.panel_madrid.update_data(main_txt, sub_txt)
+
+        # Update Cosmogram Tab
+        if hasattr(self, 'cosmogram_widget'):
+            kin = ((data["days_since_epoch"] + 159) % 260) + 1
+            self.cosmogram_widget.set_active_kin(kin)
+        if hasattr(self, '_update_cosmogram_tab'):
+            self._update_cosmogram_tab(data)
+
         self._current_mayan_data = data
         if hasattr(self, '_update_biological_tab'):
             self._update_biological_tab(data)

@@ -309,6 +309,23 @@ TOOLS = [
                 }
             }
         }
+    },
+    {
+        "name": "mayan_get_year_bearer_and_agriculture",
+        "description": "Calcula el Portador del Año (Cuch Hab) y los Almanaques de Producción Agrícola y Clima del Códice Tro-Cortesiano (Códice de Madrid pp. 34–37, 12–33, 103–112). Determina el regente solar anual (Kan, Muluc, Ix, Cauac), su cuadrante cósmico, color y augurio climático; el estado y días faltantes para el Uayeb (los 5 días nefastos); la Vasija Celeste activa del dios Chac (lluvia fértil Yax-Ha', tormenta Chac-Ik-Ha', granizo Bat-Ha' o sequía K'in-Tun); la fenología del Maíz (Ixim: roza, siembra, defensa contra el búho Muan y trojes de almacenamiento); y el ciclo sagrado de 52 días de la apicultura Melipona (Xunán Kab) bajo el dios alado Ah Muzencab.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "year": {"type": "integer", "description": "Año gregoriano o astronómico (opcional, por defecto hoy)"},
+                "month": {"type": "integer", "description": "Mes gregoriano 1-12 (opcional)"},
+                "day": {"type": "integer", "description": "Día del mes 1-31 (opcional)"},
+                "correlation": {
+                    "type": "string",
+                    "enum": ["GMT", "GMT+2", "Spinden"],
+                    "description": "Correlación arqueológica. Por defecto GMT (584283)."
+                }
+            }
+        }
     }
 ]
 
@@ -870,6 +887,77 @@ def execute_tool(name, args):
                     }
                 },
                 "esoteric_meaning": m["meaning"]
+            }
+        }
+        return json.dumps(res, ensure_ascii=False, indent=2)
+
+    elif name == "mayan_get_year_bearer_and_agriculture":
+        year = args.get("year")
+        month = args.get("month")
+        day = args.get("day")
+        if year is not None and month is not None and day is not None:
+            jdn = converter._gregorian_to_jdn(year, month, day)
+        else:
+            now = datetime.now()
+            year, month, day = now.year, now.month, now.day
+            jdn = converter._gregorian_to_jdn(year, month, day)
+
+        days_since_epoch = jdn - converter.correlation_jdn
+        madrid = converter.get_madrid_year_bearer_and_almanac(days_since_epoch)
+        full_date = converter.get_full_date(year, month, day)
+
+        res = {
+            "date": f"{year:04d}-{month:02d}-{day:02d}",
+            "days_since_epoch": days_since_epoch,
+            "long_count": full_date["long_count"],
+            "tzolkin": full_date["tzolkin"],
+            "haab": full_date["haab"],
+            "madrid_codex_almanacs": {
+                "year_bearer_cuch_hab": {
+                    "bearer_postclassic_madrid": madrid["madrid_bearer"],
+                    "tone": madrid["madrid_tone"],
+                    "sign": madrid["madrid_sign"],
+                    "cardinal_direction": madrid["madrid_cardinal"],
+                    "color_direction": madrid["madrid_color"],
+                    "glyph": madrid["madrid_glyph"],
+                    "bearer_classic": madrid["classic_bearer"],
+                    "climate_omen": madrid["madrid_climate_omen"],
+                    "crop_omen": madrid["madrid_crop_omen"],
+                    "uayeb_patron_deity": madrid["madrid_uayeb_patron"],
+                    "transition_ritual": madrid["madrid_ritual"],
+                    "next_year_bearer": madrid["next_madrid_bearer"]
+                },
+                "haab_uayeb_cycle": {
+                    "day_in_haab_365": (days_since_epoch + 348) % 365,
+                    "is_uayeb_active": madrid["is_uayeb"],
+                    "uayeb_day_number": madrid["uayeb_day"],
+                    "days_to_uayeb": madrid["days_to_uayeb"],
+                    "days_to_next_year_0pop": madrid["days_to_next_year"],
+                    "current_year_0pop_date": f"{madrid['current_year_0pop_gregorian'][2]:02d}/{madrid['current_year_0pop_gregorian'][1]:02d}/{madrid['current_year_0pop_gregorian'][0]}",
+                    "next_year_0pop_date": f"{madrid['next_year_0pop_gregorian'][2]:02d}/{madrid['next_year_0pop_gregorian'][1]:02d}/{madrid['next_year_0pop_gregorian'][0]}",
+                    "uayeb_start_date": f"{madrid['uayeb_start_gregorian'][2]:02d}/{madrid['uayeb_start_gregorian'][1]:02d}/{madrid['uayeb_start_gregorian'][0]}"
+                },
+                "chac_rain_physiology": {
+                    "vessel_name": madrid["chac_vessel_name"],
+                    "vessel_glyph": madrid["chac_vessel_glyph"],
+                    "manifestation": madrid["chac_manifestation"],
+                    "chac_action": madrid["chac_action"],
+                    "chac_axe_lightning": madrid["chac_pedernal"]
+                },
+                "maize_phenology_ixim": {
+                    "stage_name": madrid["maize_stage_name"],
+                    "glyph": madrid["maize_glyph"],
+                    "action": madrid["maize_action"],
+                    "agricultural_advice": madrid["maize_advice"]
+                },
+                "sacred_meliponiculture_ah_muzencab": {
+                    "bee_species": "Melipona beecheii (Xunán Kab)",
+                    "day_in_52_cycle": madrid["melipona_day_in_52"],
+                    "is_harvest_window": madrid["melipona_is_harvest"],
+                    "phenological_phase": madrid["melipona_phase"],
+                    "deity": madrid["melipona_deity"],
+                    "liturgical_ritual": madrid["melipona_ritual"]
+                }
             }
         }
         return json.dumps(res, ensure_ascii=False, indent=2)

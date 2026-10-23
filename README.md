@@ -8,6 +8,10 @@ A comprehensive, mathematically rigorous Mayan calendar application and **Model 
   <img src="./assets/screenshots/tab0_calendar.png" alt="Mayan Stele - Calendario, Estela & Ruedas Interlocking" width="100%" />
 </p>
 
+<p align="center">
+  <img src="./assets/screenshots/tab3_cosmogram.png" alt="Mayan Stele - Cosmograma de las Páginas 75–76 del Códice de Madrid" width="100%" />
+</p>
+
 [![Python](https://img.shields.io/badge/Python-3.8+-3776AB?logo=python&logoColor=white)](https://python.org)
 [![PySide6](https://img.shields.io/badge/GUI-PySide6%20(Qt6)-41CD52?logo=qt&logoColor=white)](https://pypi.org/project/PySide6/)
 [![MCP Protocol](https://img.shields.io/badge/MCP-JSON--RPC%202.0-8A2BE2)](https://modelcontextprotocol.io)
@@ -34,12 +38,14 @@ A comprehensive, mathematically rigorous Mayan calendar application and **Model 
    - [Kuramoto Coupled Oscillators Synchronization ($R, \Psi$)](#kuramoto-coupled-oscillators-synchronization)
    - [Dresden Codex Eclipse Warning Engine](#dresden-codex-eclipse-warning-engine)
    - [Dresden Codex Mars Table & The Celestial Beast (pp. 43b–45b)](#dresden-codex-mars-table--the-celestial-beast-pp-43b45b)
+   - [Madrid Codex: Year Bearers, Rain & Maize Almanacs (Tro-Cortesiano)](#madrid-codex-year-bearers-rain--maize-almanacs-tro-cortesiano)
    - [Deep Time Eras (up to Alautun)](#deep-time-eras)
    - [Correlation Constants](#correlation-constants)
 4. [Desktop GUI Application (`mayan-stele.py`)](#desktop-gui-application)
    - [Astronomical Calendar & Rotating Wheel](#astronomical-calendar--rotating-wheel)
    - [Fractal Pattern Analyzer & Soliton Wave Packets](#fractal-pattern-analyzer--soliton-wave-packets)
    - [⏳ Operaciones & Retornos (Distance Numbers & CRT)](#operaciones--retornos)
+   - [🌸 Cosmograma de Madrid (pp. 75–76) — Flor de 4 Pétalos](#cosmograma-de-madrid-pp-7576)
    - [🧬 Resonancia Biológica (Amino Acids, Codons & Kototama)](#resonancia-biológica)
    - [Encyclopedia & Basalt/Obsidian Styling](#encyclopedia--styling)
 5. [Multi-Format Profile Exporter (`mayan_exporter.py`)](#multi-format-profile-exporter)
@@ -147,7 +153,7 @@ Add the server configuration to your MCP settings or plugin directory:
 
 ### Available MCP Tools Reference
 
-The server exposes **13 specialized tools**:
+The server exposes **14 specialized tools**:
 
 | Tool Name | Purpose | Key Arguments |
 |-----------|---------|---------------|
@@ -163,6 +169,7 @@ The server exposes **13 specialized tools**:
 | `mayan_resolve_serpent_series` | Dresden Codex (pp. 61–69) Serpent Series & Ring Numbers Deep Time calculator (~33,000 yrs) | `serpent_index` (0–4) or `ring_days` + `serpent_distance_days`, `correlation` |
 | `mayan_get_364_day_season` | Dresden Codex (pp. 65a–69b) 364-Day Seasonal Year & 4 Cardinal Quarters (Chac deities, 91d stations, 1,820d cycle) | `year`, `month`, `day`, `correlation` |
 | `mayan_get_mars_table` | Dresden Codex (pp. 43b–45b) 780-day Mars Synodic Table & Celestial Beast Retrograde Loop (10x78d stations, 9,360d & 56,940d macro-cycles) | `year`, `month`, `day`, `correlation` |
+| `mayan_get_year_bearer_and_agriculture` | Madrid Codex (pp. 34–37, 12–33, 103–112) Year Bearers (*Cuch Hab*), Uayeb countdown, Chac rain vessels, maize phenology (*Ixim*) & Melipona beekeeping (*Ah Muzencab*) | `year`, `month`, `day`, `correlation` |
 | `mayan_export_profile` | Generates full profile in SVG, Markdown, ASCII, or JSON format | `year`, `month`, `day`, `format`, `correlation` |
 
 ---
@@ -301,6 +308,40 @@ Pages 43b–45b of the **Dresden Codex** preserve the famous Maya synodic table 
 
 ---
 
+### Madrid Codex: Year Bearers, Rain & Maize Almanacs (Tro-Cortesiano)
+
+The **Madrid Codex** (*Códice Tro-Cortesiano*, 112 pages) is the quintessential Mesoamerican survival, agricultural, and liturgical manual. `Mayan Stele` incorporates its core predictive and meteorological engines:
+
+1. **The 4 Year Bearers (*Cuch Hab*) & The *Uayeb* Transition (pp. 34–37)**:
+   In Postclassic Yucatán and the Madrid Codex, the burden of the 365-day solar year was carried by four specific day signs:
+   - **Kan (Este / Rojo)**: Regente solar fértil y benévolo. Presagio: Abundancia de cosechas y lluvias equilibradas. Patrono de Uayeb: *K'an-Uayeyab*.
+   - **Muluc (Norte / Blanco)**: Regente de vientos. Presagio: Vientos fríos y precipitaciones irregulares de temporal; año de raíces y caza. Patrono: *Chac-Uayeyab*.
+   - **Ix (Oeste / Negro)**: Regente de sequía e introspección. Presagio: Aridez, plagas en milpa y calor extremo. Patrono: *Sac-Uayeyab*.
+   - **Cauac (Sur / Amarillo)**: Regente de tormentas. Presagio: Huracanes, tempestades eléctricas y humedad excesiva. Patrono: *Ek-Uayeyab*.
+   - **Los 5 Días del Uayeb**: Días 360 a 364 del Haab' (*Xma K'aba K'in*, días sin nombre). La estela calcula la distancia exacta en días hasta el próximo Uayeb y advierte en tiempo real cuando la fecha actual cae dentro de este período crítico de purificación.
+
+2. **Fisiología de la Lluvia y las 4 Vasijas de Chac (pp. 12–18, 24–33)**:
+   El dios de la lluvia *Chac* vierte las aguas celestiales desde cuatro cántaros sagrados:
+   - 🏺 **Yax-Ha'** (Lluvia Fértil / Rocío Verde Nutricio): Abre los brotes tiernos.
+   - 🌀 **Chac-Ik-Ha'** (Tempestad / Viento Huracanado): Lluvias torrenciales de gran volumen.
+   - ❄️ **Bat-Ha'** (Granizo / Helada Destructiva): Cántaro de choque térmico sobre los cultivos.
+   - ☀️ **K'in-Tun** (Cántaro Vacío / Sequía de Fuego): Cielo despejado abrasador para secar la cosecha.
+   - **El Hacha de Pedernal**: Símbolo del rayo que hiende las nubes (*Chac Tok Tz'utun*) para fertilizar a la Madre Tierra.
+
+3. **Fenología del Maíz Sagrado (*Ixim*)**:
+   Almanaque de 4 etapas que rige la vida biológica de la milpa maya:
+   - 🔥 **Roza y Quema (*Ah Toc*)**: Preparación y limpieza de la parcela con los sacerdotes del fuego.
+   - 🌱 **Siembra Sagrada (*Pak'al*)**: El grano de maíz se introduce en la tierra sagrada bajo la protección del signo solar *Kan*.
+   - 🦉 **Defensa de la Milpa contra Predadores**: Vigilia crítica contra las aves rapaces y el búho *Muan*.
+   - 🌽 **Cosecha y Almacenamiento en Chultunes**: Recolección bajo signos *Eb* e *Ik* para secar la mazorca y protegerla en graneros subterráneos de cal.
+
+4. **Tratado Único de Meliponicultura Sagrada (*Xunán Kab*, pp. 103–112)**:
+   El único manual apícola prehispánico, dedicado a la abeja nativa sin aguijón (*Melipona beecheii*):
+   - **Ah Muzencab**: El dios alado de las abejas que desciende cabeza abajo para custodiar los troncos ahuecados (*jobones*).
+   - **Ciclo Ceremonial de 52 Días**: Ventana litúrgica de cosecha de la miel medicinal y cera virgen para fermentar la bebida sagrada del *balché*.
+
+---
+
 ### Deep Time Eras
 
 The Maya Long Count extends far beyond the 13 Baktun creation era:
@@ -336,8 +377,8 @@ Built with **PySide6** and styled with an authentic stone-carved, basalt obsidia
 ┌────────────────────────────────────────────────────────────────────────┐
 │  MAYAN STELE - COSMIC CHRONOMETRY & FRACTAL ANALYZER                   │
 ├────────────────────────────────────────────────────────────────────────┤
-│  [📅 Calendario & Estela]  [🌀 Analizador Fractal]                     │
-│  [⏳ Operaciones & Retornos] [🧬 Resonancia Biológica] [📚 Enciclopedia]│
+│  [📅 Calendario & Estela]   [🌀 Analizador Fractal]  [⏳ Operaciones]   │
+│  [🌸 Cosmograma Madrid]    [🧬 Resonancia Biológica] [📚 Enciclopedia] │
 └────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -352,6 +393,7 @@ Built with **PySide6** and styled with an authentic stone-carved, basalt obsidia
 - **Paris Codex Ecliptic Zodiac Panel**: Real-time astronomical calculation (Jean Meeus algorithm) of the apparent solar longitude $\lambda_{\odot}$ mapping the Sun's transit across the 13 indigenous Maya constellations (*Códice de París*, pp. 21-24: Tzab, Ak, K'ek'en, Chuen, Koh, K'uk'ul, Chitam, Zina'an, Balam, Sotz', Muan, Pez, Xoc).
 - **364-Day Seasonal Computing Year Panel (Dresden pp. 65a-69b)**: Dedicated StonePanel and embedded `Season364Bar` tracking the 4 Cardinal Quarters ($4 \times 91 = 364\text{d}$) and 7 trecenas per quarter ($7 \times 13 = 91\text{d}$), directional Chac deities, and the 1,820-day Grand Return ($5 \times 364 = 7 \times 260\text{d}$).
 - **Mars Table & Celestial Beast Panel (Dresden pp. 43b-45b)**: Dedicated StonePanel and custom visual `MarsPhaseBar` displaying the 780-day synodic cycle, active station of 78 days (with immutable sacred coefficient 3), Tzolk'in acts (1 to 3), Celestial Beast retrograde indicators, solar opposition windows, and the 9,360-day Super-Tun commensurability.
+- **Madrid Codex Panel (Portadores del Año & Ciclos Agrícolas pp. 34–37, 12–33, 103–112)**: Dedicated StonePanel tracking the active annual Year Bearer (*Kan, Muluc, Ix, Cauac*), Uayeb countdown and alert, active celestial vessel of the rain god *Chac*, 4-stage phenology of sacred Maize (*Ixim*), and the 52-day beekeeping cycle of *Melipona beecheii* (*Ah Muzencab*).
 - **Glyph Cartouches**: Vectorized iconography for Day Signs and Glyphs A, C, X.
 - **Live Clock & Deep Time Counter**: Real-time ticking odometer displaying cosmic coordinates.
 
@@ -381,25 +423,46 @@ Built with **PySide6** and styled with an authentic stone-carved, basalt obsidia
 - **Cuentas Serpentinas y Números de Anillo (Dresden Codex pp. 61–69)**: Explores Deep Time chronology (~12.3 to 12.5 million days / >33,000 years) using Ring Numbers tied with red ribbons to subtract intervals prior to the Creation date 13.0.0.0.0 4 Ahau 8 Cumku (3114 BCE) into primordial chaos, then projecting forward to historical arrival dates. Includes one-click stele synchronizers for both Primordial Base Dates and Terminal Arrival Dates.
 - **Cómputo de 364 Días y Estaciones Cósmicas (Dresden Codex pp. 65a–69b)**: Solves the exact next seasonal transitions (Equinoccio de Primavera, Solsticio de Verano, Equinoccio de Otoño, Solsticio de Invierno) and the 1,820-day Grand Return alignment with Tzolk'in, featuring 1-click synchronization to the main calendar stele.
 - **La Tabla de Marte y la Bestia Celeste (Dresden Codex pp. 43b–45b)**: Interactive section computing next station jumps for all 10 canonical stations of 78 days (3 Lamat, 3 Cimi, 3 Kan, 3 Ik, 3 Ahau, 3 Etznab, 3 Cib, 3 Ix, 3 Eb, 3 Oc), the 9,360-day Super-Tun ($12\text{ Marte} = 26\text{ Tuns} = 36\text{ Tzolk'in}$), and the 56,940-day Grand Return ($73\text{ Marte} = 156\text{ Haab'} = 3\text{ Ruedas Calendáricas}$) with direct 1-click stele alignment.
+- **Almanaques de Madrid: Portadores del Año (Cuch Hab), Ciclo del Maíz & Apicultura Melipona (Códice Tro-Cortesiano)**: Calculates and executes 1-click stele synchronizations for the upcoming Maya New Year (0 Pop inaugurating the new annual Year Bearer), entrance to the critical 5-day Uayeb period, sacred maize sowing (*Pak'al* in day Kan), and the opening of *Melipona* bee hives (*jobones*) in the 52-day cycle under winged god *Ah Muzencab*.
 
 <p align="center">
-  <img src="./assets/screenshots/tab2_operations_mars.png" alt="Mayan Stele - Operaciones & Retornos (Cómputo 364d y Tabla de Marte)" width="100%" />
+  <img src="./assets/screenshots/tab2_operations_madrid.png" alt="Mayan Stele - Operaciones & Retornos (Sección 7: Almanaques de Madrid & Portadores del Año)" width="100%" />
 </p>
 
-### 4. 🧬 Resonancia Biológica
+### 4. 🌸 Cosmograma de Madrid (pp. 75–76)
 
 <p align="center">
-  <img src="./assets/screenshots/tab3_biological.png" alt="Mayan Stele - Resonancia Biológica & Genética" width="100%" />
+  <img src="./assets/screenshots/tab3_cosmogram.png" alt="Mayan Stele - Cosmograma de las Páginas 75–76 del Códice de Madrid" width="100%" />
+</p>
+
+- **Interactive 4-Petaled Cosmic Flower (Cruz de Malta Mesoamericana)**: Full vector rendering engine (`MadridCosmogramWidget`) reproducing the grand 2-page cosmogram of the Madrid Codex with responsive dynamic scaling.
+- **The 260-Day Pilgrimage Ribbon (*Xocan Be*)**: Continuous winding loop of exactly 260 day nodes (65 days per cardinal petal). Sacred human footprints (*huellas de pies divinos*) stamped along the path mark the direction of cosmic pilgrimage.
+- **Central Cartouche (*Axis Mundi*)**: Depicts the primordial ancestral grandparents **Itzamná** (God D, wisdom and writing) and **Ixchel** (Goddess I, weaving, medicine and moon) enthroned at the cosmic navel under the World Tree *Wacah Chan*.
+- **The 4 Cardinal Ceiba Trees & Year Bearers**:
+  - 🌸 **Este (Lak'in / Rojo)**: *Chac Imixche* • Portador *Kan* 🌾 • Regente *K'inich Ahau* • Vasija *Yax-Ha'*.
+  - 💧 **Norte (Xaman / Blanco)**: *Sac Imixche* • Portador *Muluc* 💧 • Regente *Ah Puch* • Vasija *Chac-Ik-Ha'*.
+  - 🐆 **Oeste (Chik'in / Negro)**: *Ek Imixche* • Portador *Ix* 🐆 • Regente *Balam* • Vasija *Bat-Ha'*.
+  - ⚡ **Sur (Nohol / Amarillo)**: *K'an Imixche* • Portador *Cauac* ⚡ • Regente *Chac* • Vasija *K'in-Tun*.
+- **4 Intercardinal Bacabs**: Corner medallions of the Sky Bearers and their celestial birds (*Bacab Cantzicnal* with Quetzal 🦜, *Bacab Zac Cimi* with Muan Owl 🦉, *Bacab Hosanek* with Hawk 🦅, and *Bacab Hobnil* with Melipona Bee 🐝).
+- **Interactive Navigation & Hover HUD**: Hover over any of the 260 nodes to inspect its Tzolk'in sign, tone, quadrant, and meaning in the stone HUD. Click any node to instantly jump to that date across the entire application with 1-click stele synchronization.
+- **Cosmic Pilgrimage Animation**: Play/Pause automated walking timer with adjustable speed slider (20ms to 350ms) and optional calendar date advance.
+- **Sacred Orientation Toggle**: Switch seamlessly between authentic **Mesoamerican Orientation (East at the Top)** and Cartesian Orientation (North at the Top).
+- **Quadrant Focusing**: Instant filters to spotlight individual cardinal petals or view the complete quadripartite universe.
+
+### 5. 🧬 Resonancia Biológica
+
+<p align="center">
+  <img src="./assets/screenshots/tab4_biological.png" alt="Mayan Stele - Resonancia Biológica & Genética" width="100%" />
 </p>
 
 - **20 Solar Seals $\to$ 20 Amino Acids**: Symmetrical mapping grounded in molecular charge, hydropathy, and aromaticity.
 - **RNA Genetic Triplets**: Direct codon assignments for every Tzolk'in sign.
 - **Kototama Phonetics & Bīja Mantras**: Traditional vocalic frequencies associated with daily vibrational archetypes.
 
-### 5. 📚 Enciclopedia & Basalt Obsidian Styling
+### 6. 📚 Enciclopedia & Basalt Obsidian Styling
 
 <p align="center">
-  <img src="./assets/screenshots/tab4_reference.png" alt="Mayan Stele - Enciclopedia & Referencia Epigráfica" width="100%" />
+  <img src="./assets/screenshots/tab5_reference.png" alt="Mayan Stele - Enciclopedia & Referencia Epigráfica" width="100%" />
 </p>
 - Comprehensive scholarly reference for all 13 Galactic Tones, 9 Underworld Lords, Venus Helical Risings, and Lunar Patrons.
 - **Quantum Insignia & Showcase**: Features the official *Quantum Pyramid & Calendar Core* vector emblem integrated into the application header, window icon, and reference codex. Explore all 5 design variants in [`assets/logos/showcase.html`](./assets/logos/showcase.html).

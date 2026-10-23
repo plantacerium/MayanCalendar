@@ -124,6 +124,7 @@ class MayanProfileExporter:
                 },
                 "computing_year_364": full_data.get("season_364_data", {}),
                 "dresden_mars_table": full_data.get("mars_dresden_data", {}),
+                "madrid_codex_almanacs": full_data.get("madrid_almanac_data", {}),
                 "kawiil_819": {
                     "position_819": full_data.get("kawiil_pos"),
                     "quadrant_direction": full_data.get("kawiil_color")
@@ -222,6 +223,21 @@ class MayanProfileExporter:
         md.append(f"| **Serie Suplementaria** | Lunación `{full_data.get('glyph_c', 1)}` de 6 | Glifo C: {full_data.get('glyph_c', 1)} • Glifo A: {full_data.get('glyph_a', 30)}d • Glifo X: {full_data.get('glyph_x', '')} |")
         md.append("")
 
+        if full_data.get("madrid_almanac_data"):
+            mad = full_data["madrid_almanac_data"]
+            yb = mad.get("madrid_bearer", "")
+            y_card = f"{mad.get('madrid_cardinal', '')} ({mad.get('madrid_color', '')})"
+            uayeb_txt = f"⚠️ EN UAYEB (Día {mad.get('uayeb_day', 1)}/5)" if mad.get("is_uayeb") else f"Faltan {mad.get('days_to_uayeb', 0)} días (Año Nuevo en {mad.get('days_to_next_year', 0)}d)"
+            md.append("## 🌽 Almanaques del Códice de Madrid (Tro-Cortesiano)")
+            md.append("| Ciclo / Tratado | Registro en Códice | Interpretación y Presagio |")
+            md.append("| :--- | :--- | :--- |")
+            md.append(f"| **Portador del Año (Cuch Hab)** | {mad.get('madrid_glyph','')} **{yb}** ({y_card}) | Presagio: {mad.get('madrid_climate_omen','')} • {mad.get('madrid_crop_omen','')} |")
+            md.append(f"| **Tránsito del Uayeb** | {uayeb_txt} | Patrono: {mad.get('madrid_uayeb_patron','')} • Ritual: {mad.get('madrid_ritual','')} |")
+            md.append(f"| **Fisiología de la Lluvia (Chac)** | {mad.get('chac_vessel_glyph','')} **{mad.get('chac_vessel_name','')}** | {mad.get('chac_manifestation','')} • {mad.get('chac_action','')} |")
+            md.append(f"| **Fenología del Maíz (Ixim)** | {mad.get('maize_glyph','')} **{mad.get('maize_stage_name','')}** | {mad.get('maize_action','')} • Consejo: *{mad.get('maize_advice','')}* |")
+            md.append(f"| **Apicultura Melipona (Xunán Kab)** | 🐝 **Ah Muzencab** (Día {mad.get('melipona_day_in_52', 1)}/52) | Fase: {mad.get('melipona_phase','')} • {mad.get('melipona_ritual','')} |")
+            md.append("")
+
         if km and ecl:
             md.append("## 🌀 Dinámica No Lineal de Kuramoto & Eclipses de Dresde")
             md.append("| Métrica / Ciclo | Valor | Significado / Fase |")
@@ -295,6 +311,9 @@ class MayanProfileExporter:
             f"║  Año 364d (Dresde):  {full_data.get('season_364_glyph','')} {full_data.get('season_364_station','')} ({full_data.get('season_364_cardinal','')}) • Día {full_data.get('season_364_day_in_quarter', 1)}/91{' ' * 10} ║",
             f"║  Ciclo de Venus:     Día {v_pos}/584 • {v_phase:<39} ║",
             f"║  Marte (Dresde 780d): Día {full_data.get('mars_pos',0):<3}/780 • {full_data.get('mars_station_glyph','')} {full_data.get('mars_station_tzolkin','')} ({full_data.get('mars_day_in_station',1)}/78d){' [RETRÓGRADO]' if full_data.get('mars_is_retrograde') else ''}{' ' * 15} ║",
+            f"║  Portador Año Madrid: {full_data.get('madrid_glyph','')} {full_data.get('madrid_year_bearer','')} ({full_data.get('madrid_cardinal','')}) • Uayeb en {full_data.get('days_to_uayeb', 0):<3}d{' ' * 12} ║",
+            f"║  Chac & Maíz Madrid: {full_data.get('chac_vessel_glyph','')} {full_data.get('chac_vessel_name','')} • {full_data.get('maize_glyph','')} {full_data.get('maize_stage_name','')}{' ' * 20} ║",
+            f"║  Melipona (52d):     🐝 Día {full_data.get('melipona_day',1)}/52 • {full_data.get('melipona_phase','')}{' ' * 20} ║",
             f"║  Ciclo Lunar:        {m_phase} • Ilum: {m_illum:<36} ║",
             f"║  Serie Lunar:        Glifo C: {full_data.get('glyph_c', 1)} • Glifo A: {full_data.get('glyph_a', 30)}d • {full_data.get('glyph_x', ''):<24} ║",
         ]
