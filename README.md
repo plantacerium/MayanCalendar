@@ -1,6 +1,6 @@
 
 
-# Mayan Stele - Ultimate Calendar, Fractal Pattern Analyzer & MCP Server
+# Mayan Stele - Language & Ultimate Calendar, Fractal Pattern Analyzer & MCP Server
 
 A comprehensive, mathematically rigorous Mayan calendar application and **Model Context Protocol (MCP)** server built with Python and PySide6. Convert any Gregorian date to its exact Mayan equivalent, compute Kuramoto phase synchronization across planetary cycles, detect Dresden Codex eclipse windows, explore biocymatic/genetic resonances, and empower AI agents to interact with ancient mesoamerican chronometry.
 
