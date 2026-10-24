@@ -50,6 +50,13 @@ except ImportError:
 converter = MayanConverter(correlation_jdn=584283)
 analyzer = FractalPatternAnalyzer(converter)
 
+# Integración con el Motor Epigráfico y Silabario (Puntos 1, 2 y 5)
+try:
+    from mayan_lang_mcp_server import EPIGRAPHY_TOOLS, execute_epigraphy_tool
+except Exception:
+    EPIGRAPHY_TOOLS = []
+    execute_epigraphy_tool = None
+
 TOOLS = [
     {
         "name": "mayan_convert_gregorian",
@@ -329,6 +336,10 @@ TOOLS = [
     }
 ]
 
+# Incorporar herramientas epigráficas (Puntos 1, 2 y 5)
+if EPIGRAPHY_TOOLS:
+    TOOLS.extend(EPIGRAPHY_TOOLS)
+
 def _set_correlation(corr_str):
     if corr_str == "GMT+2":
         converter.correlation_jdn = 584285
@@ -339,6 +350,10 @@ def _set_correlation(corr_str):
 
 def execute_tool(name, args):
     """Executes the requested tool and returns a string or dictionary."""
+    # Redirigir a herramientas epigráficas si corresponde
+    if execute_epigraphy_tool and any(t["name"] == name for t in EPIGRAPHY_TOOLS):
+        return execute_epigraphy_tool(name, args)
+
     corr = args.get("correlation", "GMT")
     _set_correlation(corr)
     

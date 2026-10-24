@@ -4,12 +4,18 @@
 
 A comprehensive, mathematically rigorous Mayan calendar application and **Model Context Protocol (MCP)** server built with Python and PySide6. Convert any Gregorian date to its exact Mayan equivalent, compute Kuramoto phase synchronization across planetary cycles, detect Dresden Codex eclipse windows, explore biocymatic/genetic resonances, and empower AI agents to interact with ancient mesoamerican chronometry.
 
+## App Calendar mayan-stele.py
 <p align="center">
   <img src="./assets/screenshots/tab0_calendar.png" alt="Mayan Stele - Calendario, Estela & Ruedas Interlocking" width="100%" />
 </p>
 
 <p align="center">
   <img src="./assets/screenshots/tab3_cosmogram.png" alt="Mayan Stele - Cosmograma de las Páginas 75–76 del Códice de Madrid" width="100%" />
+</p>
+
+## App Language mayan-lang.py
+<p align="center">
+  <img src="./assets/screenshots/mayan_lang/mayan_lang_tab0_composer.png" alt="Mayan Epigraphy - Compositor ES/EN & Prisma Semántico de 4 Capas" width="100%" />
 </p>
 
 [![Python](https://img.shields.io/badge/Python-3.8+-3776AB?logo=python&logoColor=white)](https://python.org)
@@ -48,9 +54,14 @@ A comprehensive, mathematically rigorous Mayan calendar application and **Model 
    - [🌸 Cosmograma de Madrid (pp. 75–76) — Flor de 4 Pétalos](#cosmograma-de-madrid-pp-7576)
    - [🧬 Resonancia Biológica (Amino Acids, Codons & Kototama)](#resonancia-biológica)
    - [Encyclopedia & Basalt/Obsidian Styling](#encyclopedia--styling)
-5. [Multi-Format Profile Exporter (`mayan_exporter.py`)](#multi-format-profile-exporter)
-6. [Installation & Quickstart](#installation--quickstart)
-7. [License & Acknowledgments](#license--acknowledgments)
+5. [Mayan Epigraphy & Linguistic Engine: Ah Ts'ib (`mayan-lang.py`)](#mayan-epigraphy--linguistic-engine-ah-tsib-mayan-langpy)
+   - [📜 Compositor ES/EN ➔ Maya & Prisma Semántico de 4 Capas](#1--compositor-esen--maya--prisma-semántico-de-4-capas)
+   - [🖋️ Taller del Escriba (Cartucho 2D Topológico)](#2-️-taller-del-escriba-cartucho-2d-topológico)
+   - [🔣 Matriz del Silabario Fonético (95 Sílabas CV & Resonancia Kototama)](#3--matriz-del-silabario-fonético-95-sílabas-cv--resonancia-kototama)
+   - [🏛️ Corpus Thompson (+860 Glifos Mayas: T1–T1066) & Códice](#4-️-corpus-thompson-860-glifos-mayas-t1t1066--códice)
+6. [Multi-Format Profile Exporter (`mayan_exporter.py`)](#multi-format-profile-exporter)
+7. [Installation & Quickstart](#installation--quickstart)
+8. [License & Acknowledgments](#license--acknowledgments)
 
 ---
 
@@ -153,7 +164,7 @@ Add the server configuration to your MCP settings or plugin directory:
 
 ### Available MCP Tools Reference
 
-The server exposes **14 specialized tools**:
+The unified server exposes **24 specialized tools** across high-precision astronomy, chronometry, and epigraphy:
 
 | Tool Name | Purpose | Key Arguments |
 |-----------|---------|---------------|
@@ -171,6 +182,16 @@ The server exposes **14 specialized tools**:
 | `mayan_get_mars_table` | Dresden Codex (pp. 43b–45b) 780-day Mars Synodic Table & Celestial Beast Retrograde Loop (10x78d stations, 9,360d & 56,940d macro-cycles) | `year`, `month`, `day`, `correlation` |
 | `mayan_get_year_bearer_and_agriculture` | Madrid Codex (pp. 34–37, 12–33, 103–112) Year Bearers (*Cuch Hab*), Uayeb countdown, Chac rain vessels, maize phenology (*Ixim*) & Melipona beekeeping (*Ah Muzencab*) | `year`, `month`, `day`, `correlation` |
 | `mayan_export_profile` | Generates full profile in SVG, Markdown, ASCII, or JSON format | `year`, `month`, `day`, `format`, `correlation` |
+| `mayan_translate_to_epigraphy` | Natural language (ES/EN) $\to$ Classical Mayan VOS syntax + 4-Layer Semantic Prism + full SVG stela | `text`, `source_lang`, `orthography_mode`, `theme`, `include_svg` |
+| `mayan_syllabify_word` | Decomposes words into 95 CV syllables with synharmonic/disharmonic rules & Kototama Hz | `word`, `vowel_harmony` |
+| `mayan_compose_glyph_block` | Assembles a 2D cartouche block (Superfix, Prefix, Main, Infix, Subfix, Postfix) | `main_sign`, `superfix`, `prefix`, `infix`, `subfix`, `postfix`, `numeral`, `theme` |
+| `mayan_search_epigraphic_lexicon` | Epigraphic lexicon search across syllables, logograms, and diphrasisms | `query`, `category` |
+| `mayan_export_stele_inscription` | Multi-format exporter for epigraphic inscriptions (SVG, Markdown, ASCII, JSON) | `text`, `source_lang`, `format`, `theme` |
+| `mayan_get_syllabary_matrix` | Returns full 19x5 syllabary grid with Thompson codes & Kototama acoustics (Hz) | `vowel_filter`, `consonant_filter` |
+| `mayan_morph_cephalomorphic_glyph` | Continuous EFD Fourier morphing ($\alpha \in [0, 1]$) between geometric and cephalomorphic | `glyph_name`, `alpha`, `theme` |
+| `mayan_get_thompson_glyph` | Retrieves archaeological dossier + standalone SVG vector for any Thompson sign (T1–T1066) | `t_code`, `theme`, `size` |
+| `mayan_search_corpus_800` | Free-text and category search across the entire +860 Thompson Glyph Corpus | `query`, `category`, `limit` |
+| `mayan_list_thompson_categories` | Lists all 8 taxonomic families with descriptions and live glyph counts | *(none)* |
 
 ---
 
@@ -470,6 +491,63 @@ Built with **PySide6** and styled with an authentic stone-carved, basalt obsidia
 
 ---
 
+## Mayan Epigraphy & Linguistic Engine: Ah Ts'ib (`mayan-lang.py`)
+
+A groundbreaking computational epigraphy and linguistic workstation transforming Mayan calendar glyphs into a complete **2D Logosyllabic Composition, Syllabification, and Hieroglyphic Decryption Suite**.
+
+```mermaid
+graph TD
+    A["Entrada: Español / Inglés / Maya Directo"] --> B["Compilador Lingüístico VOS & Prisma Semántico de 4 Capas"]
+    B --> C["Motor Fonético CV & Reglas de Sinarmonía"]
+    C --> D["Empaquetador Topológico Cartucho 2D (Superfijo, Prefijo, Principal, Subfijo, Postfijo)"]
+    D --> E["Bóveda Vectorial Thompson (+860 Glifos T1–T1066)"]
+    E --> F["Renderizado Vectorial SVG / PySide6 (Cero Imágenes PNG Pesadas)"]
+    D & E --> G["Servidor MCP JSON-RPC 2.0 (10 Tools Epigráficas)"]
+```
+
+### 1. 📜 Compositor ES/EN ➔ Maya & Prisma Semántico de 4 Capas
+Translates natural language sentences into Classical Ch'olti' VOS syntax and passes them through the **4-Layer Semantic Prism**:
+- **Layer 1: Surface Linear** (ES / EN literal gloss).
+- **Layer 2: Morpho-Topological & Positional Geometry** (quad-block coordinates: A1, B1, A2, B2).
+- **Layer 3: Harmonic Resonant Accord & Diphrasisms (*Tz'ak*)** (sacred poetic couplings).
+- **Layer 4: Biocymatic & Kototama Vector** (vowel cadence, Hz resonance frequency, elemental polarity).
+
+<p align="center">
+  <img src="./assets/screenshots/mayan_lang/mayan_lang_tab0_composer.png" alt="Mayan Epigraphy - Compositor ES/EN & Prisma Semántico de 4 Capas" width="100%" />
+</p>
+
+### 2. 🖋️ Taller del Escriba (Cartucho 2D Topológico)
+Interactive studio to assemble complex hieroglyphic cartouche blocks according to Classical Maya epigraphic syntax:
+- **Main Sign (*Núcleo Principal*)**: The foundational logogram or primary syllable.
+- **Superfix (*Superfijo*) & Subfix (*Subfijo*)**: Grammatical affixes positioned above and below.
+- **Prefix (*Prefijo*) & Postfix (*Postfijo*)**: Ergative pronouns and aspectual markers left and right.
+- **Infix (*Infijo*)**: Embedded interior graphemes.
+- **Vigesimal Coeficient (0–19)**: Bars and dots placed to the left or top.
+
+<p align="center">
+  <img src="./assets/screenshots/mayan_lang/mayan_lang_tab1_workshop.png" alt="Mayan Epigraphy - Taller del Escriba y Cartucho 2D" width="100%" />
+</p>
+
+### 3. 🔣 Matriz del Silabario Fonético (95 Sílabas CV & Resonancia Kototama)
+Complete $19 \times 5$ phonetic grid (19 consonants $\times$ 5 vowels = 95 syllables CV) mapping ancient acoustic radicals to specific vocalic diacritics and bio-acoustic Kototama resonance frequencies (432 Hz, 528 Hz, 639 Hz, 741 Hz, 852 Hz):
+
+<p align="center">
+  <img src="./assets/screenshots/mayan_lang/mayan_lang_tab2_syllabary.png" alt="Mayan Epigraphy - Matriz del Silabario Fonético 95 CV" width="100%" />
+</p>
+
+### 4. 🏛️ Corpus Thompson (+860 Glifos Mayas: T1–T1066) & Códice
+Complete archaeological catalog indexing all Thompson glyphs (T1 to T1066) and Macri-Looper MHD codes:
+- **Zero Heavy Raster Images**: Entire catalog stored as lightweight normalized vector Bézier silhouettes (**~260 KB total corpus** vs. 120 MB of static PNGs).
+- **8 Taxonomic Families**: Affixes (T1–T499), Sacred Fauna (Zoomorphic), Deidades y Reyes (T1000–T1066), Astronomía y Cosmología, Antropomorfos, Atavíos y Artefactos, Botánica Sagrada y Geometría Sagrada.
+- **Continuous Fourier Morphing (EFD)**: Interactive slider interpolating between abstract geometric contour ($\alpha = 0.0$) and sacred cephalomorphic deity profile ($\alpha = 1.0$).
+- **Direct Workshop Assembly**: One-click **"Insertar en Cartucho ➔"** button to inject any of the +860 glyphs directly into the active cartouche workshop!
+
+<p align="center">
+  <img src="./assets/screenshots/mayan_lang/mayan_lang_tab3_thompson_corpus.png" alt="Mayan Epigraphy - Corpus Thompson +860 Glifos Mayas" width="100%" />
+</p>
+
+---
+
 ## Multi-Format Profile Exporter (`mayan_exporter.py`)
 
 Generate full chronological and epigraphic dossiers directly from the GUI or via the MCP server:
@@ -501,14 +579,22 @@ source .venv/bin/activate  # On Windows: .venv\Scripts\activate
 pip install PySide6
 ```
 
-### Launch the GUI
+### Launch the Desktop Applications
 ```bash
+# 1. Main Calendar, Fractal Analyzer & Cosmogram GUI
 python mayan-stele.py
+
+# 2. Mayan Epigraphy, Syllabary & Thompson Corpus Suite (Ah Ts'ib)
+python mayan-lang.py
 ```
 
-### Run the MCP Server Standalone
+### Run the MCP Servers Standalone (stdio JSON-RPC 2.0)
 ```bash
+# Unified Server (Chronometry + Epigraphy: 24 Tools)
 python mayan_mcp_server.py
+
+# Standalone Epigraphy & Linguistic Server (10 Tools)
+python mayan_lang_mcp_server.py
 ```
 
 ---
