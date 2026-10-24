@@ -20,6 +20,8 @@ import math
 import json
 from dataclasses import dataclass, field, asdict
 from typing import Dict, List, Tuple, Optional, Any
+import numpy as np
+from PIL import Image
 
 # Integración del Motor de Siluetas y Radicales Arqueológicos (Puntos 1 y 2)
 try:
@@ -53,6 +55,18 @@ except ImportError:
     MayanThompsonCatalog = _mt.MayanThompsonCatalog
     ThompsonGlyphEntry = _mt.ThompsonGlyphEntry
     render_thompson_glyph_svg = _mt.render_thompson_glyph_svg
+
+try:
+    from mayan_stone_3d import MayanStone3DEngine, MayanStoneMaterials, StoneMaterial
+    from mayan_cnc_exporter import MayanCNCExporter
+except ImportError:
+    import importlib
+    _ms = importlib.import_module("mayan_stone_3d")
+    MayanStone3DEngine = _ms.MayanStone3DEngine
+    MayanStoneMaterials = _ms.MayanStoneMaterials
+    StoneMaterial = _ms.StoneMaterial
+    _mc = importlib.import_module("mayan_cnc_exporter")
+    MayanCNCExporter = _mc.MayanCNCExporter
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -1232,11 +1246,11 @@ class MayanCalligraphicEngine:
 
 try:
     from PySide6.QtCore import Qt, QRectF, QPointF
-    from PySide6.QtGui import QPainter, QColor, QPen, QBrush, QFont, QPainterPath
+    from PySide6.QtGui import QPainter, QColor, QPen, QBrush, QFont, QPainterPath, QPixmap, QImage
     from PySide6.QtWidgets import (
         QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
         QGridLayout, QTabWidget, QLabel, QLineEdit, QPushButton,
-        QComboBox, QTextEdit, QScrollArea, QFrame, QSpinBox, QCheckBox,
+        QComboBox, QTextEdit, QScrollArea, QFrame, QSpinBox, QDoubleSpinBox, QCheckBox,
         QFileDialog, QSplitter, QTableWidget, QTableWidgetItem, QHeaderView,
         QSlider, QAbstractItemView
     )
@@ -1499,6 +1513,7 @@ class MayanLangWindow(QMainWindow):
         self.current_prism: Optional[SemanticPrismTranslation] = None
         self._build_ui()
         self._run_translation()
+        self._update_stone_3d_render()
 
     def _build_ui(self):
         central = QWidget()
@@ -1518,6 +1533,7 @@ class MayanLangWindow(QMainWindow):
         self._build_tab_scribe_workshop()
         self._build_tab_syllabary_grid()
         self._build_tab_lexicon()
+        self._build_tab_stone_3d()
 
     # ── PESTAÑA 1: COMPOSITOR ES/EN ⟷ MAYA & PRISMA DE 4 CAPAS ──
     def _build_tab_composer(self):
@@ -1856,6 +1872,440 @@ class MayanLangWindow(QMainWindow):
         # Cargar datos iniciales del Corpus
         self.current_filtered_entries: List[ThompsonGlyphEntry] = []
         self._populate_thompson_table()
+
+    # ── PESTAÑA 5: TALLA LÍTICA 3D, ILUMINACIÓN RTI & TALLER CNC ──
+    def _build_tab_stone_3d(self):
+        tab = QWidget()
+        lay = QHBoxLayout(tab)
+        lay.setContentsMargins(8, 8, 8, 8)
+
+        # Panel Izquierdo: Parámetros Líticos & Fabricación CNC (Scrollable)
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QFrame.NoFrame)
+        left_panel = QFrame()
+        left_panel.setObjectName("CardFrame")
+        left_lay = QVBoxLayout(left_panel)
+        left_lay.setSpacing(10)
+
+        # 1. Cabecera y Selección de Fuente
+        hdr = QLabel("🗿 TALLER LITOGRÁFICO & SUITE CNC")
+        hdr.setStyleSheet("font-size: 15px; font-weight: bold; color: #F59E0B;")
+        left_lay.addWidget(hdr)
+
+        src_box = QFrame()
+        src_box.setStyleSheet("background-color: #0E131F; border: 1px solid #1E293B; border-radius: 6px; padding: 6px;")
+        src_lay = QVBoxLayout(src_box)
+        src_lay.addWidget(QLabel("<b>Fuente del Relieve a Esculpir:</b>"))
+
+        self.stone_source_combo = QComboBox()
+        self.stone_source_combo.addItems([
+            "🏛️ Glifo Thompson Específico (Catálogo)",
+            "🧩 Cartucho Activo del Taller",
+            "📜 Estela Monumental Completa (Prisma Semántico)"
+        ])
+        self.stone_source_combo.currentIndexChanged.connect(self._update_stone_3d_render)
+        src_lay.addWidget(self.stone_source_combo)
+
+        src_row = QHBoxLayout()
+        src_row.addWidget(QLabel("Código Glifo:"))
+        self.stone_glyph_input = QLineEdit("T751")
+        self.stone_glyph_input.setPlaceholderText("ej. T751, T1000, T501, T533...")
+        self.stone_glyph_input.setStyleSheet("font-weight: bold; color: #F59E0B; background-color: #080B11;")
+        self.stone_glyph_input.returnPressed.connect(self._update_stone_3d_render)
+        src_row.addWidget(self.stone_glyph_input)
+        btn_refresh_source = QPushButton("🔄 Cargar")
+        btn_refresh_source.clicked.connect(self._update_stone_3d_render)
+        src_row.addWidget(btn_refresh_source)
+        src_lay.addLayout(src_row)
+        left_lay.addWidget(src_box)
+
+        # 2. Selector de Material Arqueológico Mesoamericano
+        mat_box = QFrame()
+        mat_box.setStyleSheet("background-color: #0E131F; border: 1px solid #1E293B; border-radius: 6px; padding: 6px;")
+        mat_lay = QVBoxLayout(mat_box)
+        mat_lay.addWidget(QLabel("<b>Material Lítico & Pigmento Histórico:</b>"))
+
+        self.stone_mat_combo = QComboBox()
+        self.stone_mat_combo.addItems([
+            "caliza_palenque (Caliza Fina de Palenque)",
+            "toba_copan (Toba Volcánica Verde de Copán)",
+            "estuco_policromado (Estuco Polícromo Rojo Cinabrio)",
+            "obsidiana_quirigua (Obsidiana Negra & Relieve Quiriguá)",
+            "madera_tikal (Madera de Chicozapote de Tikal)"
+        ])
+        self.stone_mat_combo.currentIndexChanged.connect(self._on_stone_material_changed)
+        mat_lay.addWidget(self.stone_mat_combo)
+
+        self.stone_mat_desc = QLabel("Caliza del Grupo Palenque: Grano fino, albedo ocre marfil, porosidad media.")
+        self.stone_mat_desc.setWordWrap(True)
+        self.stone_mat_desc.setStyleSheet("color: #94A3B8; font-size: 11px; padding: 2px;")
+        mat_lay.addWidget(self.stone_mat_desc)
+        left_lay.addWidget(mat_box)
+
+        # 3. Simulador de Iluminación RTI (Reflectance Transformation Imaging)
+        rti_box = QFrame()
+        rti_box.setStyleSheet("background-color: #0E131F; border: 1px solid #1E293B; border-radius: 6px; padding: 6px;")
+        rti_lay = QVBoxLayout(rti_box)
+        rti_lay.addWidget(QLabel("<b>Simulador RTI & Dirección de Luz Rasante:</b>"))
+
+        # Azimut
+        az_row = QHBoxLayout()
+        az_row.addWidget(QLabel("Azimut (°):"))
+        self.light_azimuth_slider = QSlider(Qt.Horizontal)
+        self.light_azimuth_slider.setRange(0, 360)
+        self.light_azimuth_slider.setValue(45)
+        self.light_azimuth_slider.valueChanged.connect(self._on_light_changed)
+        az_row.addWidget(self.light_azimuth_slider)
+        self.azimuth_val_lbl = QLabel("45°")
+        self.azimuth_val_lbl.setFixedWidth(40)
+        self.azimuth_val_lbl.setStyleSheet("color: #F59E0B; font-weight: bold;")
+        az_row.addWidget(self.azimuth_val_lbl)
+        rti_lay.addLayout(az_row)
+
+        # Elevación rasante
+        el_row = QHBoxLayout()
+        el_row.addWidget(QLabel("Elevación Rasante (°):"))
+        self.light_elevation_slider = QSlider(Qt.Horizontal)
+        self.light_elevation_slider.setRange(5, 85)
+        self.light_elevation_slider.setValue(25)
+        self.light_elevation_slider.valueChanged.connect(self._on_light_changed)
+        el_row.addWidget(self.light_elevation_slider)
+        self.elevation_val_lbl = QLabel("25°")
+        self.elevation_val_lbl.setFixedWidth(40)
+        self.elevation_val_lbl.setStyleSheet("color: #10B981; font-weight: bold;")
+        el_row.addWidget(self.elevation_val_lbl)
+        rti_lay.addLayout(el_row)
+
+        # Escala de Relieve Z
+        rel_row = QHBoxLayout()
+        rel_row.addWidget(QLabel("Amplitud Relieve Z:"))
+        self.relief_scale_slider = QSlider(Qt.Horizontal)
+        self.relief_scale_slider.setRange(10, 80)
+        self.relief_scale_slider.setValue(35)
+        self.relief_scale_slider.valueChanged.connect(self._on_light_changed)
+        rel_row.addWidget(self.relief_scale_slider)
+        self.relief_val_lbl = QLabel("3.5x")
+        self.relief_val_lbl.setFixedWidth(40)
+        self.relief_val_lbl.setStyleSheet("color: #38BDF8; font-weight: bold;")
+        rel_row.addWidget(self.relief_val_lbl)
+        rti_lay.addLayout(rel_row)
+
+        # Botones Rápidos de Preajuste Lumínico
+        preset_light_row = QHBoxLayout()
+        btn_l1 = QPushButton("🌅 Rasante (45°/20°)")
+        btn_l1.clicked.connect(lambda: self._set_light_preset(45, 20))
+        btn_l2 = QPushButton("☀️ Cenital (90°/75°)")
+        btn_l2.clicked.connect(lambda: self._set_light_preset(90, 75))
+        btn_l3 = QPushButton("🌇 Ocaso (315°/15°)")
+        btn_l3.clicked.connect(lambda: self._set_light_preset(315, 15))
+        btn_l4 = QPushButton("🔥 Antorcha (180°/30°)")
+        btn_l4.clicked.connect(lambda: self._set_light_preset(180, 30))
+        preset_light_row.addWidget(btn_l1)
+        preset_light_row.addWidget(btn_l2)
+        preset_light_row.addWidget(btn_l3)
+        preset_light_row.addWidget(btn_l4)
+        rti_lay.addLayout(preset_light_row)
+        left_lay.addWidget(rti_box)
+
+        # 4. Parámetros de Fabricación Digital & CNC
+        cnc_box = QFrame()
+        cnc_box.setStyleSheet("background-color: #0E131F; border: 1px solid #1E293B; border-radius: 6px; padding: 6px;")
+        cnc_lay = QVBoxLayout(cnc_box)
+        cnc_lay.addWidget(QLabel("<b>Parámetros de Mecanizado CNC & Dimensiones:</b>"))
+
+        g_dim = QGridLayout()
+        g_dim.addWidget(QLabel("Ancho (mm):"), 0, 0)
+        self.cnc_width_spin = QDoubleSpinBox()
+        self.cnc_width_spin.setRange(20.0, 3000.0)
+        self.cnc_width_spin.setValue(150.0)
+        g_dim.addWidget(self.cnc_width_spin, 0, 1)
+
+        g_dim.addWidget(QLabel("Alto (mm):"), 0, 2)
+        self.cnc_height_spin = QDoubleSpinBox()
+        self.cnc_height_spin.setRange(20.0, 3000.0)
+        self.cnc_height_spin.setValue(150.0)
+        g_dim.addWidget(self.cnc_height_spin, 0, 3)
+
+        g_dim.addWidget(QLabel("Prof. Max Z (mm):"), 1, 0)
+        self.cnc_depth_spin = QDoubleSpinBox()
+        self.cnc_depth_spin.setRange(1.0, 100.0)
+        self.cnc_depth_spin.setValue(8.0)
+        g_dim.addWidget(self.cnc_depth_spin, 1, 1)
+
+        g_dim.addWidget(QLabel("Z Seguridad (mm):"), 1, 2)
+        self.cnc_safe_z_spin = QDoubleSpinBox()
+        self.cnc_safe_z_spin.setRange(1.0, 50.0)
+        self.cnc_safe_z_spin.setValue(5.0)
+        g_dim.addWidget(self.cnc_safe_z_spin, 1, 3)
+
+        g_dim.addWidget(QLabel("Avance (mm/min):"), 2, 0)
+        self.cnc_feed_spin = QDoubleSpinBox()
+        self.cnc_feed_spin.setRange(100.0, 15000.0)
+        self.cnc_feed_spin.setValue(1200.0)
+        g_dim.addWidget(self.cnc_feed_spin, 2, 1)
+
+        g_dim.addWidget(QLabel("RPM Husillo:"), 2, 2)
+        self.cnc_rpm_spin = QSpinBox()
+        self.cnc_rpm_spin.setRange(1000, 40000)
+        self.cnc_rpm_spin.setValue(16000)
+        g_dim.addWidget(self.cnc_rpm_spin, 2, 3)
+
+        cnc_lay.addLayout(g_dim)
+
+        cnc_row_tool = QHBoxLayout()
+        cnc_row_tool.addWidget(QLabel("Herramienta CNC:"))
+        self.cnc_tool_combo = QComboBox()
+        self.cnc_tool_combo.addItems([
+            "V-Bit 60° (Grabado de Bajorrelieve Fino)",
+            "V-Bit 90° (Grabado General)",
+            "Endmill Cilíndrico Plano 3.175 mm (Desbaste)"
+        ])
+        cnc_row_tool.addWidget(self.cnc_tool_combo)
+        cnc_lay.addLayout(cnc_row_tool)
+        left_lay.addWidget(cnc_box)
+
+        # 5. Botones de Exportación
+        exp_box = QFrame()
+        exp_box.setStyleSheet("background-color: #0E131F; border: 1px solid #1E293B; border-radius: 6px; padding: 6px;")
+        exp_lay = QVBoxLayout(exp_box)
+        exp_lay.addWidget(QLabel("<b>Exportación Digital & Fabricación:</b>"))
+
+        btn_exp_gcode = QPushButton("💾 Generar Código G Industrial (.nc / .gcode)")
+        btn_exp_gcode.setStyleSheet("background-color: #0284C7; font-weight: bold;")
+        btn_exp_gcode.clicked.connect(self._export_cnc_gcode)
+        exp_lay.addWidget(btn_exp_gcode)
+
+        btn_exp_stl = QPushButton("🖨️ Exportar Malla Sólida STL 3D (.stl)")
+        btn_exp_stl.setStyleSheet("background-color: #059669; font-weight: bold;")
+        btn_exp_stl.clicked.connect(self._export_solid_stl)
+        exp_lay.addWidget(btn_exp_stl)
+
+        row_other_exp = QHBoxLayout()
+        btn_exp_hm16 = QPushButton("🗺️ Heightmap 16-bit PNG")
+        btn_exp_hm16.clicked.connect(self._export_heightmap_16bit)
+        btn_exp_obj = QPushButton("📦 Malla OBJ (.obj)")
+        btn_exp_obj.clicked.connect(self._export_wavefront_obj)
+        btn_save_render = QPushButton("📸 Guardar Render PNG")
+        btn_save_render.clicked.connect(self._save_stone_3d_photo)
+        row_other_exp.addWidget(btn_exp_hm16)
+        row_other_exp.addWidget(btn_exp_obj)
+        row_other_exp.addWidget(btn_save_render)
+        exp_lay.addLayout(row_other_exp)
+        left_lay.addWidget(exp_box)
+
+        left_lay.addStretch()
+        scroll.setWidget(left_panel)
+
+        # Panel Derecho: Visor Fotorrealista Lítico 3D & RTI
+        right_panel = QFrame()
+        right_panel.setObjectName("CardFrame")
+        right_lay = QVBoxLayout(right_panel)
+
+        right_hdr = QLabel("🗿 VISOR FOTORREALISTA LÍTICO 3D • ANÁLISIS RTI")
+        right_hdr.setStyleSheet("font-size: 15px; font-weight: bold; color: #10B981;")
+        right_lay.addWidget(right_hdr)
+
+        right_sub = QLabel("Sombreado Físico Blinn-Phong + Luz Rasante RTI + Oclusión de Hendiduras + Albedo PBR")
+        right_sub.setStyleSheet("color: #64748B; font-size: 11px;")
+        right_lay.addWidget(right_sub)
+
+        # Render Viewport Label
+        self.stone_3d_render_label = QLabel()
+        self.stone_3d_render_label.setAlignment(Qt.AlignCenter)
+        self.stone_3d_render_label.setStyleSheet("background-color: #05080E; border: 1px solid #1E293B; border-radius: 8px;")
+        self.stone_3d_render_label.setMinimumSize(512, 512)
+        right_lay.addWidget(self.stone_3d_render_label, stretch=1)
+
+        # Tarjeta de Métricas Técnicas
+        self.stone_metrics_label = QLabel()
+        self.stone_metrics_label.setStyleSheet("background-color: #0B0F17; border: 1px solid #1E293B; border-radius: 6px; padding: 8px; color: #94A3B8; font-family: 'Consolas'; font-size: 11px;")
+        right_lay.addWidget(self.stone_metrics_label)
+
+        splitter = QSplitter(Qt.Horizontal)
+        splitter.addWidget(scroll)
+        splitter.addWidget(right_panel)
+        splitter.setSizes([520, 820])
+        lay.addWidget(splitter)
+
+        self.tabs.addTab(tab, "🗿 Talla Lítica 3D, Iluminación RTI & Taller CNC")
+
+        # Variables de estado
+        self.current_z_grid: Optional[np.ndarray] = None
+        self.current_stone_image: Optional[Image.Image] = None
+
+    def _on_stone_material_changed(self):
+        mat_key = self.stone_mat_combo.currentText().split(" ")[0]
+        mat = MayanStoneMaterials.get_material(mat_key)
+        self.stone_mat_desc.setText(mat.description)
+        self._update_stone_3d_render()
+
+    def _on_light_changed(self):
+        az = self.light_azimuth_slider.value()
+        el = self.light_elevation_slider.value()
+        rel = self.relief_scale_slider.value() / 10.0
+        self.azimuth_val_lbl.setText(f"{az}°")
+        self.elevation_val_lbl.setText(f"{el}°")
+        self.relief_val_lbl.setText(f"{rel:.1f}x")
+        self._update_stone_3d_render()
+
+    def _set_light_preset(self, azimuth: float, elevation: float):
+        self.light_azimuth_slider.setValue(int(azimuth))
+        self.light_elevation_slider.setValue(int(elevation))
+
+    def _get_current_source_svg(self) -> str:
+        idx = self.stone_source_combo.currentIndex()
+        if idx == 0:
+            t_id = self.stone_glyph_input.text().strip().upper() or "T751"
+            if not t_id.startswith("T"):
+                t_id = f"T{t_id}"
+            return render_thompson_glyph_svg(t_id, size=420.0, theme="heightmap")
+        elif idx == 1:
+            if hasattr(self, "workshop_canvas") and self.workshop_canvas.blocks:
+                blk = self.workshop_canvas.blocks[0]
+                svg_content = MayanCalligraphicEngine.render_cartouche_block_svg(blk, 10, 10, size=400.0, style="heightmap")
+                return f'<svg xmlns="http://www.w3.org/2000/svg" width="420" height="420">{svg_content}</svg>'
+            return render_thompson_glyph_svg("T751", size=420.0, theme="heightmap")
+        else:
+            if self.current_prism:
+                return MayanCalligraphicEngine.render_stele_svg(self.current_prism, style="heightmap")
+            return render_thompson_glyph_svg("T751", size=420.0, theme="heightmap")
+
+    def _update_stone_3d_render(self):
+        try:
+            svg_str = self._get_current_source_svg()
+            mat_key = self.stone_mat_combo.currentText().split(" ")[0]
+            mat = MayanStoneMaterials.get_material(mat_key)
+            az = float(self.light_azimuth_slider.value())
+            el = float(self.light_elevation_slider.value())
+            rel = float(self.relief_scale_slider.value()) / 10.0
+
+            z_grid = MayanStone3DEngine.rasterize_svg_to_height_grid(svg_str, target_width=512, target_height=512)
+            z_sculpted = MayanStone3DEngine.synthesize_volumetric_relief(z_grid)
+            self.current_z_grid = z_sculpted
+
+            shaded_uint8 = MayanStone3DEngine.shade_stone_relief(
+                z_grid=z_sculpted,
+                light_azimuth_deg=az,
+                light_elevation_deg=el,
+                material=mat,
+                relief_scale=rel * 4.5,
+                enable_cast_shadows=True,
+                enable_volumetric_sculpt=False
+            )
+            pil_img = Image.fromarray(shaded_uint8)
+            self.current_stone_image = pil_img
+
+            # Convertir a QPixmap y mostrar
+            im_data = pil_img.convert("RGBA").tobytes("raw", "RGBA")
+            qim = QImage(im_data, pil_img.width, pil_img.height, QImage.Format_RGBA8888)
+            pix = QPixmap.fromImage(qim)
+            scaled_pix = pix.scaled(512, 512, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+            self.stone_3d_render_label.setPixmap(scaled_pix)
+
+            # Métricas
+            w_mm = self.cnc_width_spin.value()
+            h_mm = self.cnc_height_spin.value()
+            d_mm = self.cnc_depth_spin.value()
+            triangles = (512 - 1) * (512 - 1) * 2 * 2 + (512 - 1) * 8
+            est_mins = (w_mm * h_mm / 100.0) * (d_mm / 8.0) * 0.15
+            self.stone_metrics_label.setText(
+                f"📐 Dimensiones Físicas: {w_mm:.1f} x {h_mm:.1f} mm | Profundidad Z: {d_mm:.1f} mm\n"
+                f"📊 Malla Sólida STL: 512x512 vértices (~{triangles:,} triángulos) | Watertight Manifold: SÍ\n"
+                f"🔦 Iluminación RTI: Azimut {az:.0f}° • Elevación {el:.0f}° | Material: {mat.name} ({mat.description[:50]}...)\n"
+                f"⏱️ Tiempo Estimado de Mecanizado CNC: ~{est_mins:.1f} min (Avance: {self.cnc_feed_spin.value():.0f} mm/min)"
+            )
+        except Exception as e:
+            self.stone_metrics_label.setText(f"⚠️ Error actualizando render lítico: {e}")
+
+    def _export_cnc_gcode(self):
+        if self.current_z_grid is None:
+            self._update_stone_3d_render()
+        if self.current_z_grid is None:
+            return
+        path, _ = QFileDialog.getSaveFileName(self, "Exportar Código G CNC", "mayan_stone_tablet.nc", "G-Code (*.nc *.gcode *.tap);;All Files (*)")
+        if not path:
+            return
+        w = self.cnc_width_spin.value()
+        h = self.cnc_height_spin.value()
+        d = self.cnc_depth_spin.value()
+        safe_z = self.cnc_safe_z_spin.value()
+        feed = self.cnc_feed_spin.value()
+        rpm = self.cnc_rpm_spin.value()
+        tool_idx = self.cnc_tool_combo.currentIndex()
+        v_angle = 60.0 if tool_idx == 0 else (90.0 if tool_idx == 1 else 180.0)
+
+        MayanCNCExporter.export_gcode_file(
+            z_grid=self.current_z_grid,
+            output_path=path,
+            width_mm=w,
+            height_mm=h,
+            max_depth_mm=d,
+            safe_z_mm=safe_z,
+            feed_rate_mm_min=feed,
+            spindle_rpm=rpm,
+            v_bit_angle_deg=v_angle
+        )
+
+    def _export_solid_stl(self):
+        if self.current_z_grid is None:
+            self._update_stone_3d_render()
+        if self.current_z_grid is None:
+            return
+        path, _ = QFileDialog.getSaveFileName(self, "Exportar Malla Sólida STL 3D", "mayan_stone_tablet_solid.stl", "STL Files (*.stl);;All Files (*)")
+        if not path:
+            return
+        w = self.cnc_width_spin.value()
+        h = self.cnc_height_spin.value()
+        d = self.cnc_depth_spin.value()
+        MayanCNCExporter.export_stl_file(
+            z_grid=self.current_z_grid,
+            output_path=path,
+            width_mm=w,
+            height_mm=h,
+            max_relief_depth_mm=d,
+            base_thickness_mm=6.0
+        )
+
+    def _export_heightmap_16bit(self):
+        if self.current_z_grid is None:
+            self._update_stone_3d_render()
+        if self.current_z_grid is None:
+            return
+        path, _ = QFileDialog.getSaveFileName(self, "Exportar Heightmap 16-bit PNG", "mayan_heightmap_16bit.png", "PNG Files (*.png);;All Files (*)")
+        if not path:
+            return
+        MayanCNCExporter.export_16bit_heightmap(self.current_z_grid, path)
+
+    def _export_wavefront_obj(self):
+        if self.current_z_grid is None:
+            self._update_stone_3d_render()
+        if self.current_z_grid is None:
+            return
+        path, _ = QFileDialog.getSaveFileName(self, "Exportar Malla OBJ 3D", "mayan_stone_tablet.obj", "OBJ Files (*.obj);;All Files (*)")
+        if not path:
+            return
+        w = self.cnc_width_spin.value()
+        h = self.cnc_height_spin.value()
+        d = self.cnc_depth_spin.value()
+        MayanCNCExporter.export_obj_file(
+            z_grid=self.current_z_grid,
+            output_path=path,
+            width_mm=w,
+            height_mm=h,
+            max_relief_depth_mm=d,
+            base_thickness_mm=6.0
+        )
+
+    def _save_stone_3d_photo(self):
+        if self.current_stone_image is None:
+            self._update_stone_3d_render()
+        if self.current_stone_image is None:
+            return
+        path, _ = QFileDialog.getSaveFileName(self, "Guardar Render Lítico Shaded", "mayan_stone_render.png", "PNG Images (*.png);;All Files (*)")
+        if not path:
+            return
+        self.current_stone_image.save(path)
 
     # ── SLOTS Y ACCIONES INTERACTIVAS ──
     def _on_preset_selected(self, idx: int):

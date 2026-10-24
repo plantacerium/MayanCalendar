@@ -13,6 +13,9 @@ Compatible with Antigravity IDE, Cursor, Claude Desktop, and JSON-RPC 2.0 stdio 
 """
 
 import sys
+import os
+import io
+import base64
 import json
 import traceback
 from typing import Dict, Any, List, Optional
@@ -58,6 +61,19 @@ MayanCalligraphicEngine = ml.MayanCalligraphicEngine
 GlyphAffixSlot = ml.GlyphAffixSlot
 GlyphCartoucheBlock = ml.GlyphCartoucheBlock
 SemanticPrismTranslation = ml.SemanticPrismTranslation
+
+try:
+    from mayan_thompson_catalog import MayanThompsonCatalog, render_thompson_glyph_svg
+    from mayan_stone_3d import MayanStone3DEngine, MayanStoneMaterials
+    from mayan_cnc_exporter import MayanCNCExporter
+except ImportError:
+    import importlib
+    MayanThompsonCatalog = importlib.import_module("mayan_thompson_catalog").MayanThompsonCatalog
+    render_thompson_glyph_svg = importlib.import_module("mayan_thompson_catalog").render_thompson_glyph_svg
+    MayanStone3DEngine = importlib.import_module("mayan_stone_3d").MayanStone3DEngine
+    MayanStoneMaterials = importlib.import_module("mayan_stone_3d").MayanStoneMaterials
+    MayanCNCExporter = importlib.import_module("mayan_cnc_exporter").MayanCNCExporter
+
 
 EPIGRAPHY_TOOLS = [
     {
@@ -334,6 +350,153 @@ EPIGRAPHY_TOOLS = [
         "inputSchema": {
             "type": "object",
             "properties": {}
+        }
+    },
+    {
+        "name": "mayan_render_stone_lighting",
+        "description": "Renderiza un relieve lítico maya en 3D con sombreado Blinn-Phong, simulación de luz rasante RTI (Reflectance Transformation Imaging), oclusión ambiental en hendiduras de cincel (AO) y materiales arqueológicos mesoamericanos calibrados (Caliza Palenque, Toba Verde Copán, Estuco Polícromo Rojo Cinabrio, Obsidiana Quiriguá, Madera Chicozapote Tikal). Devuelve la imagen fotorrealista sombreada en base64 o la guarda en disco.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "glyph_or_svg": {
+                    "type": "string",
+                    "default": "T751",
+                    "description": "Código Thompson (ej. 'T751', 'T1000', 'T501', 'T533') o string XML/SVG del glifo o estela."
+                },
+                "material": {
+                    "type": "string",
+                    "enum": ["caliza_palenque", "toba_copan", "estuco_policromado", "obsidiana_quirigua", "madera_tikal"],
+                    "default": "caliza_palenque",
+                    "description": "Material pétreo o pigmentario mesoamericano para el sombreado físico PBR."
+                },
+                "light_azimuth_deg": {
+                    "type": "number",
+                    "default": 45.0,
+                    "description": "Dirección horizontal de la luz incidente en grados (0°=Este, 90°=Norte, 180°=Oeste, 270°=Sur)."
+                },
+                "light_elevation_deg": {
+                    "type": "number",
+                    "default": 25.0,
+                    "description": "Ángulo de elevación rasante de la luz incidente (5°=luz casi paralela que revela micro-relieve, 80°=cenital)."
+                },
+                "relief_scale": {
+                    "type": "number",
+                    "default": 3.5,
+                    "description": "Factor de amplificación de profundidad y biselado en el cálculo de normales."
+                },
+                "width": {
+                    "type": "integer",
+                    "default": 512,
+                    "description": "Ancho en píxeles del mapa de altura y renderizado."
+                },
+                "height": {
+                    "type": "integer",
+                    "default": 512,
+                    "description": "Alto en píxeles del mapa de altura y renderizado."
+                },
+                "output_file": {
+                    "type": "string",
+                    "description": "Ruta de archivo opcional para guardar el render lítico sombreado (.png)."
+                }
+            }
+        }
+    },
+    {
+        "name": "mayan_generate_cnc_gcode",
+        "description": "Genera trayectorias y código de máquina G estándar ISO 6983 (.nc / .gcode) optimizado para fresadoras y routers CNC (GRBL, Mach3, LinuxCNC). Permite fresar bajorrelieves mayas en piedra caliza, madera o resina mediante pasadas adaptativas en Z con fresa en V (V-carving) o desbaste plano.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "glyph_or_svg": {
+                    "type": "string",
+                    "default": "T751",
+                    "description": "Código Thompson o string SVG del relieve."
+                },
+                "width_mm": {
+                    "type": "number",
+                    "default": 150.0,
+                    "description": "Ancho físico de la tableta lítica en milímetros."
+                },
+                "height_mm": {
+                    "type": "number",
+                    "default": 150.0,
+                    "description": "Alto físico de la tableta lítica en milímetros."
+                },
+                "max_depth_mm": {
+                    "type": "number",
+                    "default": 8.0,
+                    "description": "Profundidad máxima de corte en milímetros (Z=0 es la cara superior pulida, Z=-max_depth es el fondo desbastado)."
+                },
+                "safe_z_mm": {
+                    "type": "number",
+                    "default": 5.0,
+                    "description": "Altura segura de desplazamiento rápido Z en milímetros."
+                },
+                "feed_rate_mm_min": {
+                    "type": "number",
+                    "default": 1200.0,
+                    "description": "Velocidad de avance de mecanizado en mm/min."
+                },
+                "spindle_rpm": {
+                    "type": "integer",
+                    "default": 16000,
+                    "description": "Revoluciones por minuto del husillo o fresadora (RPM)."
+                },
+                "v_bit_angle_deg": {
+                    "type": "number",
+                    "default": 60.0,
+                    "description": "Ángulo de la fresa cónica en V en grados (ej. 60° o 90°)."
+                },
+                "output_file": {
+                    "type": "string",
+                    "description": "Ruta de archivo opcional para guardar el archivo .nc / .gcode en disco."
+                }
+            }
+        }
+    },
+    {
+        "name": "mayan_export_stone_3d_mesh",
+        "description": "Exporta la geometría física 3D de una inscripción o glifo maya para fabricación digital aditiva (Impresoras 3D SLA/FDM) o sustratos CAD/CAM. Genera mallas sólidas cerradas Watertight Manifold en formato STL binario (.stl), modelos Wavefront OBJ con UVs (.obj) o mapas de desplazamiento de 16 bits sin artefactos de bandas (.png / 65.536 niveles).",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "glyph_or_svg": {
+                    "type": "string",
+                    "default": "T751",
+                    "description": "Código Thompson o string SVG."
+                },
+                "export_format": {
+                    "type": "string",
+                    "enum": ["stl", "obj", "heightmap_16bit"],
+                    "default": "stl",
+                    "description": "Formato de exportación: 'stl' (sólido binario 3D), 'obj' (Wavefront con UVs), o 'heightmap_16bit' (PNG 16-bit)."
+                },
+                "output_file": {
+                    "type": "string",
+                    "description": "Ruta de destino del archivo exportado (.stl, .obj o .png)."
+                },
+                "width_mm": {
+                    "type": "number",
+                    "default": 150.0,
+                    "description": "Ancho físico de la pieza en milímetros."
+                },
+                "height_mm": {
+                    "type": "number",
+                    "default": 150.0,
+                    "description": "Alto físico de la pieza en milímetros."
+                },
+                "max_depth_mm": {
+                    "type": "number",
+                    "default": 8.0,
+                    "description": "Profundidad máxima del bajorrelieve en milímetros."
+                },
+                "base_thickness_mm": {
+                    "type": "number",
+                    "default": 6.0,
+                    "description": "Espesor de la base inferior plana sólida de la tableta en milímetros (para STL y OBJ)."
+                }
+            },
+            "required": ["output_file"]
         }
     }
 ]
@@ -654,7 +817,6 @@ def execute_epigraphy_tool(name: str, args: Dict[str, Any]) -> str:
         return json.dumps(output, ensure_ascii=False, indent=2)
 
     elif name == "mayan_get_thompson_glyph":
-        from mayan_thompson_catalog import MayanThompsonCatalog, render_thompson_glyph_svg
         t_code = args.get("t_code", "T533")
         theme = args.get("theme", "obsidian")
         size = float(args.get("size", 240.0))
@@ -685,7 +847,6 @@ def execute_epigraphy_tool(name: str, args: Dict[str, Any]) -> str:
         }, ensure_ascii=False, indent=2)
 
     elif name == "mayan_search_corpus_800":
-        from mayan_thompson_catalog import MayanThompsonCatalog
         query = args.get("query", "")
         category = args.get("category", "all")
         limit = int(args.get("limit", 25))
@@ -715,7 +876,6 @@ def execute_epigraphy_tool(name: str, args: Dict[str, Any]) -> str:
         }, ensure_ascii=False, indent=2)
 
     elif name == "mayan_list_thompson_categories":
-        from mayan_thompson_catalog import MayanThompsonCatalog
         stats = MayanThompsonCatalog.get_category_stats()
         cats = [
             {"id": k, "name": v, "glyph_count": stats.get(k, 0)}
@@ -725,6 +885,174 @@ def execute_epigraphy_tool(name: str, args: Dict[str, Any]) -> str:
             "status": "success",
             "total_glyphs_indexed": stats.get("all", 1066),
             "categories": cats
+        }, ensure_ascii=False, indent=2)
+
+    elif name == "mayan_render_stone_lighting":
+        raw = args.get("glyph_or_svg", "T751").strip()
+        mat_name = args.get("material", "caliza_palenque")
+        az = float(args.get("light_azimuth_deg", 45.0))
+        el = float(args.get("light_elevation_deg", 25.0))
+        rel = float(args.get("relief_scale", 3.5))
+        w = int(args.get("width", 512))
+        h = int(args.get("height", 512))
+        out_file = args.get("output_file")
+
+        if raw.startswith("<svg") or "<path" in raw:
+            svg_str = raw
+            source_info = "custom_svg"
+        else:
+            t_id = raw if raw.upper().startswith("T") else f"T{raw}"
+            svg_str = render_thompson_glyph_svg(t_id, size=float(min(w, h)), theme="heightmap")
+            entry = MayanThompsonCatalog.get_entry(t_id)
+            source_info = f"{t_id} ({entry.name if entry else 'Thompson Sign'})"
+
+        pil_img = MayanStone3DEngine.render_stone_image(
+            svg_str=svg_str,
+            light_azimuth_deg=az,
+            light_elevation_deg=el,
+            material_name=mat_name,
+            relief_scale=rel,
+            width=w,
+            height=h
+        )
+
+        saved_path = None
+        if out_file:
+            pil_img.save(out_file)
+            saved_path = os.path.abspath(out_file)
+
+        buf = io.BytesIO()
+        pil_img.save(buf, format="PNG")
+        b64_str = base64.b64encode(buf.getvalue()).decode("ascii")
+
+        mat = MayanStoneMaterials.get_material(mat_name)
+        return json.dumps({
+            "status": "success",
+            "source": source_info,
+            "material": {
+                "id": mat.name,
+                "description": mat.description,
+                "diffuse_kd": mat.diffuse_kd,
+                "specular_ks": mat.specular_ks,
+                "specular_power": mat.specular_power
+            },
+            "lighting": {
+                "azimuth_deg": az,
+                "elevation_deg": el,
+                "relief_scale": rel
+            },
+            "dimensions": {"width_px": w, "height_px": h},
+            "saved_file": saved_path,
+            "image_data_uri": f"data:image/png;base64,{b64_str[:120]}... [total {len(b64_str)} chars]"
+        }, ensure_ascii=False, indent=2)
+
+    elif name == "mayan_generate_cnc_gcode":
+        raw = args.get("glyph_or_svg", "T751").strip()
+        w_mm = float(args.get("width_mm", 150.0))
+        h_mm = float(args.get("height_mm", 150.0))
+        d_mm = float(args.get("max_depth_mm", 8.0))
+        safe_z = float(args.get("safe_z_mm", 5.0))
+        feed = float(args.get("feed_rate_mm_min", 1200.0))
+        rpm = int(args.get("spindle_rpm", 16000))
+        v_angle = float(args.get("v_bit_angle_deg", 60.0))
+        out_file = args.get("output_file")
+
+        if raw.startswith("<svg") or "<path" in raw:
+            svg_str = raw
+        else:
+            t_id = raw if raw.upper().startswith("T") else f"T{raw}"
+            svg_str = render_thompson_glyph_svg(t_id, size=420.0, theme="heightmap")
+
+        z_raw = MayanStone3DEngine.rasterize_svg_to_height_grid(svg_str, target_width=512, target_height=512)
+        z_grid = MayanStone3DEngine.synthesize_volumetric_relief(z_raw)
+        gcode_text = MayanCNCExporter.generate_gcode(
+            z_grid=z_grid,
+            width_mm=w_mm,
+            height_mm=h_mm,
+            max_depth_mm=d_mm,
+            safe_z_mm=safe_z,
+            feed_rate_mm_min=feed,
+            spindle_rpm=rpm,
+            v_bit_angle_deg=v_angle
+        )
+
+        saved_path = None
+        if out_file:
+            with open(out_file, "w", encoding="utf-8") as f:
+                f.write(gcode_text)
+            saved_path = os.path.abspath(out_file)
+
+        lines = gcode_text.splitlines()
+        return json.dumps({
+            "status": "success",
+            "dimensions_mm": {"width": w_mm, "height": h_mm, "max_depth": d_mm},
+            "machining_params": {
+                "safe_z_mm": safe_z,
+                "feed_rate_mm_min": feed,
+                "spindle_rpm": rpm,
+                "v_bit_angle_deg": v_angle
+            },
+            "total_gcode_lines": len(lines),
+            "preview_snippet": lines[:25],
+            "saved_file": saved_path
+        }, ensure_ascii=False, indent=2)
+
+    elif name == "mayan_export_stone_3d_mesh":
+        raw = args.get("glyph_or_svg", "T751").strip()
+        fmt = args.get("export_format", "stl").lower()
+        out_file = args.get("output_file")
+        if not out_file:
+            out_file = f"mayan_tablet.{fmt if fmt != 'heightmap_16bit' else 'png'}"
+
+        w_mm = float(args.get("width_mm", 150.0))
+        h_mm = float(args.get("height_mm", 150.0))
+        d_mm = float(args.get("max_depth_mm", 8.0))
+        base_mm = float(args.get("base_thickness_mm", 6.0))
+
+        if raw.startswith("<svg") or "<path" in raw:
+            svg_str = raw
+        else:
+            t_id = raw if raw.upper().startswith("T") else f"T{raw}"
+            svg_str = render_thompson_glyph_svg(t_id, size=420.0, theme="heightmap")
+
+        z_raw = MayanStone3DEngine.rasterize_svg_to_height_grid(svg_str, target_width=512, target_height=512)
+        z_grid = MayanStone3DEngine.synthesize_volumetric_relief(z_raw)
+
+        if fmt == "stl":
+            MayanCNCExporter.export_stl_file(
+                z_grid=z_grid,
+                output_path=out_file,
+                width_mm=w_mm,
+                height_mm=h_mm,
+                max_relief_depth_mm=d_mm,
+                base_thickness_mm=base_mm
+            )
+            mesh_type = "Watertight Solid Binary STL (524,288 triangles)"
+        elif fmt == "obj":
+            MayanCNCExporter.export_obj_file(
+                z_grid=z_grid,
+                output_path=out_file,
+                width_mm=w_mm,
+                height_mm=h_mm,
+                max_relief_depth_mm=d_mm,
+                base_thickness_mm=base_mm
+            )
+            mesh_type = "Wavefront OBJ Mesh with UVs"
+        elif fmt in ("heightmap_16bit", "png"):
+            MayanCNCExporter.export_16bit_heightmap(z_grid, out_file)
+            mesh_type = "16-bit Grayscale Heightmap PNG (65,536 depth levels)"
+        else:
+            raise ValueError(f"Formato no soportado: '{fmt}'. Use 'stl', 'obj' o 'heightmap_16bit'.")
+
+        file_size = os.path.getsize(out_file) if os.path.exists(out_file) else 0
+
+        return json.dumps({
+            "status": "success",
+            "format": fmt,
+            "mesh_type": mesh_type,
+            "output_path": os.path.abspath(out_file),
+            "file_size_bytes": file_size,
+            "dimensions_mm": {"width": w_mm, "height": h_mm, "max_depth": d_mm, "base_thickness": base_mm}
         }, ensure_ascii=False, indent=2)
 
     else:

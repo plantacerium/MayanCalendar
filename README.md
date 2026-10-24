@@ -1,6 +1,6 @@
 
 
-# Mayan Stele - Language & Ultimate Calendar, Fractal Pattern Analyzer & MCP Server
+# Mayan Stele - Ultimate Calendar, Fractal Pattern Analyzer & MCP Server
 
 A comprehensive, mathematically rigorous Mayan calendar application and **Model Context Protocol (MCP)** server built with Python and PySide6. Convert any Gregorian date to its exact Mayan equivalent, compute Kuramoto phase synchronization across planetary cycles, detect Dresden Codex eclipse windows, explore biocymatic/genetic resonances, and empower AI agents to interact with ancient mesoamerican chronometry.
 
@@ -59,6 +59,7 @@ A comprehensive, mathematically rigorous Mayan calendar application and **Model 
    - [🖋️ Taller del Escriba (Cartucho 2D Topológico)](#2-️-taller-del-escriba-cartucho-2d-topológico)
    - [🔣 Matriz del Silabario Fonético (95 Sílabas CV & Resonancia Kototama)](#3--matriz-del-silabario-fonético-95-sílabas-cv--resonancia-kototama)
    - [🏛️ Corpus Thompson (+860 Glifos Mayas: T1–T1066) & Códice](#4-️-corpus-thompson-860-glifos-mayas-t1t1066--códice)
+   - [🗿 Talla Lítica 3D, Iluminación RTI & Taller CNC](#5-️-talla-lítica-3d-iluminación-rti--taller-cnc-mayan_stone_3dpy--mayan_cnc_exporterpy)
 6. [Multi-Format Profile Exporter (`mayan_exporter.py`)](#multi-format-profile-exporter)
 7. [Installation & Quickstart](#installation--quickstart)
 8. [License & Acknowledgments](#license--acknowledgments)
@@ -73,7 +74,7 @@ The repository consists of four core modular engines working seamlessly together
 graph TD
     A["MayanConverter (mayan-stele.py)"] --> B["FractalPatternAnalyzer (mayan-stele.py)"]
     A --> D["Operaciones & Distance Numbers (mayan-stele.py)"]
-    A --> E["Resonancia Biológica & Kototama (resonaxers.py repository)"]
+    A --> E["Resonancia Biológica & Kototama (resonaxers.py)"]
     B --> F["Kuramoto Dynamical Sync (R, Psi)"]
     B --> G["Dresden Codex 11,960d Eclipse Engine"]
     A --> H["MayanProfileExporter (mayan_exporter.py)"]
@@ -164,7 +165,7 @@ Add the server configuration to your MCP settings or plugin directory:
 
 ### Available MCP Tools Reference
 
-The unified server exposes **24 specialized tools** across high-precision astronomy, chronometry, and epigraphy:
+The unified server exposes **27 specialized tools** across high-precision astronomy, chronometry, epigraphy, 3D stone rendering, and CNC fabrication:
 
 | Tool Name | Purpose | Key Arguments |
 |-----------|---------|---------------|
@@ -192,6 +193,9 @@ The unified server exposes **24 specialized tools** across high-precision astron
 | `mayan_get_thompson_glyph` | Retrieves archaeological dossier + standalone SVG vector for any Thompson sign (T1–T1066) | `t_code`, `theme`, `size` |
 | `mayan_search_corpus_800` | Free-text and category search across the entire +860 Thompson Glyph Corpus | `query`, `category`, `limit` |
 | `mayan_list_thompson_categories` | Lists all 8 taxonomic families with descriptions and live glyph counts | *(none)* |
+| `mayan_render_stone_lighting` | Photorealistic 3D bas-relief shader with Blinn-Phong + RTI grazing light + AO across 5 Mesoamerican materials | `glyph_or_svg`, `material`, `light_azimuth_deg`, `light_elevation_deg`, `relief_scale` |
+| `mayan_generate_cnc_gcode` | Standard ISO 6983 G-code generator for CNC routers & V-carving engraving passes | `glyph_or_svg`, `width_mm`, `height_mm`, `max_depth_mm`, `safe_z_mm`, `feed_rate_mm_min`, `spindle_rpm`, `v_bit_angle_deg` |
+| `mayan_export_stone_3d_mesh` | Exports watertight 3D solid STL binary mesh, Wavefront OBJ, or 16-bit PNG displacement heightmap | `glyph_or_svg`, `export_format` (stl/obj/heightmap_16bit), `output_file`, `width_mm`, `height_mm`, `max_depth_mm` |
 
 ---
 
@@ -502,7 +506,7 @@ graph TD
     C --> D["Empaquetador Topológico Cartucho 2D (Superfijo, Prefijo, Principal, Subfijo, Postfijo)"]
     D --> E["Bóveda Vectorial Thompson (+860 Glifos T1–T1066)"]
     E --> F["Renderizado Vectorial SVG / PySide6 (Cero Imágenes PNG Pesadas)"]
-    D & E --> G["Servidor MCP JSON-RPC 2.0 (10 Tools Epigráficas)"]
+    D & E --> G["Servidor MCP JSON-RPC 2.0 (13 Tools Epigráficas)"]
 ```
 
 ### 1. 📜 Compositor ES/EN ➔ Maya & Prisma Semántico de 4 Capas
@@ -544,6 +548,29 @@ Complete archaeological catalog indexing all Thompson glyphs (T1 to T1066) and M
 
 <p align="center">
   <img src="./assets/screenshots/mayan_lang/mayan_lang_tab3_thompson_corpus.png" alt="Mayan Epigraphy - Corpus Thompson +860 Glifos Mayas" width="100%" />
+</p>
+
+### 5. 🗿 Talla Lítica 3D, Iluminación RTI & Taller CNC (`mayan_stone_3d.py` & `mayan_cnc_exporter.py`)
+Advanced physical bas-relief simulator, RTI grazing lighting engine, and industrial digital fabrication suite:
+- **RTI Grazing Lighting Simulator (Reflectance Transformation Imaging)**: Interactive azimuth ($0^\circ-360^\circ$) and elevation ($5^\circ-85^\circ$) grazing light sliders exposing micro-relief and chisel toolmarks with Blinn-Phong specular and Lambertian shading.
+- **5 Calibrated Mesoamerican Historical Materials**:
+  1. *Caliza Fina de Palenque*: Fine-grain warm limestone, ivory albedo, medium porosity.
+  2. *Toba Volcánica Verde de Copán*: Greenish andesitic volcanic tuff with mineral speckles.
+  3. *Estuco Polícromo Clásico*: Aged white lime ground, cinnabar red / hematite crests, Maya blue carved accents.
+  4. *Obsidiana Negra de Quiriguá*: Dark volcanic glass with prismatic specular highlights.
+  5. *Madera de Chicozapote de Tikal*: Dense polished ironwood with deep reddish grain.
+- **Industrial CNC & Digital Fabrication Suite**:
+  - *Standard ISO 6983 G-code (`.nc` / `.gcode`)*: Adaptive Z passes optimized for V-bit (60°/90°) engraving and pocketing on GRBL, Mach3, LinuxCNC, and Shapeoko.
+  - *Watertight Solid 3D STL (`.stl`)*: Manifold 3D solid model with relief top, flat base, and perimeter walls for SLA/FDM 3D printing.
+  - *16-Bit Displacement Heightmap (`.png`)*: 65,536 discrete depth levels for Vectric Aspire, ArtCAM, and Carveco.
+  - *Wavefront OBJ Mesh (`.obj`)*: 3D polygonal geometry with complete UV mapping for Blender and Unreal Engine.
+
+<p align="center">
+  <img src="./assets/screenshots/mayan_lang/mayan_lang_tab4_stone_3d.png" alt="Mayan Epigraphy - Talla Lítica 3D & Iluminación RTI (Caliza Palenque)" width="100%" />
+</p>
+
+<p align="center">
+  <img src="./assets/screenshots/mayan_lang/mayan_lang_tab4_stone_3d_full_stele.png" alt="Mayan Epigraphy - Estuco Polícromo Rojo Cinabrio y Azul Maya" width="100%" />
 </p>
 
 ---
