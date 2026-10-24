@@ -73,7 +73,7 @@ The repository consists of four core modular engines working seamlessly together
 graph TD
     A["MayanConverter (mayan-stele.py)"] --> B["FractalPatternAnalyzer (mayan-stele.py)"]
     A --> D["Operaciones & Distance Numbers (mayan-stele.py)"]
-    A --> E["Resonancia Biológica & Kototama (resonaxers.py)"]
+    A --> E["Resonancia Biológica & Kototama (resonaxers.py repository)"]
     B --> F["Kuramoto Dynamical Sync (R, Psi)"]
     B --> G["Dresden Codex 11,960d Eclipse Engine"]
     A --> H["MayanProfileExporter (mayan_exporter.py)"]
